@@ -1,0 +1,592 @@
+{
+ "dataset_version": "v0-synthetic",
+ "generated_by": "service/tools/gen_rfp_packs.py",
+ "cases": {
+  "P01": {
+   "proposal_id": "P01",
+   "pack": "packs/P01",
+   "style": "brief",
+   "issued_at": "2024-02-20T09:00:00+04:00",
+   "fields": {
+    "client_name": "Marina Crest Developments LLC",
+    "client_status": "repeat",
+    "country": "AE",
+    "city": "Dubai",
+    "typology": "residential",
+    "services": [
+     "architecture",
+     "interior_design"
+    ],
+    "stage_package": [
+     "concept",
+     "schematic_design",
+     "design_development"
+    ],
+    "gfa_m2": 62000,
+    "site_area_m2": 4800,
+    "fitout_area_m2": 5200,
+    "landscape_area_m2": null,
+    "units": 410,
+    "keys": null,
+    "submission_deadline": "2024-03-12T14:00:00+04:00",
+    "liability_cap": "capped",
+    "payment_terms_days": 30
+   },
+   "conflicts": [],
+   "special_requests": [
+    "Interior design of the off-plan sales gallery"
+   ],
+   "traps": [
+    "bua_label",
+    "deadline_only_in_email",
+    "client_name_variant"
+   ]
+  },
+  "P02": {
+   "proposal_id": "P02",
+   "pack": "packs/P02",
+   "style": "matrix",
+   "issued_at": "2025-01-13T09:00:00+04:00",
+   "fields": {
+    "client_name": "Coral Bay Hospitality Holdings",
+    "client_status": "new",
+    "country": "AE",
+    "city": "Ras Al Khaimah",
+    "typology": "hospitality",
+    "services": [
+     "architecture",
+     "interior_design",
+     "landscape"
+    ],
+    "stage_package": [
+     "concept",
+     "schematic_design",
+     "design_development",
+     "gfc_review"
+    ],
+    "gfa_m2": 38000,
+    "site_area_m2": 62000,
+    "fitout_area_m2": 21000,
+    "landscape_area_m2": 41000,
+    "units": null,
+    "keys": 220,
+    "submission_deadline": "2025-02-03T14:00:00+04:00",
+    "liability_cap": "capped",
+    "payment_terms_days": 30
+   },
+   "conflicts": [
+    {
+     "field": "gfa_m2",
+     "values": [
+      38000,
+      42180
+     ],
+     "documents": [
+      "area_schedule",
+      "main_rfp"
+     ]
+    }
+   ],
+   "special_requests": [
+    "Unlimited design revisions at concept stage",
+    "Lighting design concept for public areas"
+   ],
+   "traps": [
+    "hectares",
+    "bua_label",
+    "regional_stage_names",
+    "gfa_conflict"
+   ]
+  },
+  "P03": {
+   "proposal_id": "P03",
+   "pack": "packs/P03",
+   "style": "tender",
+   "issued_at": "2025-05-28T09:00:00+03:00",
+   "fields": {
+    "client_name": "Al Noor Urban Investment Co.",
+    "client_status": "new",
+    "country": "SA",
+    "city": "Riyadh",
+    "typology": "mixed_use",
+    "services": [
+     "architecture",
+     "landscape"
+    ],
+    "stage_package": [
+     "concept",
+     "schematic_design"
+    ],
+    "gfa_m2": 145000,
+    "site_area_m2": 38000,
+    "fitout_area_m2": null,
+    "landscape_area_m2": 16000,
+    "units": 520,
+    "keys": null,
+    "submission_deadline": "2025-06-18T14:00:00+03:00",
+    "liability_cap": "uncapped",
+    "payment_terms_days": 30
+   },
+   "conflicts": [],
+   "special_requests": [],
+   "traps": [
+    "bua_label",
+    "regional_stage_names"
+   ]
+  },
+  "P04": {
+   "proposal_id": "P04",
+   "pack": "packs/P04",
+   "style": "brief",
+   "issued_at": "2023-09-04T09:00:00+04:00",
+   "fields": {
+    "client_name": "Oasis Living Properties",
+    "client_status": "repeat",
+    "country": "AE",
+    "city": "Al Ain",
+    "typology": "residential",
+    "services": [
+     "architecture",
+     "landscape",
+     "masterplan"
+    ],
+    "stage_package": [
+     "concept",
+     "schematic_design",
+     "design_development"
+    ],
+    "gfa_m2": 48000,
+    "site_area_m2": 320000,
+    "fitout_area_m2": null,
+    "landscape_area_m2": 95000,
+    "units": 120,
+    "keys": null,
+    "submission_deadline": "2023-09-25T14:00:00+04:00",
+    "liability_cap": "capped",
+    "payment_terms_days": 30
+   },
+   "conflicts": [],
+   "special_requests": [],
+   "traps": [
+    "hectares",
+    "bua_label",
+    "deadline_only_in_email"
+   ]
+  },
+  "P05": {
+   "proposal_id": "P05",
+   "pack": "packs/P05",
+   "style": "matrix",
+   "issued_at": "2024-04-16T09:00:00+02:00",
+   "fields": {
+    "client_name": "Inmobiliaria Diagonal Norte S.L.",
+    "client_status": "new",
+    "country": "ES",
+    "city": "Barcelona",
+    "typology": "office",
+    "services": [
+     "architecture",
+     "interior_design"
+    ],
+    "stage_package": [
+     "concept",
+     "schematic_design",
+     "design_development"
+    ],
+    "gfa_m2": 18500,
+    "site_area_m2": 3100,
+    "fitout_area_m2": 14000,
+    "landscape_area_m2": null,
+    "units": null,
+    "keys": null,
+    "submission_deadline": "2024-05-07T14:00:00+02:00",
+    "liability_cap": "capped",
+    "payment_terms_days": 30
+   },
+   "conflicts": [],
+   "special_requests": [],
+   "traps": [
+    "regional_stage_names",
+    "xlsx_area_schedule"
+   ]
+  },
+  "P06": {
+   "proposal_id": "P06",
+   "pack": "packs/P06",
+   "style": "tender",
+   "issued_at": "2025-04-01T09:00:00+02:00",
+   "fields": {
+    "client_name": "Costa Luz Hoteles S.A.",
+    "client_status": "repeat",
+    "country": "ES",
+    "city": "Malaga",
+    "typology": "hospitality",
+    "services": [
+     "architecture",
+     "interior_design",
+     "landscape"
+    ],
+    "stage_package": [
+     "concept",
+     "schematic_design"
+    ],
+    "gfa_m2": 9800,
+    "site_area_m2": 5400,
+    "fitout_area_m2": 6500,
+    "landscape_area_m2": 2800,
+    "units": null,
+    "keys": 85,
+    "submission_deadline": "2025-04-22T14:00:00+02:00",
+    "liability_cap": "capped",
+    "payment_terms_days": 30
+   },
+   "conflicts": [],
+   "special_requests": [],
+   "traps": [
+    "regional_stage_names",
+    "client_name_variant"
+   ]
+  },
+  "P07": {
+   "proposal_id": "P07",
+   "pack": "packs/P07",
+   "style": "brief",
+   "issued_at": "2024-07-24T09:00:00+08:00",
+   "fields": {
+    "client_name": "Straits Commercial REIT",
+    "client_status": "new",
+    "country": "SG",
+    "city": "Singapore",
+    "typology": "office",
+    "services": [
+     "architecture"
+    ],
+    "stage_package": [
+     "feasibility",
+     "concept"
+    ],
+    "gfa_m2": 74000,
+    "site_area_m2": 6200,
+    "fitout_area_m2": null,
+    "landscape_area_m2": null,
+    "units": null,
+    "keys": null,
+    "submission_deadline": "2024-08-14T14:00:00+08:00",
+    "liability_cap": "capped",
+    "payment_terms_days": 30
+   },
+   "conflicts": [],
+   "special_requests": [],
+   "traps": [
+    "deadline_only_in_email"
+   ]
+  },
+  "P08": {
+   "proposal_id": "P08",
+   "pack": "packs/P08",
+   "style": "matrix",
+   "issued_at": "2024-12-30T09:00:00+08:00",
+   "fields": {
+    "client_name": "Harbourline Residences Pte Ltd",
+    "client_status": "repeat",
+    "country": "SG",
+    "city": "Singapore",
+    "typology": "residential",
+    "services": [
+     "architecture",
+     "interior_design",
+     "landscape"
+    ],
+    "stage_package": [
+     "concept",
+     "schematic_design",
+     "design_development",
+     "construction_review"
+    ],
+    "gfa_m2": 41000,
+    "site_area_m2": 15500,
+    "fitout_area_m2": 3800,
+    "landscape_area_m2": 8200,
+    "units": 360,
+    "keys": null,
+    "submission_deadline": "2025-01-20T14:00:00+08:00",
+    "liability_cap": "capped",
+    "payment_terms_days": 30
+   },
+   "conflicts": [
+    {
+     "field": "gfa_m2",
+     "values": [
+      41000,
+      36900
+     ],
+     "documents": [
+      "area_schedule",
+      "main_rfp"
+     ]
+    }
+   ],
+   "special_requests": [],
+   "traps": [
+    "regional_stage_names",
+    "client_name_variant",
+    "gfa_conflict"
+   ]
+  },
+  "P09": {
+   "proposal_id": "P09",
+   "pack": "packs/P09",
+   "style": "tender",
+   "issued_at": "2024-03-12T09:00:00+07:00",
+   "fields": {
+    "client_name": "Saigon Riverside Land JSC",
+    "client_status": "new",
+    "country": "VN",
+    "city": "Ho Chi Minh City",
+    "typology": "mixed_use",
+    "services": [
+     "architecture",
+     "interior_design",
+     "landscape"
+    ],
+    "stage_package": [
+     "concept",
+     "schematic_design",
+     "design_development",
+     "gfc_review"
+    ],
+    "gfa_m2": 96000,
+    "site_area_m2": 7400,
+    "fitout_area_m2": 12000,
+    "landscape_area_m2": 3500,
+    "units": 380,
+    "keys": 160,
+    "submission_deadline": "2024-04-02T14:00:00+07:00",
+    "liability_cap": "uncapped",
+    "payment_terms_days": 90
+   },
+   "conflicts": [],
+   "special_requests": [
+    "Height-limit negotiation support with the authorities"
+   ],
+   "traps": [
+    "regional_stage_names",
+    "xlsx_area_schedule"
+   ]
+  },
+  "P10": {
+   "proposal_id": "P10",
+   "pack": "packs/P10",
+   "style": "brief",
+   "issued_at": "2026-01-26T09:00:00+07:00",
+   "fields": {
+    "client_name": "Han River Resorts JSC",
+    "client_status": "repeat",
+    "country": "VN",
+    "city": "Da Nang",
+    "typology": "hospitality",
+    "services": [
+     "architecture",
+     "interior_design",
+     "landscape",
+     "masterplan"
+    ],
+    "stage_package": [
+     "concept",
+     "schematic_design"
+    ],
+    "gfa_m2": 26000,
+    "site_area_m2": 140000,
+    "fitout_area_m2": 14000,
+    "landscape_area_m2": 60000,
+    "units": null,
+    "keys": 180,
+    "submission_deadline": "2026-02-16T14:00:00+07:00",
+    "liability_cap": "capped",
+    "payment_terms_days": 30
+   },
+   "conflicts": [],
+   "special_requests": [],
+   "traps": [
+    "hectares",
+    "deadline_only_in_email",
+    "client_name_variant"
+   ]
+  },
+  "P11": {
+   "proposal_id": "P11",
+   "pack": "packs/P11",
+   "style": "matrix",
+   "issued_at": "2023-10-16T09:00:00+08:00",
+   "fields": {
+    "client_name": "Pearl Delta Technology Group",
+    "client_status": "new",
+    "country": "CN",
+    "city": "Guangzhou",
+    "typology": "office",
+    "services": [
+     "architecture",
+     "landscape"
+    ],
+    "stage_package": [
+     "concept",
+     "schematic_design",
+     "design_development"
+    ],
+    "gfa_m2": 88000,
+    "site_area_m2": 52000,
+    "fitout_area_m2": null,
+    "landscape_area_m2": 26000,
+    "units": null,
+    "keys": null,
+    "submission_deadline": "2023-11-06T14:00:00+08:00",
+    "liability_cap": "capped",
+    "payment_terms_days": 30
+   },
+   "conflicts": [
+    {
+     "field": "gfa_m2",
+     "values": [
+      88000,
+      95040
+     ],
+     "documents": [
+      "area_schedule",
+      "main_rfp"
+     ]
+    }
+   ],
+   "special_requests": [
+    "Support for LEED Gold certification"
+   ],
+   "traps": [
+    "hectares",
+    "regional_stage_names",
+    "gfa_conflict"
+   ]
+  },
+  "P12": {
+   "proposal_id": "P12",
+   "pack": "packs/P12",
+   "style": "tender",
+   "issued_at": "2024-07-08T09:00:00+08:00",
+   "fields": {
+    "client_name": "Foshan New District Development Co.",
+    "client_status": "new",
+    "country": "CN",
+    "city": "Foshan",
+    "typology": "masterplan",
+    "services": [
+     "masterplan"
+    ],
+    "stage_package": [
+     "feasibility",
+     "concept"
+    ],
+    "gfa_m2": null,
+    "site_area_m2": 1200000,
+    "fitout_area_m2": null,
+    "landscape_area_m2": null,
+    "units": null,
+    "keys": null,
+    "submission_deadline": "2024-07-29T14:00:00+08:00",
+    "liability_cap": "capped",
+    "payment_terms_days": 90
+   },
+   "conflicts": [],
+   "special_requests": [],
+   "traps": [
+    "hectares"
+   ]
+  },
+  "P13": {
+   "proposal_id": "P13",
+   "pack": "packs/P13",
+   "style": "brief",
+   "issued_at": "2025-08-20T09:00:00+05:30",
+   "fields": {
+    "client_name": "Arabian Sea Realty Pvt Ltd",
+    "client_status": "new",
+    "country": "IN",
+    "city": "Mumbai",
+    "typology": "residential",
+    "services": [
+     "architecture",
+     "interior_design"
+    ],
+    "stage_package": [
+     "concept",
+     "schematic_design",
+     "design_development"
+    ],
+    "gfa_m2": 110000,
+    "site_area_m2": 9500,
+    "fitout_area_m2": 4500,
+    "landscape_area_m2": null,
+    "units": 640,
+    "keys": null,
+    "submission_deadline": "2025-09-10T14:00:00+05:30",
+    "liability_cap": "uncapped",
+    "payment_terms_days": 30
+   },
+   "conflicts": [],
+   "special_requests": [
+    "3D walkthrough animation for marketing"
+   ],
+   "traps": [
+    "sqft_indian_grouping",
+    "regional_stage_names",
+    "deadline_only_in_email"
+   ]
+  },
+  "P14": {
+   "proposal_id": "P14",
+   "pack": "packs/P14",
+   "style": "matrix",
+   "issued_at": "2026-02-11T09:00:00+04:00",
+   "fields": {
+    "client_name": "Marina Crest Developments LLC",
+    "client_status": "repeat",
+    "country": "AE",
+    "city": "Dubai",
+    "typology": "office",
+    "services": [
+     "architecture",
+     "interior_design"
+    ],
+    "stage_package": [
+     "concept",
+     "schematic_design"
+    ],
+    "gfa_m2": 27000,
+    "site_area_m2": 3600,
+    "fitout_area_m2": 9000,
+    "landscape_area_m2": null,
+    "units": null,
+    "keys": null,
+    "submission_deadline": "2026-03-04T14:00:00+04:00",
+    "liability_cap": "capped",
+    "payment_terms_days": 30
+   },
+   "conflicts": [
+    {
+     "field": "gfa_m2",
+     "values": [
+      27000,
+      31050
+     ],
+     "documents": [
+      "area_schedule",
+      "main_rfp"
+     ]
+    }
+   ],
+   "special_requests": [],
+   "traps": [
+    "bua_label",
+    "client_name_variant",
+    "gfa_conflict"
+   ]
+  }
+ }
+}
