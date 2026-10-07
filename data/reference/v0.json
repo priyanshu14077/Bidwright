@@ -1,0 +1,1092 @@
+{
+ "version": "v0",
+ "note": "PoC reference data. Typology/service/stage codes come from the synthetic archive schema; markets, synonyms and rules are Fruition assumptions to confirm with SOG.",
+ "countries": [
+  [
+   "AE",
+   "United Arab Emirates",
+   "GCC",
+   "AED",
+   "m2",
+   [
+    "uae",
+    "u.a.e.",
+    "emirates"
+   ]
+  ],
+  [
+   "SA",
+   "Saudi Arabia",
+   "GCC",
+   "SAR",
+   "m2",
+   [
+    "ksa",
+    "kingdom of saudi arabia"
+   ]
+  ],
+  [
+   "QA",
+   "Qatar",
+   "GCC",
+   "QAR",
+   "m2",
+   []
+  ],
+  [
+   "KW",
+   "Kuwait",
+   "GCC",
+   "KWD",
+   "m2",
+   []
+  ],
+  [
+   "BH",
+   "Bahrain",
+   "GCC",
+   "BHD",
+   "m2",
+   []
+  ],
+  [
+   "OM",
+   "Oman",
+   "GCC",
+   "OMR",
+   "m2",
+   [
+    "sultanate of oman"
+   ]
+  ],
+  [
+   "EG",
+   "Egypt",
+   "Levant & North Africa",
+   "EGP",
+   "m2",
+   []
+  ],
+  [
+   "JO",
+   "Jordan",
+   "Levant & North Africa",
+   "JOD",
+   "m2",
+   []
+  ],
+  [
+   "IN",
+   "India",
+   "South Asia",
+   "INR",
+   "sqft",
+   []
+  ],
+  [
+   "SG",
+   "Singapore",
+   "Southeast Asia",
+   "SGD",
+   "m2",
+   []
+  ],
+  [
+   "VN",
+   "Vietnam",
+   "Southeast Asia",
+   "VND",
+   "m2",
+   [
+    "viet nam"
+   ]
+  ],
+  [
+   "CN",
+   "China",
+   "East Asia",
+   "CNY",
+   "m2",
+   [
+    "prc",
+    "people's republic of china"
+   ]
+  ],
+  [
+   "AU",
+   "Australia",
+   "Oceania",
+   "AUD",
+   "m2",
+   []
+  ],
+  [
+   "ES",
+   "Spain",
+   "Europe",
+   "EUR",
+   "m2",
+   [
+    "españa"
+   ]
+  ]
+ ],
+ "locations": [
+  [
+   "AE",
+   "Dubai",
+   "prime",
+   []
+  ],
+  [
+   "AE",
+   "Abu Dhabi",
+   "prime",
+   []
+  ],
+  [
+   "AE",
+   "Sharjah",
+   "second",
+   []
+  ],
+  [
+   "AE",
+   "Ras Al Khaimah",
+   "second",
+   [
+    "rak"
+   ]
+  ],
+  [
+   "AE",
+   "Al Ain",
+   "second",
+   []
+  ],
+  [
+   "SA",
+   "Riyadh",
+   "prime",
+   []
+  ],
+  [
+   "SA",
+   "Jeddah",
+   "prime",
+   []
+  ],
+  [
+   "SA",
+   "Dammam",
+   "second",
+   []
+  ],
+  [
+   "QA",
+   "Doha",
+   "prime",
+   []
+  ],
+  [
+   "KW",
+   "Kuwait City",
+   "prime",
+   []
+  ],
+  [
+   "BH",
+   "Manama",
+   "prime",
+   []
+  ],
+  [
+   "OM",
+   "Muscat",
+   "prime",
+   []
+  ],
+  [
+   "EG",
+   "Cairo",
+   "prime",
+   [
+    "new cairo"
+   ]
+  ],
+  [
+   "JO",
+   "Amman",
+   "prime",
+   []
+  ],
+  [
+   "IN",
+   "Mumbai",
+   "prime",
+   [
+    "bombay"
+   ]
+  ],
+  [
+   "IN",
+   "New Delhi",
+   "prime",
+   [
+    "delhi"
+   ]
+  ],
+  [
+   "IN",
+   "Gurugram",
+   "prime",
+   [
+    "gurgaon"
+   ]
+  ],
+  [
+   "IN",
+   "Bengaluru",
+   "prime",
+   [
+    "bangalore"
+   ]
+  ],
+  [
+   "IN",
+   "Pune",
+   "second",
+   []
+  ],
+  [
+   "IN",
+   "Hyderabad",
+   "second",
+   []
+  ],
+  [
+   "SG",
+   "Singapore",
+   "prime",
+   []
+  ],
+  [
+   "VN",
+   "Ho Chi Minh City",
+   "prime",
+   [
+    "hcmc",
+    "saigon"
+   ]
+  ],
+  [
+   "VN",
+   "Hanoi",
+   "prime",
+   []
+  ],
+  [
+   "VN",
+   "Da Nang",
+   "second",
+   []
+  ],
+  [
+   "CN",
+   "Shanghai",
+   "prime",
+   []
+  ],
+  [
+   "CN",
+   "Shenzhen",
+   "prime",
+   []
+  ],
+  [
+   "CN",
+   "Guangzhou",
+   "prime",
+   []
+  ],
+  [
+   "CN",
+   "Foshan",
+   "second",
+   []
+  ],
+  [
+   "AU",
+   "Sydney",
+   "prime",
+   []
+  ],
+  [
+   "AU",
+   "Melbourne",
+   "prime",
+   []
+  ],
+  [
+   "AU",
+   "Brisbane",
+   "second",
+   []
+  ],
+  [
+   "AU",
+   "Perth",
+   "second",
+   []
+  ],
+  [
+   "ES",
+   "Barcelona",
+   "prime",
+   []
+  ],
+  [
+   "ES",
+   "Madrid",
+   "prime",
+   []
+  ],
+  [
+   "ES",
+   "Malaga",
+   "second",
+   [
+    "málaga"
+   ]
+  ]
+ ],
+ "fx_as_of": "2026-10-01",
+ "fx_rates": [
+  [
+   "USD",
+   1.0,
+   "Base currency"
+  ],
+  [
+   "AED",
+   3.6725,
+   "Official USD peg"
+  ],
+  [
+   "SAR",
+   3.75,
+   "Official USD peg"
+  ],
+  [
+   "QAR",
+   3.64,
+   "Official USD peg"
+  ],
+  [
+   "BHD",
+   0.376,
+   "Official USD peg"
+  ],
+  [
+   "OMR",
+   0.3845,
+   "Official USD peg"
+  ],
+  [
+   "JOD",
+   0.709,
+   "Official USD peg"
+  ],
+  [
+   "KWD",
+   0.307,
+   "Illustrative rate - replace with dated rates"
+  ],
+  [
+   "EGP",
+   48.5,
+   "Illustrative rate - replace with dated rates"
+  ],
+  [
+   "EUR",
+   0.92,
+   "Illustrative rate - replace with dated rates"
+  ],
+  [
+   "SGD",
+   1.34,
+   "Illustrative rate - replace with dated rates"
+  ],
+  [
+   "CNY",
+   7.2,
+   "Illustrative rate - replace with dated rates"
+  ],
+  [
+   "INR",
+   85.0,
+   "Illustrative rate - replace with dated rates"
+  ],
+  [
+   "VND",
+   25400.0,
+   "Illustrative rate - replace with dated rates"
+  ],
+  [
+   "AUD",
+   1.52,
+   "Illustrative rate - replace with dated rates"
+  ]
+ ],
+ "typologies": [
+  [
+   "residential",
+   "Residential"
+  ],
+  [
+   "office",
+   "Office"
+  ],
+  [
+   "mixed_use",
+   "Mixed use"
+  ],
+  [
+   "hospitality",
+   "Hospitality"
+  ],
+  [
+   "masterplan",
+   "Masterplan"
+  ]
+ ],
+ "services": [
+  [
+   "architecture",
+   "Architecture",
+   "gfa"
+  ],
+  [
+   "interior_design",
+   "Interior design",
+   "fitout_area"
+  ],
+  [
+   "landscape",
+   "Landscape",
+   "landscape_area"
+  ],
+  [
+   "masterplan",
+   "Masterplan",
+   "site_area_ha"
+  ]
+ ],
+ "stages": [
+  [
+   "feasibility",
+   "Feasibility",
+   1
+  ],
+  [
+   "concept",
+   "Concept Design",
+   2
+  ],
+  [
+   "schematic_design",
+   "Schematic Design",
+   3
+  ],
+  [
+   "design_development",
+   "Design Development",
+   4
+  ],
+  [
+   "gfc_review",
+   "GFC Review",
+   5
+  ],
+  [
+   "construction_review",
+   "Construction Review",
+   6
+  ]
+ ],
+ "synonyms": [
+  [
+   "feasibility",
+   "stage",
+   "feasibility",
+   "global",
+   "en"
+  ],
+  [
+   "feasibility study",
+   "stage",
+   "feasibility",
+   "global",
+   "en"
+  ],
+  [
+   "concept",
+   "stage",
+   "concept",
+   "global",
+   "en"
+  ],
+  [
+   "concept design",
+   "stage",
+   "concept",
+   "global",
+   "en"
+  ],
+  [
+   "schematic design",
+   "stage",
+   "schematic_design",
+   "global",
+   "en"
+  ],
+  [
+   "scheme design",
+   "stage",
+   "schematic_design",
+   "global",
+   "en"
+  ],
+  [
+   "design development",
+   "stage",
+   "design_development",
+   "global",
+   "en"
+  ],
+  [
+   "detailed design",
+   "stage",
+   "design_development",
+   "global",
+   "en"
+  ],
+  [
+   "dd",
+   "stage",
+   "design_development",
+   "global",
+   "en"
+  ],
+  [
+   "gfc review",
+   "stage",
+   "gfc_review",
+   "global",
+   "en"
+  ],
+  [
+   "gfc drawing review",
+   "stage",
+   "gfc_review",
+   "global",
+   "en"
+  ],
+  [
+   "good for construction review",
+   "stage",
+   "gfc_review",
+   "global",
+   "en"
+  ],
+  [
+   "construction review",
+   "stage",
+   "construction_review",
+   "global",
+   "en"
+  ],
+  [
+   "construction stage design review",
+   "stage",
+   "construction_review",
+   "global",
+   "en"
+  ],
+  [
+   "design review during construction",
+   "stage",
+   "construction_review",
+   "global",
+   "en"
+  ],
+  [
+   "riba stage 0",
+   "stage",
+   "feasibility",
+   "global",
+   "en"
+  ],
+  [
+   "riba stage 1",
+   "stage",
+   "feasibility",
+   "global",
+   "en"
+  ],
+  [
+   "riba stage 2",
+   "stage",
+   "concept",
+   "global",
+   "en"
+  ],
+  [
+   "riba stage 3",
+   "stage",
+   "schematic_design",
+   "global",
+   "en"
+  ],
+  [
+   "spatial coordination",
+   "stage",
+   "schematic_design",
+   "global",
+   "en"
+  ],
+  [
+   "riba stage 4",
+   "stage",
+   "design_development",
+   "global",
+   "en"
+  ],
+  [
+   "anteproyecto",
+   "stage",
+   "schematic_design",
+   "ES",
+   "es"
+  ],
+  [
+   "estudio de viabilidad",
+   "stage",
+   "feasibility",
+   "ES",
+   "es"
+  ],
+  [
+   "proyecto básico",
+   "stage",
+   "design_development",
+   "ES",
+   "es"
+  ],
+  [
+   "proyecto basico",
+   "stage",
+   "design_development",
+   "ES",
+   "es"
+  ],
+  [
+   "basic design",
+   "stage",
+   "design_development",
+   "VN",
+   "en"
+  ],
+  [
+   "basic design",
+   "stage",
+   "design_development",
+   "global",
+   "en"
+  ],
+  [
+   "preliminary design",
+   "stage",
+   "design_development",
+   "CN",
+   "en"
+  ],
+  [
+   "preliminary design",
+   "stage",
+   "design_development",
+   "global",
+   "en"
+  ],
+  [
+   "scheme design",
+   "stage",
+   "schematic_design",
+   "CN",
+   "en"
+  ],
+  [
+   "preliminary drawings",
+   "stage",
+   "schematic_design",
+   "IN",
+   "en"
+  ],
+  [
+   "sketch design",
+   "stage",
+   "concept",
+   "AU",
+   "en"
+  ],
+  [
+   "architecture",
+   "service",
+   "architecture",
+   "global",
+   "en"
+  ],
+  [
+   "architectural design",
+   "service",
+   "architecture",
+   "global",
+   "en"
+  ],
+  [
+   "architectural services",
+   "service",
+   "architecture",
+   "global",
+   "en"
+  ],
+  [
+   "interior",
+   "service",
+   "interior_design",
+   "global",
+   "en"
+  ],
+  [
+   "interiors",
+   "service",
+   "interior_design",
+   "global",
+   "en"
+  ],
+  [
+   "interior design",
+   "service",
+   "interior_design",
+   "global",
+   "en"
+  ],
+  [
+   "interior architecture",
+   "service",
+   "interior_design",
+   "global",
+   "en"
+  ],
+  [
+   "landscape",
+   "service",
+   "landscape",
+   "global",
+   "en"
+  ],
+  [
+   "landscape architecture",
+   "service",
+   "landscape",
+   "global",
+   "en"
+  ],
+  [
+   "landscape design",
+   "service",
+   "landscape",
+   "global",
+   "en"
+  ],
+  [
+   "masterplan",
+   "service",
+   "masterplan",
+   "global",
+   "en"
+  ],
+  [
+   "master planning",
+   "service",
+   "masterplan",
+   "global",
+   "en"
+  ],
+  [
+   "masterplanning",
+   "service",
+   "masterplan",
+   "global",
+   "en"
+  ],
+  [
+   "urban design",
+   "service",
+   "masterplan",
+   "global",
+   "en"
+  ],
+  [
+   "residential",
+   "typology",
+   "residential",
+   "global",
+   "en"
+  ],
+  [
+   "residential tower",
+   "typology",
+   "residential",
+   "global",
+   "en"
+  ],
+  [
+   "condominium",
+   "typology",
+   "residential",
+   "global",
+   "en"
+  ],
+  [
+   "apartments",
+   "typology",
+   "residential",
+   "global",
+   "en"
+  ],
+  [
+   "villa community",
+   "typology",
+   "residential",
+   "global",
+   "en"
+  ],
+  [
+   "villas",
+   "typology",
+   "residential",
+   "global",
+   "en"
+  ],
+  [
+   "office",
+   "typology",
+   "office",
+   "global",
+   "en"
+  ],
+  [
+   "grade a office",
+   "typology",
+   "office",
+   "global",
+   "en"
+  ],
+  [
+   "headquarters",
+   "typology",
+   "office",
+   "global",
+   "en"
+  ],
+  [
+   "office campus",
+   "typology",
+   "office",
+   "global",
+   "en"
+  ],
+  [
+   "mixed use",
+   "typology",
+   "mixed_use",
+   "global",
+   "en"
+  ],
+  [
+   "mixed-use",
+   "typology",
+   "mixed_use",
+   "global",
+   "en"
+  ],
+  [
+   "hotel",
+   "typology",
+   "hospitality",
+   "global",
+   "en"
+  ],
+  [
+   "resort",
+   "typology",
+   "hospitality",
+   "global",
+   "en"
+  ],
+  [
+   "hospitality",
+   "typology",
+   "hospitality",
+   "global",
+   "en"
+  ],
+  [
+   "boutique hotel",
+   "typology",
+   "hospitality",
+   "global",
+   "en"
+  ],
+  [
+   "masterplan",
+   "typology",
+   "masterplan",
+   "global",
+   "en"
+  ],
+  [
+   "new district",
+   "typology",
+   "masterplan",
+   "global",
+   "en"
+  ],
+  [
+   "township",
+   "typology",
+   "masterplan",
+   "global",
+   "en"
+  ]
+ ],
+ "field_criticality": [
+  [
+   "typology",
+   true,
+   1.0
+  ],
+  [
+   "services",
+   true,
+   1.0
+  ],
+  [
+   "stage_package",
+   true,
+   1.0
+  ],
+  [
+   "country",
+   true,
+   1.0
+  ],
+  [
+   "city",
+   true,
+   0.8
+  ],
+  [
+   "gfa_m2",
+   true,
+   1.0
+  ],
+  [
+   "site_area_m2",
+   true,
+   0.8
+  ],
+  [
+   "fitout_area_m2",
+   true,
+   0.6
+  ],
+  [
+   "landscape_area_m2",
+   true,
+   0.6
+  ],
+  [
+   "submission_deadline",
+   false,
+   0.5
+  ],
+  [
+   "client_name",
+   false,
+   0.3
+  ],
+  [
+   "units",
+   false,
+   0.3
+  ],
+  [
+   "keys",
+   false,
+   0.3
+  ]
+ ],
+ "qualification_rules": [
+  {
+   "name": "deadline_too_close",
+   "expression": {
+    "field": "submission_deadline",
+    "op": "days_until_lt",
+    "value": 5
+   },
+   "effect": "recommend_no_bid",
+   "message": "Submission deadline is less than 5 days away"
+  },
+  {
+   "name": "market_not_served",
+   "expression": {
+    "field": "country",
+    "op": "not_in_ref",
+    "ref": "country"
+   },
+   "effect": "recommend_no_bid",
+   "message": "Project country is not a market SOG serves"
+  },
+  {
+   "name": "no_sog_service",
+   "expression": {
+    "field": "services",
+    "op": "empty"
+   },
+   "effect": "recommend_no_bid",
+   "message": "No requested service matches SOG's services"
+  },
+  {
+   "name": "low_completeness",
+   "expression": {
+    "field": "completeness",
+    "op": "lt",
+    "value": 0.75
+   },
+   "effect": "needs_info",
+   "message": "Too many pricing-critical fields are missing"
+  },
+  {
+   "name": "uncapped_liability",
+   "expression": {
+    "field": "liability_cap",
+    "op": "matches",
+    "pattern": "uncapped|unlimited"
+   },
+   "effect": "flag",
+   "message": "Client asks for uncapped liability; SOG's standard is 100% of fee"
+  }
+ ]
+}
