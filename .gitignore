@@ -1,0 +1,20 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+node_modules/
+dist/
+.next/
+var/
+data/gold/*/packs/**/*.pdf.tmp
+.DS_Store
+prisma/generated/
+# local agent and editor tooling
+.claude/
+.codex/
+.serena/
+# evaluation reports live in the eval schema; files are local copies
+data/gold/*/runs/
+# duplicate of data/archive/v0-synthetic
+docs/files.zip
