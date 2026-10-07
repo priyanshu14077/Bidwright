@@ -1,0 +1,25 @@
+{
+  "name": "sog-prisma",
+  "private": true,
+  "type": "module",
+  "description": "Read-mostly Prisma view of the sog database. Alembic (service/) owns the schema; this package only introspects it.",
+  "scripts": {
+    "pull": "prisma db pull && prisma generate",
+    "generate": "prisma generate",
+    "studio": "prisma studio",
+    "example": "tsx examples/query.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "@types/pg": "^8.23.1",
+    "prisma": "7.10.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "dotenv": "^18.0.5",
+    "pg": "^8.23.1"
+  }
+}
