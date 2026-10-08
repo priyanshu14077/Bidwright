@@ -3,13 +3,160 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SOG · RFP intake</title>
+    <title>Bidwright: RFP intake and pricing for design practices</title>
+    <meta name="description" content="Bidwright reads the RFP packs your practice receives, cites every value to its page, flags where documents disagree, and checks the job against your own past proposals." />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/src/landing.css" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <header class="top">
+      <a class="wordmark" href="/" aria-label="Bidwright home">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V3l18 18z M7 17h5.2L7 11.8z" fill="currentColor" fill-rule="evenodd"/><path d="M3 21.4h18" stroke="var(--redline)" stroke-width="1.8"/></svg>
+        Bidwright
+      </a>
+      <nav aria-label="Page">
+        <a href="#how">How it works</a>
+        <a href="#backtest">Backtesting</a>
+        <a href="#access">Access</a>
+      </nav>
+      <div class="top-actions">
+        <a href="/app/">Sign in</a>
+        <a class="button" href="/app/#/signup">Start a workspace</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <h1>From RFP pack to priced brief, every value traced to its page.</h1>
+          <p class="lede">Bidwright reads the documents a client sends, flags where they disagree, and checks the job against your practice's past proposals. Your estimators review and confirm. Nothing is chosen silently.</p>
+          <div class="ctas">
+            <a class="button" href="/app/#/signup">Start a workspace</a>
+            <a class="button secondary" href="/app/#/demo">Open the demo practice</a>
+          </div>
+          <p class="fine">The demo is Northbeam Studio, a fictional practice with 14 past proposals and 14 RFP packs.</p>
+        </div>
+
+        <figure class="sheetset" aria-label="Example: the gross floor area is cited on page 3 of the main RFP, and the area schedule states a different figure, so Bidwright flags a conflict.">
+          <svg viewBox="0 0 560 470" role="img" aria-hidden="true">
+            <!-- main RFP, page 3 -->
+            <rect class="paper" x="20" y="20" width="300" height="330" />
+            <text class="sheet-name" x="36" y="44">RFP_Main.pdf</text>
+            <text class="sheet-page" x="304" y="44" text-anchor="end">p. 3</text>
+            <text class="sheet-head" x="44" y="82">3. Scope of the commission</text>
+            <rect class="txt" x="44" y="98" width="236" height="5" />
+            <rect class="txt" x="44" y="110" width="250" height="5" />
+            <rect class="txt" x="44" y="122" width="198" height="5" />
+            <rect class="txt" x="44" y="142" width="120" height="5" />
+            <text class="sheet-body" x="54" y="183">Gross floor area: 42,500 m²</text>
+            <rect class="txt" x="44" y="212" width="244" height="5" />
+            <rect class="txt" x="44" y="224" width="226" height="5" />
+            <rect class="txt" x="44" y="236" width="150" height="5" />
+            <rect class="txt" x="44" y="258" width="210" height="5" />
+            <rect class="txt" x="44" y="270" width="232" height="5" />
+
+            <!-- area schedule, laid over the RFP -->
+            <rect class="paper paper-2" x="300" y="200" width="240" height="150" />
+            <text class="sheet-name" x="316" y="224">Area_Schedule.pdf</text>
+            <text class="sheet-page" x="524" y="224" text-anchor="end">p. 1</text>
+            <line class="rule" x1="316" y1="240" x2="524" y2="240" />
+            <text class="cell" x="340" y="256">Tower A</text><text class="cell" x="516" y="256" text-anchor="end">28,600 m²</text>
+            <text class="cell" x="340" y="272">Podium</text><text class="cell" x="516" y="272" text-anchor="end">15,500 m²</text>
+            <text class="cell strong" x="340" y="309">Total BUA</text><text class="cell strong" x="516" y="309" text-anchor="end">44,100 m²</text>
+            <line class="rule" x1="316" y1="330" x2="524" y2="330" />
+
+            <path class="cloud c1" d="M44.0 163.0A7 7 0 0 1 57.9 163.0A7 7 0 0 1 71.8 163.0A7 7 0 0 1 85.7 163.0A7 7 0 0 1 99.6 163.0A7 7 0 0 1 113.4 163.0A7 7 0 0 1 127.3 163.0A7 7 0 0 1 141.2 163.0A7 7 0 0 1 155.1 163.0A7 7 0 0 1 169.0 163.0A7 7 0 0 1 182.9 163.0A7 7 0 0 1 196.8 163.0A7 7 0 0 1 210.7 163.0A7 7 0 0 1 224.6 163.0A7 7 0 0 1 238.4 163.0A7 7 0 0 1 252.3 163.0A7 7 0 0 1 266.2 163.0A7 7 0 0 1 280.1 163.0A7 7 0 0 1 294.0 163.0A7 7 0 0 1 294.0 178.0A7 7 0 0 1 294.0 193.0A7 7 0 0 1 280.1 193.0A7 7 0 0 1 266.2 193.0A7 7 0 0 1 252.3 193.0A7 7 0 0 1 238.4 193.0A7 7 0 0 1 224.6 193.0A7 7 0 0 1 210.7 193.0A7 7 0 0 1 196.8 193.0A7 7 0 0 1 182.9 193.0A7 7 0 0 1 169.0 193.0A7 7 0 0 1 155.1 193.0A7 7 0 0 1 141.2 193.0A7 7 0 0 1 127.3 193.0A7 7 0 0 1 113.4 193.0A7 7 0 0 1 99.6 193.0A7 7 0 0 1 85.7 193.0A7 7 0 0 1 71.8 193.0A7 7 0 0 1 57.9 193.0A7 7 0 0 1 44.0 193.0A7 7 0 0 1 44.0 178.0A7 7 0 0 1 44.0 163.0" />
+            <path class="cloud c2" d="M330.0 289.0A7 7 0 0 1 344.0 289.0A7 7 0 0 1 358.0 289.0A7 7 0 0 1 372.0 289.0A7 7 0 0 1 386.0 289.0A7 7 0 0 1 400.0 289.0A7 7 0 0 1 414.0 289.0A7 7 0 0 1 428.0 289.0A7 7 0 0 1 442.0 289.0A7 7 0 0 1 456.0 289.0A7 7 0 0 1 470.0 289.0A7 7 0 0 1 484.0 289.0A7 7 0 0 1 498.0 289.0A7 7 0 0 1 512.0 289.0A7 7 0 0 1 526.0 289.0A7 7 0 0 1 526.0 304.0A7 7 0 0 1 526.0 319.0A7 7 0 0 1 512.0 319.0A7 7 0 0 1 498.0 319.0A7 7 0 0 1 484.0 319.0A7 7 0 0 1 470.0 319.0A7 7 0 0 1 456.0 319.0A7 7 0 0 1 442.0 319.0A7 7 0 0 1 428.0 319.0A7 7 0 0 1 414.0 319.0A7 7 0 0 1 400.0 319.0A7 7 0 0 1 386.0 319.0A7 7 0 0 1 372.0 319.0A7 7 0 0 1 358.0 319.0A7 7 0 0 1 344.0 319.0A7 7 0 0 1 330.0 319.0A7 7 0 0 1 330.0 304.0A7 7 0 0 1 330.0 289.0" />
+
+            <!-- the record, as a title block -->
+            <g class="record">
+              <rect class="tb" x="20" y="378" width="520" height="72" />
+              <line class="tb-rule" x1="250" y1="378" x2="250" y2="450" />
+              <text class="tb-label" x="36" y="400">Gross floor area</text>
+              <text class="tb-value" x="36" y="424">42,500 m²</text>
+              <text class="tb-src" x="36" y="440">RFP_Main.pdf, p. 3</text>
+              <g class="tb-conflict">
+                <rect class="tb-wash" x="251" y="379" width="288" height="70" />
+                <text class="tb-flag" x="266" y="404">△ Documents disagree</text>
+                <text class="tb-src" x="266" y="424">Area schedule states 44,100 m² (BUA).</text>
+                <text class="tb-src" x="266" y="440">Choose one, with a reason, to confirm.</text>
+              </g>
+            </g>
+          </svg>
+        </figure>
+      </section>
+
+      <section class="how" id="how">
+        <h2>How a pack moves through Bidwright</h2>
+        <ol class="steps">
+          <li>
+            <h3>Receive</h3>
+            <p>Forward the client's email, drop a zip, or upload the files. Every document is stored unchanged, with its checksum, and rendered so it can be cited.</p>
+          </li>
+          <li>
+            <h3>Extract and cite</h3>
+            <p>The model lists every mention of typology, areas, services, stages, location, deadlines and terms, each tied to the exact lines on a page. Values it cannot place on a page are not accepted.</p>
+          </li>
+          <li>
+            <h3>Flag disagreements</h3>
+            <p>When the main RFP and the area schedule state different floor areas, you see both, side by side with their sources. The engine never picks one for you.</p>
+          </li>
+          <li>
+            <h3>Enrich from your history</h3>
+            <p>Units and regional stage names are normalised against your vocabulary. Location tier, billing currency, studio routing and bid rules come from your reference data, and comparable past proposals come from your archive.</p>
+          </li>
+          <li>
+            <h3>Review and confirm</h3>
+            <p>An estimator checks each value against its highlighted source, edits with a reason, and confirms. The confirmed version is locked, and every change is in an append-only log.</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="backtest" id="backtest">
+        <div>
+          <h2>Know how accurate it is before you rely on it</h2>
+          <p>Each workspace keeps a gold set: past RFP packs paired with the proposals your practice actually wrote. Change the model, the prompt or a rule, and Bidwright runs the whole set again and reports what moved.</p>
+        </div>
+        <dl class="measures">
+          <div><dt>Pricing-critical accuracy</dt><dd>Typology, areas, services, stage package and location, field by field against the gold answers.</dd></div>
+          <div><dt>Citation coverage</dt><dd>The share of extracted values that point to a highlighted line on a page.</dd></div>
+          <div><dt>Conflicts caught</dt><dd>Disagreements planted in the gold packs that were flagged, and any flagged that were not there.</dd></div>
+          <div><dt>Cost per pack</dt><dd>Model calls, tokens and spend for each run, by prompt version.</dd></div>
+        </dl>
+      </section>
+
+      <section class="access" id="access">
+        <div>
+          <h2>Your archive stays inside your workspace</h2>
+          <p>Each practice gets its own workspace. Proposals, RFP packs, reference data and backtests belong to it, and the database itself refuses to return another workspace's rows. People join by invitation, with one of four roles.</p>
+        </div>
+        <table class="roles">
+          <thead><tr><th scope="col">Role</th><th scope="col">Can</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Owner</th><td>Everything an admin can, plus appoint other owners and admins</td></tr>
+            <tr><th scope="row">Admin</th><td>Invite people, edit reference data and bid rules, run backtests</td></tr>
+            <tr><th scope="row">Estimator</th><td>Upload RFP packs, correct values, resolve conflicts, confirm records</td></tr>
+            <tr><th scope="row">Viewer</th><td>Read every record, source and backtest in the workspace</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="closing">
+        <h2>Start with your next RFP.</h2>
+        <p>Create a workspace, upload a pack, and see what Bidwright finds. Load your past proposals when you are ready to price against them.</p>
+        <div class="ctas">
+          <a class="button" href="/app/#/signup">Start a workspace</a>
+          <a class="button secondary" href="/app/#/demo">Open the demo practice</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <span class="wordmark small">Bidwright</span>
+      <span>RFP intake and pricing for architecture and design practices.</span>
+    </footer>
   </body>
 </html>
