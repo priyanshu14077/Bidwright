@@ -1,11 +1,11 @@
 """Generate one synthetic RFP pack per archive proposal, plus the gold truth.
 
-Each pack is what a client would have sent SOG before SOG wrote that proposal:
+Each pack is what a client would have sent Northbeam Studio before it wrote that proposal:
 a covering email, the main RFP, an area schedule and the client's terms.
 The request-side fields of the proposal are the ground truth.
 
 Traps planted on purpose, so accuracy is measured on something harder than
-SOG's own template:
+Northbeam's own template:
 - three unrelated layouts (formal tender, developer brief, scope matrix)
 - regional stage names and "BUA" for GFA; sq ft with Indian digit grouping
 - site areas in hectares for large sites
@@ -36,7 +36,7 @@ from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, 
 
 REPO = Path(__file__).resolve().parents[2]
 DATASET = "v0-synthetic"
-ARCHIVE = REPO / "data" / "archive" / DATASET / "sog_synthetic_archive.json"
+ARCHIVE = REPO / "data" / "archive" / DATASET / "archive.json"
 OUT = REPO / "data" / "gold" / DATASET
 
 SQFT_PER_M2 = 10.7639104
@@ -374,11 +374,11 @@ class Pack:
     def email(self, folder: Path, attachments: list[str]) -> None:
         msg = EmailMessage()
         msg["From"] = f"Procurement <tenders@{self.client_written.split()[0].lower()}.example>"
-        msg["To"] = "rfp@sogdesign.example"
+        msg["To"] = "rfp@northbeam.example"
         msg["Subject"] = f"Invitation to tender - {self.project} ({self.rfp_ref})"
         msg["Date"] = format_datetime(self.issued)
         msg.set_content(
-            f"Dear SOG Design team,\n\n"
+            f"Dear Northbeam Studio team,\n\n"
             f"{self.client_written} is pleased to invite you to submit a proposal for design consultancy services "
             f"for {self.project}, {self.p['city']}.\n\n"
             f"Please find attached: {', '.join(attachments)}.\n\n"

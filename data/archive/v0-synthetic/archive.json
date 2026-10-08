@@ -1,39 +1,39 @@
 {
   "meta": {
-    "name": "SOG synthetic proposal archive (PoC seed)",
+    "name": "Northbeam Studio sample archive",
     "version": "0.1",
     "generated": "2026-10-01",
-    "warning": "Synthetic data for proof of concept only. Not SOG data. Fee parameters are assumptions to be replaced by calibration on SOG's real archive.",
+    "warning": "Synthetic sample data for the Northbeam Studio demo workspace. Not real practice data. Fee parameters are illustrative; a real workspace calibrates them on its own archive.",
     "record_count": 14
   },
   "studios": [
     {
       "code": "DXB",
-      "name": "SOG Dubai",
+      "name": "Northbeam Dubai",
       "city": "Dubai",
       "country": "UAE"
     },
     {
       "code": "BCN",
-      "name": "SOG Barcelona",
+      "name": "Northbeam Barcelona",
       "city": "Barcelona",
       "country": "Spain"
     },
     {
       "code": "SIN",
-      "name": "SOG Singapore",
+      "name": "Northbeam Singapore",
       "city": "Singapore",
       "country": "Singapore"
     },
     {
       "code": "SGN",
-      "name": "SOG Ho Chi Minh City",
+      "name": "Northbeam Ho Chi Minh City",
       "city": "Ho Chi Minh City",
       "country": "Vietnam"
     },
     {
       "code": "CAN",
-      "name": "SOG Guangzhou",
+      "name": "Northbeam Guangzhou",
       "city": "Guangzhou",
       "country": "China"
     }
@@ -540,19 +540,19 @@
       "key": "modifier.location_tier.second",
       "value": 0.92,
       "unit": "multiplier",
-      "rationale": "SOG 01.jpg: prime vs second-tier city"
+      "rationale": "practice fee guide: prime vs second-tier city"
     },
     {
       "key": "modifier.client.repeat",
       "value": 0.95,
       "unit": "multiplier",
-      "rationale": "SOG 01.jpg: customer status"
+      "rationale": "practice fee guide: customer status"
     },
     {
       "key": "modifier.complexity.low",
       "value": 0.95,
       "unit": "multiplier",
-      "rationale": "SOG 01.jpg: site complexity"
+      "rationale": "practice fee guide: site complexity"
     },
     {
       "key": "modifier.complexity.high",
@@ -618,7 +618,7 @@
       "key": "masterplan.rate_per_ha",
       "value": 14000,
       "unit": "USD/ha (first 50 ha)",
-      "rationale": "No reliable public benchmark found; calibrate with SOG"
+      "rationale": "No reliable public benchmark found; calibrate with the practice"
     },
     {
       "key": "masterplan.rate_per_ha_above_50",
@@ -674,11 +674,11 @@
   "proposals": [
     {
       "proposal_id": "P01",
-      "reference": "SOG-DXB-2024-017",
+      "reference": "NBS-DXB-2024-017",
       "title": "Marina Crest Residences - 48-storey residential tower",
       "data_origin": "synthetic",
       "studio_code": "DXB",
-      "studio": "SOG Dubai",
+      "studio": "Northbeam Dubai",
       "client_id": "C01",
       "client_name": "Marina Crest Developments LLC",
       "client_type": "Private developer",
@@ -886,11 +886,11 @@
     },
     {
       "proposal_id": "P02",
-      "reference": "SOG-DXB-2025-004",
+      "reference": "NBS-DXB-2025-004",
       "title": "Coral Bay Resort & Spa - 220-key beachfront resort",
       "data_origin": "synthetic",
       "studio_code": "DXB",
-      "studio": "SOG Dubai",
+      "studio": "Northbeam Dubai",
       "client_id": "C02",
       "client_name": "Coral Bay Hospitality Holdings",
       "client_type": "Hotel owner",
@@ -1098,7 +1098,7 @@
         {
           "clause": "Design rounds",
           "client_request": "Unlimited revisions at concept",
-          "sog_position": "Two rounds included per stage"
+          "firm_position": "Two rounds included per stage"
         }
       ],
       "status": "won",
@@ -1158,11 +1158,11 @@
     },
     {
       "proposal_id": "P03",
-      "reference": "SOG-DXB-2025-021",
+      "reference": "NBS-DXB-2025-021",
       "title": "Al Noor Gateway - mixed-use district block",
       "data_origin": "synthetic",
       "studio_code": "DXB",
-      "studio": "SOG Dubai",
+      "studio": "Northbeam Dubai",
       "client_id": "C03",
       "client_name": "Al Noor Urban Investment Co.",
       "client_type": "Private developer",
@@ -1295,7 +1295,7 @@
         {
           "clause": "Liability cap",
           "client_request": "Uncapped liability",
-          "sog_position": "Cap at 100% of fee"
+          "firm_position": "Cap at 100% of fee"
         }
       ],
       "status": "lost",
@@ -1347,11 +1347,11 @@
     },
     {
       "proposal_id": "P04",
-      "reference": "SOG-DXB-2023-031",
+      "reference": "NBS-DXB-2023-031",
       "title": "Oasis Gardens - 120-villa community, Al Ain",
       "data_origin": "synthetic",
       "studio_code": "DXB",
-      "studio": "SOG Dubai",
+      "studio": "Northbeam Dubai",
       "client_id": "C04",
       "client_name": "Oasis Living Properties",
       "client_type": "Private developer",
@@ -1588,11 +1588,11 @@
     },
     {
       "proposal_id": "P05",
-      "reference": "SOG-BCN-2024-006",
+      "reference": "NBS-BCN-2024-006",
       "title": "Diagonal Norte - office refurbishment and extension",
       "data_origin": "synthetic",
       "studio_code": "BCN",
-      "studio": "SOG Barcelona",
+      "studio": "Northbeam Barcelona",
       "client_id": "C05",
       "client_name": "Inmobiliaria Diagonal Norte S.L.",
       "client_type": "Investor",
@@ -1792,11 +1792,11 @@
     },
     {
       "proposal_id": "P06",
-      "reference": "SOG-BCN-2025-012",
+      "reference": "NBS-BCN-2025-012",
       "title": "Costa Luz Boutique Hotel - 85 keys, Malaga",
       "data_origin": "synthetic",
       "studio_code": "BCN",
-      "studio": "SOG Barcelona",
+      "studio": "Northbeam Barcelona",
       "client_id": "C06",
       "client_name": "Costa Luz Hoteles S.A.",
       "client_type": "Hotel owner",
@@ -2002,11 +2002,11 @@
     },
     {
       "proposal_id": "P07",
-      "reference": "SOG-SIN-2024-009",
+      "reference": "NBS-SIN-2024-009",
       "title": "Straits Tower - Grade A office",
       "data_origin": "synthetic",
       "studio_code": "SIN",
-      "studio": "SOG Singapore",
+      "studio": "Northbeam Singapore",
       "client_id": "C07",
       "client_name": "Straits Commercial REIT",
       "client_type": "REIT",
@@ -2150,11 +2150,11 @@
     },
     {
       "proposal_id": "P08",
-      "reference": "SOG-SIN-2025-003",
+      "reference": "NBS-SIN-2025-003",
       "title": "Harbourline Residences - condominium with clubhouse",
       "data_origin": "synthetic",
       "studio_code": "SIN",
-      "studio": "SOG Singapore",
+      "studio": "Northbeam Singapore",
       "client_id": "C08",
       "client_name": "Harbourline Residences Pte Ltd",
       "client_type": "Private developer",
@@ -2406,11 +2406,11 @@
     },
     {
       "proposal_id": "P09",
-      "reference": "SOG-SGN-2024-011",
+      "reference": "NBS-SGN-2024-011",
       "title": "Saigon Riverside One - mixed-use tower (residential, hotel, retail)",
       "data_origin": "synthetic",
       "studio_code": "SGN",
-      "studio": "SOG Ho Chi Minh City",
+      "studio": "Northbeam Ho Chi Minh City",
       "client_id": "C09",
       "client_name": "Saigon Riverside Land JSC",
       "client_type": "Private developer",
@@ -2618,12 +2618,12 @@
         {
           "clause": "Liability cap",
           "client_request": "Uncapped liability",
-          "sog_position": "Cap at 100% of fee"
+          "firm_position": "Cap at 100% of fee"
         },
         {
           "clause": "Payment terms",
           "client_request": "90 days from invoice",
-          "sog_position": "30 days from invoice"
+          "firm_position": "30 days from invoice"
         }
       ],
       "status": "won",
@@ -2683,11 +2683,11 @@
     },
     {
       "proposal_id": "P10",
-      "reference": "SOG-SGN-2026-002",
+      "reference": "NBS-SGN-2026-002",
       "title": "Han River Bay Resort - masterplan and 180-key resort, Da Nang",
       "data_origin": "synthetic",
       "studio_code": "SGN",
-      "studio": "SOG Ho Chi Minh City",
+      "studio": "Northbeam Ho Chi Minh City",
       "client_id": "C10",
       "client_name": "Han River Resorts JSC",
       "client_type": "Hotel owner",
@@ -2924,11 +2924,11 @@
     },
     {
       "proposal_id": "P11",
-      "reference": "SOG-CAN-2023-008",
+      "reference": "NBS-CAN-2023-008",
       "title": "Pearl Delta Tech HQ campus",
       "data_origin": "synthetic",
       "studio_code": "CAN",
-      "studio": "SOG Guangzhou",
+      "studio": "Northbeam Guangzhou",
       "client_id": "C11",
       "client_name": "Pearl Delta Technology Group",
       "client_type": "Corporate occupier",
@@ -3128,11 +3128,11 @@
     },
     {
       "proposal_id": "P12",
-      "reference": "SOG-CAN-2024-015",
+      "reference": "NBS-CAN-2024-015",
       "title": "Foshan Riverside New District - masterplan",
       "data_origin": "synthetic",
       "studio_code": "CAN",
-      "studio": "SOG Guangzhou",
+      "studio": "Northbeam Guangzhou",
       "client_id": "C12",
       "client_name": "Foshan New District Development Co.",
       "client_type": "Government-linked developer",
@@ -3240,7 +3240,7 @@
         {
           "clause": "Payment terms",
           "client_request": "90 days from invoice",
-          "sog_position": "30 days from invoice"
+          "firm_position": "30 days from invoice"
         }
       ],
       "status": "won",
@@ -3274,11 +3274,11 @@
     },
     {
       "proposal_id": "P13",
-      "reference": "SOG-DXB-2025-033",
+      "reference": "NBS-DXB-2025-033",
       "title": "Arabian Sea Towers - twin residential towers, Mumbai",
       "data_origin": "synthetic",
       "studio_code": "DXB",
-      "studio": "SOG Dubai",
+      "studio": "Northbeam Dubai",
       "client_id": "C13",
       "client_name": "Arabian Sea Realty Pvt Ltd",
       "client_type": "Private developer",
@@ -3438,7 +3438,7 @@
         {
           "clause": "Liability cap",
           "client_request": "Uncapped liability",
-          "sog_position": "Cap at 100% of fee"
+          "firm_position": "Cap at 100% of fee"
         }
       ],
       "status": "lost",
@@ -3490,11 +3490,11 @@
     },
     {
       "proposal_id": "P14",
-      "reference": "SOG-DXB-2026-006",
+      "reference": "NBS-DXB-2026-006",
       "title": "Bay Square Offices - mid-rise office building",
       "data_origin": "synthetic",
       "studio_code": "DXB",
-      "studio": "SOG Dubai",
+      "studio": "Northbeam Dubai",
       "client_id": "C01",
       "client_name": "Marina Crest Developments LLC",
       "client_type": "Private developer",

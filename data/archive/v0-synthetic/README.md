@@ -1,16 +1,15 @@
-# SOG synthetic proposal archive: PoC seed data
+# Northbeam Studio: sample archive
 
-> **Synthetic data.** None of this is SOG data. It exists so the reference engine, extraction pipeline and frontend can be built and tested before SOG's real archive is loaded in Sprint 3. Delete or flag it before go-live.
+> **Synthetic data.** Northbeam Studio is a fictional practice. This archive seeds the demo workspace so a new user can see Bidwright working before loading their own proposals. Every client, reference and project name is invented.
 
-## What's in the pack
+## What's here
 
-| File | What it is | Use it for |
-|---|---|---|
-| `sog_archive_schema.sql` | PostgreSQL + pgvector data model (`ref`, `archive`, `lineage` schemas) | Create the database |
-| `sog_synthetic_seed.sql` | Insert statements for all 14 proposals and reference data | Load the database (run after the schema) |
-| `sog_synthetic_archive.json` | Same data, nested: one object per proposal, plus benchmarks, assumptions, FX | Engine development, unit tests, fixtures |
-| `sog_synthetic_archive.xlsx` | Same data as linked sheets; totals, USD values and fee/m² are live formulas | Reviewing with the team and with SOG |
-| `synthetic_proposals/*.docx` | 14 proposal documents in a consistent "SOG" layout | Testing archive extraction end to end |
+| File | What it is |
+|---|---|
+| `archive.json` | 14 past proposals, nested: one object per proposal, plus studios, clients, benchmarks, fee assumptions and FX |
+| `proposals/*.docx` | The 14 proposal documents, in Northbeam's house layout |
+
+The loader (`bidwright.archive.loader`) reads both into the workspace's `archive` tables.
 
 ## The 14 proposals
 
@@ -39,7 +38,7 @@ The set covers:
 
 ## How the fees were built
 
-The method follows SOG's own pricing logic (01.jpg). It has three layers:
+Fees follow a typical practice pricing method in three layers:
 
 1. **Construction cost per m² (cited).** Sources are Turner & Townsend market intelligence 2025 for Dubai, Riyadh, Singapore, Ho Chi Minh City, Mumbai and China, and a secondary source citing Turner & Townsend for Guangzhou and Madrid (used as the Barcelona proxy).
    - Where a city has no asset-type figure, the city average is multiplied by typology ratios derived from Dubai's asset-type costs.
@@ -53,14 +52,12 @@ The method follows SOG's own pricing logic (01.jpg). It has three layers:
    - Masterplan rates per hectare.
    - Render and trip rates.
 
-   **These are the numbers to replace** once SOG's real archive is calibrated.
-3. **Realism.** Each quote has random variation of roughly ±6%, and lost bids are priced 10–18% above the model, so the engine has real signal to find. Every proposal's generation steps are in `Pricing_Trace`.
-
-Every benchmark has its URL in the `Benchmarks` sheet. Every assumption has its rationale in the `Assumptions` sheet.
+   **These are the numbers a real workspace replaces** when it calibrates on its own archive.
+3. **Realism.** Each quote has random variation of roughly ±6%, and lost bids are priced 10–18% above the model, so the engine has real signal to find. Every proposal's generation steps are in `pricing_trace`. Every benchmark carries its URL and every assumption its rationale in `archive.json`.
 
 ## Deliberate variations in the documents
 
-The documents are not all written the same way, so the normaliser has something to normalise. The JSON and SQL hold the clean values, which serve as the ground truth:
+The documents are not all written the same way, so the normaliser has something to normalise. The JSON holds the clean values, which serve as the ground truth:
 
 - **P13 (Mumbai)** states areas in **sq ft**.
 - **Stage names vary:**
@@ -75,18 +72,8 @@ The documents are not all written the same way, so the normaliser has something 
 
 This turns the pack into a **mini gold set**: extract each document, compare the result with the JSON, and measure accuracy.
 
-## Load order
-
-```bash
-psql -f sog_archive_schema.sql
-psql -f sog_synthetic_seed.sql
-```
-
-The SQL in both files has been parsed with `pglast` for syntax. It has not yet been run against a live database.
-
 ## Limitations
 
 - Fee parameters are informed assumptions, not market facts. Masterplan rates per hectare have no reliable public benchmark.
-- Clients, references and project names are fictitious.
-- Fourteen records is enough to build and test the pipeline, not to train or validate the pricing model.
-- `archive.pricing_trace` exists only for synthetic data and should not be populated for real proposals.
+- Fourteen records are enough to exercise the pipeline, not to train or validate a pricing model.
+- `archive.pricing_trace` exists only for synthetic data.
