@@ -4,7 +4,7 @@ import hashlib
 from pathlib import Path
 from typing import Protocol
 
-from sog.config import settings
+from bidwright.config import settings
 
 
 class BlobStore(Protocol):

@@ -5,7 +5,7 @@ import json
 from dataclasses import dataclass, field
 from functools import cache
 
-from sog.config import REPO_ROOT
+from bidwright.config import REPO_ROOT
 
 SCHEMA_VERSION = "request-v0"
 LIST_KINDS = {"vocab_list", "text_list"}

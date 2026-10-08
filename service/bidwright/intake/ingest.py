@@ -13,9 +13,9 @@ from pathlib import Path
 
 from sqlalchemy import Connection, text
 
-from sog.config import settings
-from sog.intake import reading
-from sog.storage import blob_store
+from bidwright.config import settings
+from bidwright.intake import reading
+from bidwright.storage import blob_store
 
 MIME = {".pdf": "application/pdf", ".eml": "message/rfc822", ".zip": "application/zip",
         ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -59,7 +59,7 @@ def ingest(conn: Connection, files: list[tuple[str, bytes]], channel: str, sende
         envelope_id = conn.execute(
             text("INSERT INTO intake.envelope (title, channel, sender, received_at, dataset_version, status) "
                  "VALUES (:title, :channel, :sender, COALESCE(:received_at, now()), :v, 'reading') RETURNING envelope_id"),
-            dict(title=title, channel=channel, sender=sender, received_at=received_at, v=settings.sog_dataset_version),
+            dict(title=title, channel=channel, sender=sender, received_at=received_at, v=settings.dataset_version),
         ).scalar_one()
     else:
         envelope_id = existing
@@ -91,7 +91,8 @@ def ingest(conn: Connection, files: list[tuple[str, bytes]], channel: str, sende
         ids_by_name[name] = doc_id
         if pages:
             conn.execute(
-                text("INSERT INTO lineage.page VALUES (:d, :n, :w, :h, CAST(:lines AS jsonb))"),
+                text("INSERT INTO lineage.page (document_id, page_no, width, height, lines) "
+                     "VALUES (:d, :n, :w, :h, CAST(:lines AS jsonb))"),
                 [dict(d=doc_id, n=p.page_no, w=p.width, h=p.height,
                       lines=json.dumps([{"id": ln.line_id, "text": ln.text, "bbox": ln.bbox} for ln in p.lines]))
                  for p in pages],

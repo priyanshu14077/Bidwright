@@ -6,6 +6,7 @@ RFP text is data. The model's only output is a JSON list of mentions; it
 cannot act on, or change, any record.
 """
 
+import contextvars
 import json
 import re
 import uuid
@@ -13,14 +14,14 @@ from concurrent.futures import ThreadPoolExecutor
 
 from sqlalchemy import Connection, text
 
-from sog import llm
-from sog.config import settings
-from sog.db import engine
-from sog.intake import reading
-from sog.schema import SCHEMA_VERSION, fields
-from sog.storage import blob_store
+from bidwright import llm
+from bidwright.config import settings
+from bidwright.db import engine
+from bidwright.intake import reading
+from bidwright.schema import SCHEMA_VERSION, fields
+from bidwright.storage import blob_store
 
-PROMPT_VERSION = "extract-v1"
+PROMPT_VERSION = "extract-v2"  # v2: practice name and description come from the workspace
 DOC_CLASSES = ["main_rfp", "design_brief", "area_schedule", "client_terms", "email", "drawings", "other"]
 UNITS = ["m2", "sqft", "ha", "acre", "none"]
 
@@ -38,7 +39,9 @@ def system_prompt(conn: Connection) -> str:
             extra = f" normalized_text must be one of: {', '.join(f.options)}."
         field_lines.append(f"- {f.name} ({f.kind}): {f.label}. {f.hint}{extra}")
     vocab_lines = "\n".join(f"{t}: " + "; ".join(f"{c} = {lbl}" for c, lbl in rows) for t, rows in vocab.items())
-    return f"""You read documents from RFP packs sent to SOG Design, an international architecture, interior design, landscape and masterplanning practice. You extract what the client is asking for, so a reviewer can check it against the source.
+    practice = conn.execute(text("SELECT name, practice_description FROM tenancy.organization "
+                                 "WHERE org_id = tenancy.current_org()")).one()
+    return f"""You read documents from RFP packs sent to {practice.name}, {practice.practice_description}. You extract what the client is asking for, so a reviewer can check it against the source.
 
 Each document is given as lines. Every line starts with its id in brackets, e.g. [p2:14]. Table rows are joined with " | " and list the ids of every cell.
 
@@ -166,13 +169,13 @@ def extract_document(envelope_id: int, document_id: int, trace_id: uuid.UUID) ->
             text("""INSERT INTO intake.extraction_run (envelope_id, document_id, kind, model, prompt_version,
                     schema_version, dataset_version, trace_id) VALUES (:e, :d, 'extract', :m, :pv, :sv, :dv, :t)
                     RETURNING run_id"""),
-            dict(e=envelope_id, d=document_id, m=settings.sog_model_extract, pv=PROMPT_VERSION, sv=SCHEMA_VERSION,
-                 dv=settings.sog_dataset_version, t=str(trace_id)),
+            dict(e=envelope_id, d=document_id, m=settings.model_extract, pv=PROMPT_VERSION, sv=SCHEMA_VERSION,
+                 dv=settings.dataset_version, t=str(trace_id)),
         ).scalar_one()
     lines_by_id = {ln["id"]: ln for ln in lines}
     content = [{"type": "text", "text": f"Document: {doc.file_name}\n\n{render_for_model(lines)}"}]
     try:
-        result = llm.structured_call(run_id=run_id, trace_id=trace_id, model=settings.sog_model_extract,
+        result = llm.structured_call(run_id=run_id, trace_id=trace_id, model=settings.model_extract,
                                      prompt_version=PROMPT_VERSION, system=system, content=content,
                                      schema=output_schema(), validate=validator(set(lines_by_id)))
     except Exception as e:
@@ -202,7 +205,7 @@ def extract_document(envelope_id: int, document_id: int, trace_id: uuid.UUID) ->
 
 def extract_envelope(envelope_id: int, workers: int = 4) -> uuid.UUID:
     """Run pass 1 on every readable document, then pass 2 (the engine)."""
-    from sog.engine import run_engine
+    from bidwright.engine import run_engine
 
     trace_id = uuid.uuid4()
     with engine.begin() as conn:
@@ -220,7 +223,9 @@ def extract_envelope(envelope_id: int, workers: int = 4) -> uuid.UUID:
                             dict(e=envelope_id)).scalars().all()
     try:
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            list(pool.map(lambda d: extract_document(envelope_id, d, trace_id), docs))
+            # each document keeps the caller's workspace (see bidwright.db)
+            list(pool.map(lambda d, ctx: ctx.run(extract_document, envelope_id, d, trace_id), docs,
+                          [contextvars.copy_context() for _ in docs]))
         run_engine(envelope_id, trace_id)
     except Exception as e:
         with engine.begin() as conn:

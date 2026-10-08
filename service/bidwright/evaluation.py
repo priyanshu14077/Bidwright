@@ -1,8 +1,8 @@
 """Run the pipeline over the gold packs and score it against the truth.
 
-    uv run python -m sog.evaluation                 # all packs
-    uv run python -m sog.evaluation --cases P02 P13 # some packs
-    uv run python -m sog.evaluation --rescore       # re-score the last run's envelopes, no model calls
+    uv run python -m bidwright.evaluation                 # all packs
+    uv run python -m bidwright.evaluation --cases P02 P13 # some packs
+    uv run python -m bidwright.evaluation --rescore       # re-score the last run's envelopes, no model calls
 
 Writes data/gold/<dataset>/runs/<timestamp>.json and .md
 """
@@ -10,21 +10,22 @@ Writes data/gold/<dataset>/runs/<timestamp>.json and .md
 import argparse
 import json
 import re
+import contextvars
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 from rapidfuzz import fuzz
 from sqlalchemy import text
 
-from sog.config import REPO_ROOT, settings
-from sog.db import engine
-from sog.engine import ENGINE_VERSION, LEGAL_SUFFIXES
-from sog.extraction import PROMPT_VERSION, extract_envelope
-from sog.intake.ingest import delete_envelope, ingest
-from sog.record import build
-from sog.storage import blob_store
+from bidwright.config import REPO_ROOT, settings
+from bidwright.db import engine, workspace
+from bidwright.engine import ENGINE_VERSION, LEGAL_SUFFIXES
+from bidwright.extraction import PROMPT_VERSION, extract_envelope
+from bidwright.intake.ingest import delete_envelope, ingest
+from bidwright.record import build
+from bidwright.storage import blob_store
 
-GOLD = REPO_ROOT / "data" / "gold" / settings.sog_dataset_version
+GOLD = REPO_ROOT / "data" / "gold" / settings.dataset_version
 PRICING_CRITICAL = ["typology", "gfa_m2", "site_area_m2", "fitout_area_m2", "landscape_area_m2", "services",
                     "stage_package", "country", "city"]
 OTHER = ["client_name", "client_status", "units", "keys", "submission_deadline", "liability_cap", "payment_terms_days"]
@@ -58,12 +59,12 @@ def load_cases(conn, case_ids: list[str] | None = None) -> list[dict]:
     """Gold cases with their expected values, from the eval schema."""
     rows = conn.execute(text("""SELECT case_id, proposal_id, style, issued_at, traps, special_requests, envelope_id
                                 FROM eval.gold_case WHERE dataset_version = :v ORDER BY case_id"""),
-                        dict(v=settings.sog_dataset_version)).all()
+                        dict(v=settings.dataset_version)).all()
     cases = []
     for r in rows:
         if case_ids and r.case_id not in case_ids:
             continue
-        key = dict(v=settings.sog_dataset_version, c=r.case_id)
+        key = dict(v=settings.dataset_version, c=r.case_id)
         fields = dict(conn.execute(text("SELECT field, value FROM eval.gold_truth WHERE dataset_version = :v "
                                         "AND case_id = :c"), key).all())
         conflicts = [dict(field=f, values=vals, documents=docs) for f, vals, docs in conn.execute(
@@ -84,7 +85,7 @@ def run_case(case: dict) -> int:
         delete_envelope(conn, case["envelope_id"])
         envelope_id, _ = ingest(conn, files, "upload", title=f"[gold {case['case_id']}]", received_at=case["issued_at"])
         conn.execute(text("UPDATE eval.gold_case SET envelope_id = :e WHERE dataset_version = :v AND case_id = :c"),
-                     dict(e=envelope_id, v=settings.sog_dataset_version, c=case["case_id"]))
+                     dict(e=envelope_id, v=settings.dataset_version, c=case["case_id"]))
     extract_envelope(envelope_id)
     return envelope_id
 
@@ -178,9 +179,10 @@ def save(meta: dict, summary: dict, results: list[dict]) -> int:
                               dict(d=meta["dataset"], m=meta["model"], p=meta["prompt_version"],
                                    e=meta["engine_version"], s=json.dumps(summary))).scalar_one()
         for r in results:
-            conn.execute(text("INSERT INTO eval.case_result VALUES (:r, :c, :e, CAST(:d AS jsonb))"),
+            conn.execute(text("INSERT INTO eval.case_result (run_id, case_id, envelope_id, detail) VALUES (:r, :c, :e, CAST(:d AS jsonb))"),
                          dict(r=run_id, c=r["proposal_id"], e=r["envelope_id"], d=json.dumps(r, default=str)))
-            conn.execute(text("INSERT INTO eval.field_result VALUES (:r, :c, :f, CAST(:t AS jsonb), CAST(:g AS jsonb), :ok)"),
+            conn.execute(text("INSERT INTO eval.field_result (run_id, case_id, field, truth, got, ok) "
+                              "VALUES (:r, :c, :f, CAST(:t AS jsonb), CAST(:g AS jsonb), :ok)"),
                          [dict(r=run_id, c=r["proposal_id"], f=f, t=json.dumps(v["truth"], default=str),
                                g=json.dumps(v["got"], default=str), ok=v["ok"]) for f, v in r["fields"].items()])
     return run_id
@@ -191,20 +193,32 @@ def main() -> None:
     parser.add_argument("--cases", nargs="*")
     parser.add_argument("--rescore", action="store_true", help="score the existing gold envelopes without re-running")
     parser.add_argument("--workers", type=int, default=3)
+    parser.add_argument("--workspace", default="northbeam", help="slug of the workspace whose gold set to run")
     args = parser.parse_args()
+    with engine.connect() as conn:
+        org_id = conn.execute(text("SELECT org_id FROM tenancy.organization WHERE slug = :s"),
+                              dict(s=args.workspace)).scalar()
+    if org_id is None:
+        raise SystemExit(f"no workspace '{args.workspace}'")
+    with workspace(org_id):
+        backtest(args)
+
+
+def backtest(args) -> None:
     with engine.connect() as conn:
         cases = load_cases(conn, args.cases)
     if not cases:
-        raise SystemExit("no gold cases in the database; run `uv run python -m sog.archive.loader`")
+        raise SystemExit("no gold cases in the database; run `uv run python -m bidwright.archive.loader`")
     if args.rescore:
         envelope_ids = [c["envelope_id"] for c in cases]
     else:
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
-            envelope_ids = list(pool.map(run_case, cases))
+            envelope_ids = list(pool.map(lambda c, ctx: ctx.run(run_case, c), cases,
+                                         [contextvars.copy_context() for _ in cases]))
     results = [score(c, e) for c, e in zip(cases, envelope_ids)]
     summary = summarise(results)
     run_at = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    meta = {"run_at": run_at, "dataset": settings.sog_dataset_version, "model": settings.sog_model_extract,
+    meta = {"run_at": run_at, "dataset": settings.dataset_version, "model": settings.model_extract,
             "prompt_version": PROMPT_VERSION, "engine_version": ENGINE_VERSION}
     run_id = save(meta, summary, results)
     md = report_md(meta | {"run_id": run_id}, summary, results)

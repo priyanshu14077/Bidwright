@@ -1,10 +1,17 @@
-"""Load reference data and an archive dataset version into the database.
+"""Load reference data, and the demo workspace with its sample archive.
 
-Both loads converge: running them twice leaves the same state. Reference rows
-are upserted; an archive dataset version is replaced as a whole.
+Three layers:
+- shared: countries, FX, the typology/service/stage vocabulary and the request
+  schema. One copy for every workspace.
+- starter pack: markets and tiers, synonyms, field weights and bid rules. Every
+  new workspace gets a copy (seed_workspace) and edits it from there.
+- sample archive and gold set: the fictional Northbeam Studio's 14 proposals
+  and RFP packs, loaded into the demo workspace only.
 
-    uv run python -m sog.archive.loader            # reference + configured dataset
-    uv run python -m sog.archive.loader --dataset v0-synthetic
+Every load converges: running it twice leaves the same state.
+
+    uv run python -m bidwright.archive.loader            # shared data + demo workspace
+    uv run python -m bidwright.archive.loader --skip-gold
 """
 
 import argparse
@@ -16,11 +23,12 @@ from pathlib import Path
 from docx import Document
 from sqlalchemy import Connection, text
 
-from sog.config import REPO_ROOT, settings
-from sog.db import engine
-from sog.intake import reading
-from sog.intake.ingest import delete_envelope, ingest
-from sog.storage import blob_store
+from bidwright.config import REPO_ROOT, settings
+from bidwright import tenancy
+from bidwright.db import owner_engine, workspace
+from bidwright.intake import reading
+from bidwright.intake.ingest import delete_envelope, ingest
+from bidwright.storage import blob_store
 
 REFERENCE_FILE = REPO_ROOT / "data" / "reference" / "v0.json"
 
@@ -40,7 +48,15 @@ SECTION_CODES = {
 }
 
 
-def load_reference(conn: Connection, path: Path = REFERENCE_FILE) -> None:
+DEMO_ORG = {"slug": "northbeam", "name": "Northbeam Studio",
+            "practice_description": "an international architecture, interior design, landscape and masterplanning "
+                                    "practice with studios in Dubai, Barcelona, Singapore, Ho Chi Minh City and "
+                                    "Guangzhou"}
+DEMO_USER = {"email": "demo@northbeam.example", "name": "Demo Estimator", "password": "northbeam-demo"}
+
+
+def load_shared(conn: Connection, path: Path = REFERENCE_FILE) -> None:
+    """Countries, FX and the shared vocabulary. Run with the owner login, outside any workspace."""
     ref = json.loads(path.read_text())
     upserts = [
         (
@@ -52,11 +68,6 @@ def load_reference(conn: Connection, path: Path = REFERENCE_FILE) -> None:
                 dict(code=c, name=n, region=r, cur=cur, unit=u, aliases=a)
                 for c, n, r, cur, u, a in ref["countries"]
             ],
-        ),
-        (
-            "INSERT INTO ref.location (country, city, tier, aliases) VALUES (:c, :city, :tier, :aliases) "
-            "ON CONFLICT (country, city) DO UPDATE SET tier = EXCLUDED.tier, aliases = EXCLUDED.aliases",
-            [dict(c=c, city=city, tier=t, aliases=a) for c, city, t, a in ref["locations"]],
         ),
         (
             "INSERT INTO ref.fx_rate VALUES (:cur, :rate, :as_of, :note) "
@@ -78,21 +89,37 @@ def load_reference(conn: Connection, path: Path = REFERENCE_FILE) -> None:
             "ON CONFLICT (code) DO UPDATE SET label = EXCLUDED.label, seq = EXCLUDED.seq",
             [dict(code=c, label=lbl, seq=s) for c, lbl, s in ref["stages"]],
         ),
+    ]
+    for sql, rows in upserts:
+        conn.execute(text(sql), rows)
+
+
+def seed_workspace(conn: Connection, path: Path = REFERENCE_FILE) -> None:
+    """Copy the starter pack into the current workspace. Upserts, so it also refreshes the demo workspace."""
+    ref = json.loads(path.read_text())
+    upserts = [
         (
-            "INSERT INTO ref.term_synonym VALUES (:syn, :tbl, :code, :scope, :lang) "
-            "ON CONFLICT (synonym, target_table, scope) DO UPDATE SET target_code = EXCLUDED.target_code, "
+            "INSERT INTO ref.location (country, city, tier, aliases) VALUES (:c, :city, :tier, :aliases) "
+            "ON CONFLICT (org_id, country, city) DO UPDATE SET tier = EXCLUDED.tier, aliases = EXCLUDED.aliases",
+            [dict(c=c, city=city, tier=t, aliases=a) for c, city, t, a in ref["locations"]],
+        ),
+        (
+            "INSERT INTO ref.term_synonym (synonym, target_table, target_code, scope, language) "
+            "VALUES (:syn, :tbl, :code, :scope, :lang) "
+            "ON CONFLICT (org_id, synonym, target_table, scope) DO UPDATE SET target_code = EXCLUDED.target_code, "
             "language = EXCLUDED.language",
             [dict(syn=s, tbl=t, code=c, scope=sc, lang=lg) for s, t, c, sc, lg in ref["synonyms"]],
         ),
         (
-            "INSERT INTO ref.field_criticality VALUES (:field, :crit, :w) "
-            "ON CONFLICT (field) DO UPDATE SET pricing_critical = EXCLUDED.pricing_critical, weight = EXCLUDED.weight",
+            "INSERT INTO ref.field_criticality (field, pricing_critical, weight) VALUES (:field, :crit, :w) "
+            "ON CONFLICT (org_id, field) DO UPDATE SET pricing_critical = EXCLUDED.pricing_critical, "
+            "weight = EXCLUDED.weight",
             [dict(field=f, crit=c, w=w) for f, c, w in ref["field_criticality"]],
         ),
         (
             "INSERT INTO ref.qualification_rule (name, expression, effect, message, owner) "
-            "VALUES (:name, CAST(:expr AS jsonb), :effect, :message, 'fruition-poc') "
-            "ON CONFLICT (name) DO UPDATE SET expression = EXCLUDED.expression, effect = EXCLUDED.effect, "
+            "VALUES (:name, CAST(:expr AS jsonb), :effect, :message, 'starter-pack') "
+            "ON CONFLICT (org_id, name) DO UPDATE SET expression = EXCLUDED.expression, effect = EXCLUDED.effect, "
             "message = EXCLUDED.message, updated_at = now()",
             [
                 dict(name=r["name"], expr=json.dumps(r["expression"]), effect=r["effect"], message=r["message"])
@@ -115,7 +142,7 @@ def country_codes(conn: Connection) -> dict[str, str]:
 
 def load_archive(conn: Connection, dataset_version: str) -> int:
     dataset_dir = REPO_ROOT / "data" / "archive" / dataset_version
-    data = json.loads((dataset_dir / "sog_synthetic_archive.json").read_text())
+    data = json.loads((dataset_dir / "archive.json").read_text())
     countries = country_codes(conn)
     data_origin = "synthetic" if "synthetic" in dataset_version else "archive"
 
@@ -123,30 +150,33 @@ def load_archive(conn: Connection, dataset_version: str) -> int:
     conn.execute(text("DELETE FROM archive.client WHERE dataset_version = :v"), dict(v=dataset_version))
     meta = data["meta"]
     conn.execute(
-        text("""INSERT INTO archive.dataset VALUES (:v, :name, :origin, :generated, :n, :warning, now())
-                ON CONFLICT (dataset_version) DO UPDATE SET name = EXCLUDED.name, data_origin = EXCLUDED.data_origin,
+        text("""INSERT INTO archive.dataset (dataset_version, name, data_origin, generated, record_count, warning)
+                VALUES (:v, :name, :origin, :generated, :n, :warning)
+                ON CONFLICT (org_id, dataset_version) DO UPDATE SET name = EXCLUDED.name, data_origin = EXCLUDED.data_origin,
                 generated = EXCLUDED.generated, record_count = EXCLUDED.record_count, warning = EXCLUDED.warning,
                 loaded_at = now()"""),
         dict(v=dataset_version, name=meta["name"], origin=data_origin, generated=meta.get("generated"),
              n=meta.get("record_count"), warning=meta.get("warning")),
     )
     conn.execute(text("DELETE FROM ref.fee_assumption WHERE dataset_version = :v"), dict(v=dataset_version))
-    conn.execute(text("INSERT INTO ref.fee_assumption VALUES (:key, :text, :value, :unit, :rationale, :v)"),
+    conn.execute(text("INSERT INTO ref.fee_assumption (key, value_text, value, unit, rationale, dataset_version) "
+                      "VALUES (:key, :text, :value, :unit, :rationale, :v)"),
                  [dict(a, text=str(a["value"]), value=a["value"] if isinstance(a["value"], (int, float)) else None,
                        v=dataset_version) for a in data["assumptions"]])
     conn.execute(text("DELETE FROM ref.typology_cost_ratio WHERE dataset_version = :v"), dict(v=dataset_version))
-    conn.execute(text("INSERT INTO ref.typology_cost_ratio VALUES (:t, :r, :v)"),
+    conn.execute(text("INSERT INTO ref.typology_cost_ratio (cost_type, ratio, dataset_version) VALUES (:t, :r, :v)"),
                  [dict(t=t, r=r, v=dataset_version) for t, r in data["typology_cost_ratios"].items()])
 
     conn.execute(
         text(
-            "INSERT INTO ref.studio VALUES (:code, :name, :city, :country) "
-            "ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, city = EXCLUDED.city, country = EXCLUDED.country"
+            "INSERT INTO ref.studio (code, name, city, country) VALUES (:code, :name, :city, :country) "
+            "ON CONFLICT (org_id, code) DO UPDATE SET name = EXCLUDED.name, city = EXCLUDED.city, country = EXCLUDED.country"
         ),
         [dict(s, country=countries[s["country"].lower()]) for s in data["studios"]],
     )
     conn.execute(
-        text("INSERT INTO archive.client VALUES (:client_id, :v, :name, :type, :country, NULL)"),
+        text("INSERT INTO archive.client (client_id, dataset_version, name, client_type, country) "
+             "VALUES (:client_id, :v, :name, :type, :country)"),
         [dict(c, v=dataset_version, country=countries[c["country"].lower()]) for c in data["clients"]],
     )
     conn.execute(text("DELETE FROM ref.benchmark_source WHERE source_key = ANY(:keys)"),
@@ -189,31 +219,35 @@ def load_archive(conn: Connection, dataset_version: str) -> int:
         )
         pid = p["proposal_id"]
         services = sorted({SERVICE_ALIASES.get(s, s) for s in p["services"]})
-        conn.execute(text("INSERT INTO archive.proposal_service VALUES (:p, :s)"),
+        conn.execute(text("INSERT INTO archive.proposal_service (proposal_id, service) VALUES (:p, :s)"),
                      [dict(p=pid, s=s) for s in services])
-        conn.execute(text("INSERT INTO archive.proposal_stage VALUES (:p, :s)"),
+        conn.execute(text("INSERT INTO archive.proposal_stage (proposal_id, stage) VALUES (:p, :s)"),
                      [dict(p=pid, s=s) for s in p["stage_package"]])
         conn.execute(
             text(
-                "INSERT INTO archive.fee_line VALUES (:p, :line_no, :service, :stage, :basis, "
+                "INSERT INTO archive.fee_line (proposal_id, line_no, service, stage, basis, basis_qty, basis_unit, "
+                "amount_local, amount_usd) VALUES (:p, :line_no, :service, :stage, :basis, "
                 ":basis_qty, :basis_unit, :amount_local, :amount_usd)"
             ),
             [dict(f, p=pid, service=SERVICE_ALIASES.get(f["service"], f["service"])) for f in p["fee_lines"]],
         )
         if p["reimbursables"]:
             conn.execute(
-                text("INSERT INTO archive.reimbursable VALUES (:p, :type, :qty, :unit_rate_local, :amount_local, :note)"),
+                text("INSERT INTO archive.reimbursable (proposal_id, type, qty, unit_rate_local, amount_local, note) "
+                     "VALUES (:p, :type, :qty, :unit_rate_local, :amount_local, :note)"),
                 [dict(r, p=pid) for r in p["reimbursables"]],
             )
         conn.execute(
-            text("INSERT INTO archive.payment_milestone VALUES (:p, :seq, :milestone, :pct, :amount_local)"),
+            text("INSERT INTO archive.payment_milestone (proposal_id, seq, milestone, pct, amount_local) "
+                 "VALUES (:p, :seq, :milestone, :pct, :amount_local)"),
             [dict(m, p=pid) for m in p["payment_schedule"]],
         )
-        conn.execute(text("INSERT INTO archive.deliverable VALUES (:p, :item, :qty)"),
+        conn.execute(text("INSERT INTO archive.deliverable (proposal_id, item, qty) VALUES (:p, :item, :qty)"),
                      [dict(d, p=pid) for d in p["deliverables"]])
         if p["tc_deviations"]:
             conn.execute(
-                text("INSERT INTO archive.tc_deviation VALUES (:p, :clause, :client_request, :sog_position)"),
+                text("INSERT INTO archive.tc_deviation (proposal_id, clause, client_request, firm_position) "
+                     "VALUES (:p, :clause, :client_request, :firm_position)"),
                 [dict(t, p=pid) for t in p["tc_deviations"]],
             )
         if p.get("pricing_trace"):
@@ -245,7 +279,8 @@ def load_proposal_document(conn: Connection, proposal_id: str, path: Path) -> No
              mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
     ).scalar_one()
     conn.execute(
-        text("INSERT INTO lineage.page VALUES (:d, :n, :w, :h, CAST(:lines AS jsonb))"),
+        text("INSERT INTO lineage.page (document_id, page_no, width, height, lines) "
+             "VALUES (:d, :n, :w, :h, CAST(:lines AS jsonb))"),
         [dict(d=document_id, n=pg.page_no, w=pg.width, h=pg.height,
               lines=json.dumps([{"id": ln.line_id, "text": ln.text, "bbox": ln.bbox} for ln in pg.lines]))
          for pg in pages],
@@ -317,13 +352,17 @@ def load_gold(conn: Connection, dataset_version: str) -> int:
         envelope_id, _ = ingest(conn, files, "upload", title=f"[gold {case_id}]",
                                 received_at=datetime.fromisoformat(case["issued_at"]))
         key = dict(v=dataset_version, c=case_id)
-        conn.execute(text("""INSERT INTO eval.gold_case VALUES (:v, :c, :p, :style, :issued, :traps, :special, :e)"""),
+        conn.execute(text("""INSERT INTO eval.gold_case (dataset_version, case_id, proposal_id, style, issued_at,
+                                traps, special_requests, envelope_id)
+                             VALUES (:v, :c, :p, :style, :issued, :traps, :special, :e)"""),
                      key | dict(p=case["proposal_id"], style=case["style"], issued=case["issued_at"],
                                 traps=case["traps"], special=case["special_requests"], e=envelope_id))
-        conn.execute(text("INSERT INTO eval.gold_truth VALUES (:v, :c, :f, CAST(:val AS jsonb))"),
+        conn.execute(text("INSERT INTO eval.gold_truth (dataset_version, case_id, field, value) "
+                          "VALUES (:v, :c, :f, CAST(:val AS jsonb))"),
                      [key | dict(f=f, val=json.dumps(val)) for f, val in case["fields"].items()])
         if case["conflicts"]:
-            conn.execute(text("INSERT INTO eval.gold_conflict VALUES (:v, :c, :f, CAST(:vals AS jsonb), :docs)"),
+            conn.execute(text("INSERT INTO eval.gold_conflict (dataset_version, case_id, field, values, documents) "
+                              "VALUES (:v, :c, :f, CAST(:vals AS jsonb), :docs)"),
                          [key | dict(f=c["field"], vals=json.dumps(c["values"]), docs=c["documents"])
                           for c in case["conflicts"]])
     return len(cases)
@@ -331,15 +370,20 @@ def load_gold(conn: Connection, dataset_version: str) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", default=settings.sog_dataset_version)
+    parser.add_argument("--dataset", default=settings.dataset_version)
     parser.add_argument("--skip-gold", action="store_true", help="do not (re)load the gold RFP packs into the inbox")
     args = parser.parse_args()
-    with engine.begin() as conn:
-        load_reference(conn)
+    with owner_engine.begin() as conn:
+        load_shared(conn)
         schemas = load_schema(conn)
+        org_id = tenancy.ensure_demo(conn, DEMO_ORG, DEMO_USER)
+    with workspace(org_id), owner_engine.begin() as conn:
+        seed_workspace(conn)
         n = load_archive(conn, args.dataset)
         g = 0 if args.skip_gold else load_gold(conn, args.dataset)
-    print(f"loaded reference data, schemas {schemas}, {n} proposals and {g} gold RFP packs from {args.dataset}")
+    print(f"loaded shared data and schemas {schemas}; demo workspace '{DEMO_ORG['name']}' has {n} proposals "
+          f"and {g} gold RFP packs from {args.dataset}")
+    print(f"demo sign-in: {DEMO_USER['email']} / {DEMO_USER['password']}")
 
 
 if __name__ == "__main__":
