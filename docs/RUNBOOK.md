@@ -1,12 +1,6 @@
-# Runbook: running the SOG proof of concept
+# Runbook: running Bidwright locally
 
-Every command below runs from the **project root**:
-
-```bash
-cd ~/Documents/fruition-projects/sog
-```
-
-The `Makefile` lives there, and each `make` command moves into the right folder by itself. You never need to `cd` into `service/`, `frontend/` or `prisma/`.
+Every command below runs from the **project root**, where the `Makefile` lives. Each `make` command moves into the right folder by itself.
 
 You will use **two terminal tabs**:
 
@@ -31,12 +25,9 @@ All four should print something. If LibreOffice is missing: `brew install --cask
 
 ### Step 2. Add the API key
 
-1. Open `.env` in the project root.
-2. On the line `ANTHROPIC_API_KEY=`, paste the key directly after the `=`. Leave no spaces and no quotes:
-   ```
-   ANTHROPIC_API_KEY=sk-ant-api03-...
-   ```
-3. **Save the file (Cmd+S).** The services read `.env` from disk, so an unsaved key does not count.
+1. Run `make env`. It creates `.env` from `.env.example` and fills every database password with a random value. An existing `.env` only gets its empty passwords filled.
+2. On the line `ANTHROPIC_API_KEY=`, paste the key directly after the `=`, with no spaces or quotes.
+3. **Save the file.** The services read `.env` from disk at start-up.
 
 ### Step 3. Build the database and install everything
 
@@ -46,20 +37,9 @@ In **Tab B**:
 make setup
 ```
 
-This runs in order:
-
-1. starts the Postgres container `sog-postgres-1`;
-2. creates the logins;
-3. installs the Python, frontend and Prisma dependencies;
-4. applies the migrations;
-5. seeds the data;
-6. prints a table with every table's row count.
-
-It takes about a minute. The last line of the table should read `ref | typology_cost_ratio | 6`, and `archive | proposal` should show `14`.
+This starts the Postgres container `bidwright-postgres-1`, creates the logins, installs the Python, frontend and Prisma dependencies, applies the migration, and seeds the shared data and the demo workspace. It takes about a minute. It ends by printing the workspaces (`Northbeam Studio (demo)`) and a row count per table; `archive | proposal` should show `14`.
 
 ### Step 4. Check everything
-
-In **Tab B**:
 
 ```bash
 make check
@@ -72,8 +52,6 @@ Every line under Database, Model and Tools must say `OK`. If `API key` says FAIL
 ## Part 2: Every working session
 
 ### Step 5. Start the database (if Docker was restarted)
-
-In **Tab B**:
 
 ```bash
 make db
@@ -89,69 +67,74 @@ In **Tab A**:
 make dev
 ```
 
-Wait for the three addresses to print, then open them:
+Wait for the addresses to print, then open them:
 
 | Address | What it is |
 |---|---|
-| http://localhost:5173 | Review UI: inbox, review, accuracy, reference data, model calls |
-| http://localhost:8000/docs | API (try any endpoint from the browser) |
-| http://localhost:5555 | Prisma Studio: browse every table |
+| http://localhost:5173 | Landing page |
+| http://localhost:5173/app/ | The app: inbox, review, backtests, reference data, members, model calls |
+| http://localhost:8000/docs | API (sign in through the app first; the session cookie is shared) |
+| http://localhost:5555 | Prisma Studio: browse every table in every workspace |
 
-**Restart `make dev` (Ctrl-C, then `make dev` again) whenever you change `.env`.** The API reads it only at start-up.
+The web app needs port 5173 free. If something else holds it, `make dev` fails instead of moving to another port; stop the other process (`lsof -iTCP:5173 -sTCP:LISTEN`) and run it again.
 
-### Step 7. Stop
+**Restart `make dev` (Ctrl-C, then `make dev`) whenever you change `.env`.**
 
-- In **Tab A**, press **Ctrl-C**. This stops the API, UI and Studio.
-- In **Tab B**, run `make stop`. This stops the database container. The data is kept in the Docker volume `sog_pgdata`.
+### Step 7. Sign in
+
+- **Demo practice:** click **Open the demo practice** on the landing page. The login (`demo@northbeam.example` / `northbeam-demo`) is filled in.
+- **Your own workspace:** click **Start a workspace**. A new workspace gets the starter vocabulary, markets and bid rules, and nothing else: no archive, no gold set.
+- **A second person:** in **Members**, create an invitation, then open the link in a private window and create an account with that email.
+
+### Step 8. Stop
+
+- In **Tab A**, press **Ctrl-C**. This stops the API, the web app and Studio.
+- In **Tab B**, run `make stop`. The data is kept in the Docker volume `bidwright_pgdata`.
 
 ---
 
 ## Part 3: Run the pipeline step by step
 
-Each step costs a little more than the one before. Do them in order and check each result before moving on.
+Each step costs a little more than the one before. Check each result before moving on.
 
-### Step 8. One RFP by hand in the UI (about 4 model calls, a few cents)
+### Step 9. One RFP by hand (about 4 model calls, a few cents)
 
-1. Open http://localhost:5173. The inbox lists 14 RFPs with status **Received**. These are the gold packs.
-2. Open **Arabian Sea Towers** (`[gold P13]`), and click **Extract** in the top-right block.
-3. Wait about a minute. The status changes to *In review*.
-4. Click any value on the right. The source is circled in red on the PDF on the left.
+1. Sign in to the demo practice. The inbox lists 14 packs with status **Received**: the gold set.
+2. Open `[gold P13]` and click **Extract** in the top-right block.
+3. Wait about a minute, until the status reads *In review*.
+4. Click any value on the right. Its source is circled in red on the PDF on the left.
 
 Things to check on P13:
 
-- GFA should read 110,000 m², converted from the Indian `11,84,030 sq ft`.
+- GFA should read 110,000 m², converted from the Indian-grouped `11,84,030 sq ft`.
 - The deadline should come from the email.
 - *Preliminary Drawings* should map to Schematic Design.
 
-Model calls and their cost are listed under **Model calls** in the top menu.
+Model calls and their cost are listed under **Model calls** (admins and owners).
 
-### Step 9. Score one pack (about 4 model calls)
-
-In **Tab B**:
+### Step 10. Backtest one pack (about 4 model calls)
 
 ```bash
 make eval-one CASE=P13
 ```
 
-It prints a report: accuracy per field, conflicts found, and cost. The run is also stored in the database (`eval.run`) and shown on the **Accuracy** page.
-
-Then try a pack with a planted conflict:
+It prints a report: accuracy per field, conflicts found, and cost. The run is stored in the workspace and shown on the **Backtests** page. Then try a pack with a planted conflict:
 
 ```bash
 make eval-one CASE=P02
 ```
 
-P02's brief says ~42,180 m² and its area schedule says 38,000 m². The report should list it under "Conflicts flagged".
+P02's brief says about 42,180 m² and its area schedule says 38,000 m². The report should list it under "Conflicts flagged".
 
-### Step 10. Score all 14 packs (about 56 model calls, a few dollars)
+### Step 11. Backtest all 14 packs (about 56 model calls, a few dollars)
 
 ```bash
 make eval
 ```
 
-This takes several minutes. Read the summary table at the top of the report: pricing-critical accuracy (target ≥ 90%), source highlights (target 100%), and planted conflicts flagged (target 4/4). Click any row on the **Accuracy** page to open that RFP and see what went wrong.
+Read the summary at the top of the report: pricing-critical accuracy (target 90% or more), source highlights (target 100%), and planted conflicts flagged (target 4/4). Click any row on the **Backtests** page to open that RFP.
 
-### Step 11. Re-score without spending (0 model calls)
+### Step 12. Re-score without spending (0 model calls)
 
 After changing engine rules or scoring code:
 
@@ -159,32 +142,34 @@ After changing engine rules or scoring code:
 make eval ARGS=--rescore
 ```
 
-or directly: `cd service && uv run python -m sog.evaluation --rescore`.
-
 ---
 
 ## Part 4: Keeping everything in sync
 
 | When | Run in Tab B | Why |
 |---|---|---|
-| You pulled new code or someone added a migration | `make setup` | Installs new dependencies, applies new migrations, reseeds. Safe to repeat |
-| A migration was added and nothing else changed | `make migrate` then `cd prisma && pnpm pull && cd ..` | Database first, then Prisma reads the new shape |
-| Reference data, the archive JSON or the gold packs changed | `make seed` | Reloads them. Gold envelopes are recreated, so earlier extractions of them are cleared |
+| You pulled new code | `make setup` | Installs new dependencies, applies new migrations, reseeds. Safe to repeat |
+| A migration was added | `make migrate`, then `cd prisma && pnpm run pull` | Database first, then Prisma reads the new shape |
+| Reference data, the archive or gold packs changed | `make seed` | Reloads them into the demo workspace. Gold envelopes are recreated, so earlier extractions there are cleared |
 | `.env` changed | Ctrl-C in Tab A, then `make dev` | The API reads `.env` at start-up |
-| You are not sure what state things are in | `make check` and `make status` | Preflight, plus row counts for every table |
+| A database password changed in `.env` | `make db roles`, then restart `make dev` | Recreates the container with the new values and sets them on every login |
+| You are not sure what state things are in | `make check`, `make status` | Preflight, plus workspaces and row counts |
 | You want a clean slate | `make reset` | Deletes the database volume and runs `make setup` (asks first) |
 
 ### Looking at the database
 
-- **Prisma Studio:** http://localhost:5555, while `make dev` is running.
-- **psql:** `make psql`. Then `\dn` lists the schemas, `\dt archive.*` lists tables, and `\q` quits.
-- **A GUI tool** (TablePlus, DBeaver): host `localhost`, port **5434**, database **sog**, user `sog_prisma`, password `sog_prisma`. The tables are in the schemas `ref`, `archive`, `lineage`, `intake` and `eval`, not in `public`.
+- **Prisma Studio:** http://localhost:5555 while `make dev` is running. It sees every workspace.
+- **psql:** `make psql` logs in as the owner, which row-level security still binds. To see a workspace's rows:
+  ```sql
+  select set_config('app.org_id', (select org_id::text from tenancy.organization where slug = 'northbeam'), false);
+  ```
+- **A GUI tool** (TablePlus, DBeaver): host `localhost`, port **5434**, database **bidwright**, user `bidwright_studio`, password: the `BIDWRIGHT_STUDIO_PASSWORD` value in `.env`.
 
 ### Changing the database shape
 
-1. Add a migration file in `service/migrations/versions/` (copy the pattern of `0004_dataset_eval.py`).
+1. Add a migration file in `service/migrations/versions/`. A new per-workspace table follows the pattern in `0001_baseline.py`: `org_id` with its default, `org_id` in the natural keys, and the row-level security policy.
 2. `make migrate`
-3. `cd prisma && pnpm pull && cd ..`
-4. `make status` to confirm.
+3. `cd prisma && pnpm run pull`
+4. `make test` (includes the workspace isolation tests) and `make status`.
 
-Never use `prisma migrate` or `prisma db push`. Alembic owns the shape, and the Prisma login cannot change it.
+Never use `prisma migrate` or `prisma db push`. Alembic owns the shape.
