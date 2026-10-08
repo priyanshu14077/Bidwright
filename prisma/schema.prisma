@@ -5,94 +5,109 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  schemas  = ["archive", "eval", "intake", "lineage", "ref"]
+  schemas  = ["archive", "eval", "intake", "lineage", "ref", "tenancy"]
 }
 
 model client {
-  client_id                       String     @id
+  org_id                          String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  client_id                       String
   dataset_version                 String
   name                            String
   client_type                     String?
-  country                         String?    @db.Char(2)
-  first_engaged                   DateTime?  @db.Date
-  country_client_countryTocountry country?   @relation("client_countryTocountry", fields: [country], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  country                         String?      @db.Char(2)
+  first_engaged                   DateTime?    @db.Date
+  country_client_countryTocountry country?     @relation("client_countryTocountry", fields: [country], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  organization                    organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
   proposal                        proposal[]
 
+  @@id([org_id, client_id])
   @@index([name(ops: raw("gin_trgm_ops"))], map: "client_name_trgm", type: Gin)
   @@schema("archive")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model dataset {
-  dataset_version String    @id
+  org_id          String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  dataset_version String
   name            String
   data_origin     String
-  generated       DateTime? @db.Date
+  generated       DateTime?    @db.Date
   record_count    Int?
   warning         String?
-  loaded_at       DateTime  @default(now()) @db.Timestamptz(6)
+  loaded_at       DateTime     @default(now()) @db.Timestamptz(6)
+  organization    organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
 
+  @@id([org_id, dataset_version])
   @@schema("archive")
 }
 
 model deliverable {
-  proposal_id String
-  item        String
-  qty         Int?
-  proposal    proposal @relation(fields: [proposal_id], references: [proposal_id], onDelete: Cascade, onUpdate: NoAction)
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  proposal_id  String
+  item         String
+  qty          Int?
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  proposal     proposal     @relation(fields: [org_id, proposal_id], references: [org_id, proposal_id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@id([proposal_id, item])
+  @@id([org_id, proposal_id, item])
   @@schema("archive")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model fee_line {
+  org_id                            String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   proposal_id                       String
   line_no                           Int
   service                           String
   stage                             String
   basis                             String?
-  basis_qty                         Decimal? @db.Decimal
+  basis_qty                         Decimal?     @db.Decimal
   basis_unit                        String?
-  amount_local                      Decimal  @db.Decimal
-  amount_usd                        Decimal? @db.Decimal
-  proposal                          proposal @relation(fields: [proposal_id], references: [proposal_id], onDelete: Cascade, onUpdate: NoAction)
-  service_fee_line_serviceToservice service  @relation("fee_line_serviceToservice", fields: [service], references: [code], onDelete: NoAction, onUpdate: NoAction)
-  stage_fee_line_stageTostage       stage    @relation("fee_line_stageTostage", fields: [stage], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  amount_local                      Decimal      @db.Decimal
+  amount_usd                        Decimal?     @db.Decimal
+  organization                      organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  proposal                          proposal     @relation(fields: [org_id, proposal_id], references: [org_id, proposal_id], onDelete: Cascade, onUpdate: NoAction)
+  service_fee_line_serviceToservice service      @relation("fee_line_serviceToservice", fields: [service], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  stage_fee_line_stageTostage       stage        @relation("fee_line_stageTostage", fields: [stage], references: [code], onDelete: NoAction, onUpdate: NoAction)
 
-  @@id([proposal_id, line_no])
+  @@id([org_id, proposal_id, line_no])
   @@schema("archive")
 }
 
 model payment_milestone {
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   proposal_id  String
   seq          Int
   milestone    String
-  pct          Decimal  @db.Decimal(5, 2)
-  amount_local Decimal? @db.Decimal
-  proposal     proposal @relation(fields: [proposal_id], references: [proposal_id], onDelete: Cascade, onUpdate: NoAction)
+  pct          Decimal      @db.Decimal(5, 2)
+  amount_local Decimal?     @db.Decimal
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  proposal     proposal     @relation(fields: [org_id, proposal_id], references: [org_id, proposal_id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@id([proposal_id, seq])
+  @@id([org_id, proposal_id, seq])
   @@schema("archive")
 }
 
 model pricing_trace {
-  trace_id    BigInt   @id @default(autoincrement())
-  proposal_id String
-  factor      String
-  value       String?
-  source      String?
-  note        String?
-  proposal    proposal @relation(fields: [proposal_id], references: [proposal_id], onDelete: Cascade, onUpdate: NoAction)
+  trace_id     BigInt       @id @default(autoincrement())
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  proposal_id  String
+  factor       String
+  value        String?
+  source       String?
+  note         String?
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  proposal     proposal     @relation(fields: [org_id, proposal_id], references: [org_id, proposal_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@schema("archive")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model proposal {
-  proposal_id                          String              @id
+  org_id                               String              @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  proposal_id                          String
   dataset_version                      String
-  reference                            String              @unique
+  reference                            String
   title                                String
   data_origin                          String
   studio_code                          String?
@@ -119,17 +134,18 @@ model proposal {
   outcome_date                         DateTime?           @db.Date
   loss_reason                          String?
   project_challenges                   String?
-  schema_version                       String              @default("0.1")
-  created_at                           DateTime            @default(now()) @db.Timestamptz(6)
   cost_city                            String?
   document_variations                  Json?
+  schema_version                       String              @default("0.1")
+  created_at                           DateTime            @default(now()) @db.Timestamptz(6)
   deliverable                          deliverable[]
   fee_line                             fee_line[]
   payment_milestone                    payment_milestone[]
   pricing_trace                        pricing_trace[]
-  client                               client?             @relation(fields: [client_id], references: [client_id], onDelete: NoAction, onUpdate: NoAction)
-  location                             location?           @relation(fields: [location_id], references: [location_id], onDelete: NoAction, onUpdate: NoAction)
-  studio                               studio?             @relation(fields: [studio_code], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  client                               client?             @relation(fields: [org_id, client_id], references: [org_id, client_id], onDelete: NoAction, onUpdate: NoAction)
+  organization                         organization        @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  location                             location?           @relation(fields: [org_id, location_id], references: [org_id, location_id], onDelete: NoAction, onUpdate: NoAction)
+  studio                               studio?             @relation(fields: [org_id, studio_code], references: [org_id, code], onDelete: NoAction, onUpdate: NoAction)
   typology_proposal_typologyTotypology typology?           @relation("proposal_typologyTotypology", fields: [typology], references: [code], onDelete: NoAction, onUpdate: NoAction)
   proposal_section                     proposal_section[]
   proposal_service                     proposal_service[]
@@ -140,12 +156,15 @@ model proposal {
   field_value                          field_value[]
   source_document                      source_document[]
 
-  @@index([dataset_version], map: "proposal_dataset")
+  @@id([org_id, proposal_id])
+  @@unique([org_id, reference])
+  @@index([org_id, dataset_version], map: "proposal_dataset")
   @@schema("archive")
 }
 
 model proposal_section {
-  section_id   BigInt   @id @default(autoincrement())
+  section_id   BigInt       @id @default(autoincrement())
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   proposal_id  String
   seq          Int
   section_code String
@@ -153,83 +172,97 @@ model proposal_section {
   service      String?
   stage        String?
   body         String
-  proposal     proposal @relation(fields: [proposal_id], references: [proposal_id], onDelete: Cascade, onUpdate: NoAction)
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  proposal     proposal     @relation(fields: [org_id, proposal_id], references: [org_id, proposal_id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@unique([proposal_id, seq])
+  @@unique([org_id, proposal_id, seq])
   @@schema("archive")
 }
 
 model proposal_service {
+  org_id                                    String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   proposal_id                               String
   service                                   String
-  proposal                                  proposal @relation(fields: [proposal_id], references: [proposal_id], onDelete: Cascade, onUpdate: NoAction)
-  service_proposal_service_serviceToservice service  @relation("proposal_service_serviceToservice", fields: [service], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  organization                              organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  proposal                                  proposal     @relation(fields: [org_id, proposal_id], references: [org_id, proposal_id], onDelete: Cascade, onUpdate: NoAction)
+  service_proposal_service_serviceToservice service      @relation("proposal_service_serviceToservice", fields: [service], references: [code], onDelete: NoAction, onUpdate: NoAction)
 
-  @@id([proposal_id, service])
+  @@id([org_id, proposal_id, service])
   @@schema("archive")
 }
 
 model proposal_stage {
+  org_id                            String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   proposal_id                       String
   stage                             String
-  proposal                          proposal @relation(fields: [proposal_id], references: [proposal_id], onDelete: Cascade, onUpdate: NoAction)
-  stage_proposal_stage_stageTostage stage    @relation("proposal_stage_stageTostage", fields: [stage], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  organization                      organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  proposal                          proposal     @relation(fields: [org_id, proposal_id], references: [org_id, proposal_id], onDelete: Cascade, onUpdate: NoAction)
+  stage_proposal_stage_stageTostage stage        @relation("proposal_stage_stageTostage", fields: [stage], references: [code], onDelete: NoAction, onUpdate: NoAction)
 
-  @@id([proposal_id, stage])
+  @@id([org_id, proposal_id, stage])
   @@schema("archive")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model reimbursable {
+  org_id          String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   proposal_id     String
   type            String
   qty             Int?
-  unit_rate_local Decimal? @db.Decimal
-  amount_local    Decimal? @db.Decimal
+  unit_rate_local Decimal?     @db.Decimal
+  amount_local    Decimal?     @db.Decimal
   note            String?
-  proposal        proposal @relation(fields: [proposal_id], references: [proposal_id], onDelete: Cascade, onUpdate: NoAction)
+  organization    organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  proposal        proposal     @relation(fields: [org_id, proposal_id], references: [org_id, proposal_id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@id([proposal_id, type])
+  @@id([org_id, proposal_id, type])
   @@schema("archive")
 }
 
 model tc_deviation {
+  org_id         String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   proposal_id    String
   clause         String
   client_request String?
-  sog_position   String?
-  proposal       proposal @relation(fields: [proposal_id], references: [proposal_id], onDelete: Cascade, onUpdate: NoAction)
+  firm_position  String?
+  organization   organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  proposal       proposal     @relation(fields: [org_id, proposal_id], references: [org_id, proposal_id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@id([proposal_id, clause])
+  @@id([org_id, proposal_id, clause])
   @@schema("archive")
 }
 
 model case_result {
-  run_id      BigInt
-  case_id     String
-  envelope_id BigInt?
-  detail      Json
-  envelope    envelope? @relation(fields: [envelope_id], references: [envelope_id], onUpdate: NoAction)
-  run         run       @relation(fields: [run_id], references: [run_id], onDelete: Cascade, onUpdate: NoAction)
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  run_id       BigInt
+  case_id      String
+  envelope_id  BigInt?
+  detail       Json
+  envelope     envelope?    @relation(fields: [envelope_id], references: [envelope_id], onUpdate: NoAction)
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  run          run          @relation(fields: [run_id], references: [run_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([run_id, case_id])
   @@schema("eval")
 }
 
 model field_result {
-  run_id  BigInt
-  case_id String
-  field   String
-  truth   Json?
-  got     Json?
-  ok      Boolean
-  run     run     @relation(fields: [run_id], references: [run_id], onDelete: Cascade, onUpdate: NoAction)
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  run_id       BigInt
+  case_id      String
+  field        String
+  truth        Json?
+  got          Json?
+  ok           Boolean
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  run          run          @relation(fields: [run_id], references: [run_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([run_id, case_id, field])
   @@schema("eval")
 }
 
 model gold_case {
+  org_id           String          @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   dataset_version  String
   case_id          String
   proposal_id      String
@@ -239,39 +272,45 @@ model gold_case {
   special_requests String[]        @default([])
   envelope_id      BigInt?
   envelope         envelope?       @relation(fields: [envelope_id], references: [envelope_id], onUpdate: NoAction)
-  proposal         proposal        @relation(fields: [proposal_id], references: [proposal_id], onDelete: Cascade, onUpdate: NoAction)
+  organization     organization    @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  proposal         proposal        @relation(fields: [org_id, proposal_id], references: [org_id, proposal_id], onDelete: Cascade, onUpdate: NoAction)
   gold_conflict    gold_conflict[]
   gold_truth       gold_truth[]
 
-  @@id([dataset_version, case_id])
+  @@id([org_id, dataset_version, case_id])
   @@schema("eval")
 }
 
 model gold_conflict {
+  org_id          String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   dataset_version String
   case_id         String
   field           String
   values          Json
   documents       String[]
-  gold_case       gold_case @relation(fields: [dataset_version, case_id], references: [dataset_version, case_id], onDelete: Cascade, onUpdate: NoAction)
+  gold_case       gold_case    @relation(fields: [org_id, dataset_version, case_id], references: [org_id, dataset_version, case_id], onDelete: Cascade, onUpdate: NoAction)
+  organization    organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@id([dataset_version, case_id, field])
+  @@id([org_id, dataset_version, case_id, field])
   @@schema("eval")
 }
 
 model gold_truth {
+  org_id          String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   dataset_version String
   case_id         String
   field           String
   value           Json?
-  gold_case       gold_case @relation(fields: [dataset_version, case_id], references: [dataset_version, case_id], onDelete: Cascade, onUpdate: NoAction)
+  gold_case       gold_case    @relation(fields: [org_id, dataset_version, case_id], references: [org_id, dataset_version, case_id], onDelete: Cascade, onUpdate: NoAction)
+  organization    organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@id([dataset_version, case_id, field])
+  @@id([org_id, dataset_version, case_id, field])
   @@schema("eval")
 }
 
 model run {
   run_id          BigInt         @id @default(autoincrement())
+  org_id          String         @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   run_at          DateTime       @default(now()) @db.Timestamptz(6)
   dataset_version String
   model           String?
@@ -280,6 +319,7 @@ model run {
   summary         Json
   case_result     case_result[]
   field_result    field_result[]
+  organization    organization   @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@schema("eval")
 }
@@ -287,6 +327,7 @@ model run {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model engine_flag {
   flag_id        BigInt          @id @default(autoincrement())
+  org_id         String          @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   envelope_id    BigInt
   run_id         BigInt?
   field_value_id BigInt?
@@ -298,6 +339,7 @@ model engine_flag {
   created_at     DateTime        @default(now()) @db.Timestamptz(6)
   envelope       envelope        @relation(fields: [envelope_id], references: [envelope_id], onDelete: Cascade, onUpdate: NoAction)
   field_value    field_value?    @relation(fields: [field_value_id], references: [field_value_id], onDelete: NoAction, onUpdate: NoAction)
+  organization   organization    @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
   extraction_run extraction_run? @relation(fields: [run_id], references: [run_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("intake")
@@ -306,6 +348,7 @@ model engine_flag {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model envelope {
   envelope_id                       BigInt            @id @default(autoincrement())
+  org_id                            String            @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   title                             String?
   channel                           String
   sender                            String?
@@ -328,20 +371,24 @@ model envelope {
   gold_case                         gold_case[]
   engine_flag                       engine_flag[]
   country_envelope_countryTocountry country?          @relation("envelope_countryTocountry", fields: [country], references: [code], onDelete: NoAction, onUpdate: NoAction)
-  location                          location?         @relation(fields: [location_id], references: [location_id], onDelete: NoAction, onUpdate: NoAction)
-  studio                            studio?           @relation(fields: [routed_studio], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  organization                      organization      @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  location                          location?         @relation(fields: [org_id, location_id], references: [org_id, location_id], onDelete: NoAction, onUpdate: NoAction)
+  studio                            studio?           @relation(fields: [org_id, routed_studio], references: [org_id, code], onDelete: NoAction, onUpdate: NoAction)
   extraction_run                    extraction_run[]
   field_conflict                    field_conflict[]
   opportunity                       opportunity[]
   field_value                       field_value[]
   source_document                   source_document[]
 
+  @@unique([org_id, envelope_id])
+  @@index([org_id, received_at(sort: Desc)], map: "envelope_received")
   @@schema("intake")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model extraction_run {
   run_id          BigInt           @id @default(autoincrement())
+  org_id          String           @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   envelope_id     BigInt
   document_id     BigInt?
   kind            String
@@ -358,6 +405,7 @@ model extraction_run {
   engine_flag     engine_flag[]
   source_document source_document? @relation(fields: [document_id], references: [document_id], onDelete: NoAction, onUpdate: NoAction)
   envelope        envelope         @relation(fields: [envelope_id], references: [envelope_id], onDelete: Cascade, onUpdate: NoAction)
+  organization    organization     @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
   llm_call        llm_call[]
   field_value     field_value[]
 
@@ -368,6 +416,7 @@ model extraction_run {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model field_conflict {
   conflict_id       BigInt       @id @default(autoincrement())
+  org_id            String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   envelope_id       BigInt
   field             String
   field_value_ids   BigInt[]
@@ -376,6 +425,7 @@ model field_conflict {
   resolved_value_id BigInt?
   created_at        DateTime     @default(now()) @db.Timestamptz(6)
   envelope          envelope     @relation(fields: [envelope_id], references: [envelope_id], onDelete: Cascade, onUpdate: NoAction)
+  organization      organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
   field_value       field_value? @relation(fields: [resolved_value_id], references: [field_value_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("intake")
@@ -383,6 +433,7 @@ model field_conflict {
 
 model llm_call {
   call_id            BigInt          @id @default(autoincrement())
+  org_id             String          @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   run_id             BigInt?
   trace_id           String          @db.Uuid
   attempt            Int
@@ -400,6 +451,7 @@ model llm_call {
   validation_error   String?
   error              String?
   created_at         DateTime        @default(now()) @db.Timestamptz(6)
+  organization       organization    @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
   extraction_run     extraction_run? @relation(fields: [run_id], references: [run_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([trace_id], map: "llm_call_trace")
@@ -407,13 +459,15 @@ model llm_call {
 }
 
 model opportunity {
+  org_id         String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   envelope_id    BigInt
   version        Int
   record         Json
   schema_version String
   confirmed_by   String
-  confirmed_at   DateTime @default(now()) @db.Timestamptz(6)
-  envelope       envelope @relation(fields: [envelope_id], references: [envelope_id], onDelete: NoAction, onUpdate: NoAction)
+  confirmed_at   DateTime     @default(now()) @db.Timestamptz(6)
+  envelope       envelope     @relation(fields: [envelope_id], references: [envelope_id], onDelete: NoAction, onUpdate: NoAction)
+  organization   organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([envelope_id, version])
   @@schema("intake")
@@ -422,6 +476,7 @@ model opportunity {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model field_change {
   change_id                                                BigInt       @id @default(autoincrement())
+  org_id                                                   String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   field                                                    String
   old_field_value_id                                       BigInt?
   new_field_value_id                                       BigInt?
@@ -433,6 +488,7 @@ model field_change {
   changed_at                                               DateTime     @default(now()) @db.Timestamptz(6)
   field_value_field_change_new_field_value_idTofield_value field_value? @relation("field_change_new_field_value_idTofield_value", fields: [new_field_value_id], references: [field_value_id], onDelete: NoAction, onUpdate: NoAction)
   field_value_field_change_old_field_value_idTofield_value field_value? @relation("field_change_old_field_value_idTofield_value", fields: [old_field_value_id], references: [field_value_id], onDelete: NoAction, onUpdate: NoAction)
+  organization                                             organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@schema("lineage")
 }
@@ -440,7 +496,10 @@ model field_change {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model field_value {
   field_value_id                                            BigInt           @id @default(autoincrement())
+  org_id                                                    String           @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   proposal_id                                               String?
+  envelope_id                                               BigInt?
+  run_id                                                    BigInt?
   field                                                     String
   value                                                     Json?
   normalized                                                Json?
@@ -453,29 +512,30 @@ model field_value {
   kind                                                      String           @default("fact")
   status                                                    String           @default("proposed")
   created_at                                                DateTime         @default(now()) @db.Timestamptz(6)
-  envelope_id                                               BigInt?
-  run_id                                                    BigInt?
   engine_flag                                               engine_flag[]
   field_conflict                                            field_conflict[]
   field_change_field_change_new_field_value_idTofield_value field_change[]   @relation("field_change_new_field_value_idTofield_value")
   field_change_field_change_old_field_value_idTofield_value field_change[]   @relation("field_change_old_field_value_idTofield_value")
   source_document                                           source_document? @relation(fields: [document_id], references: [document_id], onDelete: NoAction, onUpdate: NoAction)
   envelope                                                  envelope?        @relation(fields: [envelope_id], references: [envelope_id], onDelete: Cascade, onUpdate: NoAction)
-  proposal                                                  proposal?        @relation(fields: [proposal_id], references: [proposal_id], onDelete: Cascade, onUpdate: NoAction)
+  organization                                              organization     @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  proposal                                                  proposal?        @relation(fields: [org_id, proposal_id], references: [org_id, proposal_id], onDelete: Cascade, onUpdate: NoAction)
   extraction_run                                            extraction_run?  @relation(fields: [run_id], references: [run_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([envelope_id, field], map: "field_value_envelope")
-  @@index([proposal_id, field], map: "field_value_proposal")
+  @@index([org_id, proposal_id, field], map: "field_value_proposal")
   @@schema("lineage")
 }
 
 model page {
+  org_id          String          @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   document_id     BigInt
   page_no         Int
   width           Decimal         @db.Decimal
   height          Decimal         @db.Decimal
   lines           Json
   source_document source_document @relation(fields: [document_id], references: [document_id], onDelete: Cascade, onUpdate: NoAction)
+  organization    organization    @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([document_id, page_no])
   @@schema("lineage")
@@ -484,44 +544,49 @@ model page {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model source_document {
   document_id           BigInt            @id @default(autoincrement())
+  org_id                String            @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   proposal_id           String?
+  envelope_id           BigInt?
   parent_document_id    BigInt?
   channel               String
   file_name             String
   mime_type             String?
   size_bytes            BigInt?
-  sha256                String            @unique @db.Char(64)
+  sha256                String            @db.Char(64)
   blob_uri              String
+  render_uri            String?
   sender                String?
   received_at           DateTime          @default(now()) @db.Timestamptz(6)
   doc_class             String?
   language              String?
   page_count            Int?
   supported             Boolean           @default(true)
-  envelope_id           BigInt?
-  render_uri            String?
   extraction_run        extraction_run[]
   field_value           field_value[]
   page                  page[]
-  envelope              envelope?         @relation(fields: [envelope_id], references: [envelope_id], onDelete: Cascade, onUpdate: NoAction)
+  envelope              envelope?         @relation(fields: [org_id, envelope_id], references: [org_id, envelope_id], onDelete: Cascade, onUpdate: NoAction)
+  organization          organization      @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  proposal              proposal?         @relation(fields: [org_id, proposal_id], references: [org_id, proposal_id], onDelete: Cascade, onUpdate: NoAction)
   source_document       source_document?  @relation("source_documentTosource_document", fields: [parent_document_id], references: [document_id], onDelete: NoAction, onUpdate: NoAction)
   other_source_document source_document[] @relation("source_documentTosource_document")
-  proposal              proposal?         @relation(fields: [proposal_id], references: [proposal_id], onDelete: Cascade, onUpdate: NoAction)
 
+  @@unique([org_id, sha256])
   @@schema("lineage")
 }
 
 model benchmark_source {
-  source_id   Int     @id @default(autoincrement())
-  source_key  String?
-  market      String?
-  metric      String?
-  value       String?
-  unit        String?
-  year        Int?
-  source_name String?
-  url         String?
-  note        String?
+  source_id    Int          @id @default(autoincrement())
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  source_key   String?
+  market       String?
+  metric       String?
+  value        String?
+  unit         String?
+  year         Int?
+  source_name  String?
+  url          String?
+  note         String?
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@schema("ref")
 }
@@ -553,21 +618,27 @@ model escalation_index {
 }
 
 model fee_assumption {
-  key             String   @id
+  org_id          String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  key             String
   value_text      String
-  value           Decimal? @db.Decimal
+  value           Decimal?     @db.Decimal
   unit            String?
   rationale       String?
   dataset_version String
+  organization    organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
 
+  @@id([org_id, key])
   @@schema("ref")
 }
 
 model field_criticality {
-  field            String  @id
+  org_id           String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  field            String
   pricing_critical Boolean
-  weight           Decimal @db.Decimal(4, 2)
+  weight           Decimal      @db.Decimal(4, 2)
+  organization     organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
 
+  @@id([org_id, field])
   @@schema("ref")
 }
 
@@ -584,30 +655,36 @@ model fx_rate {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model location {
-  location_id                       Int        @id @default(autoincrement())
-  country                           String     @db.Char(2)
+  location_id                       Int          @id @default(autoincrement())
+  org_id                            String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  country                           String       @db.Char(2)
   city                              String
   tier                              String
-  aliases                           String[]   @default([])
+  aliases                           String[]     @default([])
   proposal                          proposal[]
   envelope                          envelope[]
-  country_location_countryTocountry country    @relation("location_countryTocountry", fields: [country], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  country_location_countryTocountry country      @relation("location_countryTocountry", fields: [country], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  organization                      organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@unique([country, city])
+  @@unique([org_id, country, city])
+  @@unique([org_id, location_id])
   @@schema("ref")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model qualification_rule {
-  rule_id    Int      @id @default(autoincrement())
-  name       String   @unique
-  expression Json
-  effect     String
-  message    String
-  active     Boolean  @default(true)
-  owner      String?
-  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  rule_id      Int          @id @default(autoincrement())
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  name         String
+  expression   Json
+  effect       String
+  message      String
+  active       Boolean      @default(true)
+  owner        String?
+  updated_at   DateTime     @default(now()) @db.Timestamptz(6)
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
 
+  @@unique([org_id, name])
   @@schema("ref")
 }
 
@@ -640,26 +717,31 @@ model stage {
 }
 
 model studio {
-  code                            String     @id
+  org_id                          String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  code                            String
   name                            String
   city                            String
-  country                         String     @db.Char(2)
+  country                         String       @db.Char(2)
   proposal                        proposal[]
   envelope                        envelope[]
-  country_studio_countryTocountry country    @relation("studio_countryTocountry", fields: [country], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  country_studio_countryTocountry country      @relation("studio_countryTocountry", fields: [country], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  organization                    organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
 
+  @@id([org_id, code])
   @@schema("ref")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model term_synonym {
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   synonym      String
   target_table String
   target_code  String
-  scope        String @default("global")
-  language     String @default("en")
+  scope        String       @default("global")
+  language     String       @default("en")
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@id([synonym, target_table, scope])
+  @@id([org_id, synonym, target_table, scope])
   @@schema("ref")
 }
 
@@ -672,9 +754,121 @@ model typology {
 }
 
 model typology_cost_ratio {
-  cost_type       String  @id
-  ratio           Decimal @db.Decimal
+  org_id          String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  cost_type       String
+  ratio           Decimal      @db.Decimal
   dataset_version String
+  organization    organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
 
+  @@id([org_id, cost_type])
   @@schema("ref")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model app_user {
+  user_id       String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String       @unique
+  name          String
+  password_hash String
+  created_at    DateTime     @default(now()) @db.Timestamptz(6)
+  last_login_at DateTime?    @db.Timestamptz(6)
+  invitation    invitation[]
+  membership    membership[]
+  session       session[]
+
+  @@schema("tenancy")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model invitation {
+  token_hash   String       @id @db.Char(64)
+  org_id       String       @db.Uuid
+  email        String
+  role         String
+  invited_by   String?      @db.Uuid
+  created_at   DateTime     @default(now()) @db.Timestamptz(6)
+  expires_at   DateTime     @db.Timestamptz(6)
+  accepted_at  DateTime?    @db.Timestamptz(6)
+  app_user     app_user?    @relation(fields: [invited_by], references: [user_id], onUpdate: NoAction)
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("tenancy")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model membership {
+  org_id       String       @db.Uuid
+  user_id      String       @db.Uuid
+  role         String
+  created_at   DateTime     @default(now()) @db.Timestamptz(6)
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  app_user     app_user     @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([org_id, user_id])
+  @@index([user_id], map: "membership_by_user")
+  @@schema("tenancy")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model organization {
+  org_id               String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug                 String                @unique
+  name                 String
+  practice_description String                @default("an architecture and design practice")
+  is_demo              Boolean               @default(false)
+  created_at           DateTime              @default(now()) @db.Timestamptz(6)
+  client               client[]
+  dataset              dataset[]
+  deliverable          deliverable[]
+  fee_line             fee_line[]
+  payment_milestone    payment_milestone[]
+  pricing_trace        pricing_trace[]
+  proposal             proposal[]
+  proposal_section     proposal_section[]
+  proposal_service     proposal_service[]
+  proposal_stage       proposal_stage[]
+  reimbursable         reimbursable[]
+  tc_deviation         tc_deviation[]
+  case_result          case_result[]
+  field_result         field_result[]
+  gold_case            gold_case[]
+  gold_conflict        gold_conflict[]
+  gold_truth           gold_truth[]
+  run                  run[]
+  engine_flag          engine_flag[]
+  envelope             envelope[]
+  extraction_run       extraction_run[]
+  field_conflict       field_conflict[]
+  llm_call             llm_call[]
+  opportunity          opportunity[]
+  field_change         field_change[]
+  field_value          field_value[]
+  page                 page[]
+  source_document      source_document[]
+  benchmark_source     benchmark_source[]
+  fee_assumption       fee_assumption[]
+  field_criticality    field_criticality[]
+  location             location[]
+  qualification_rule   qualification_rule[]
+  studio               studio[]
+  term_synonym         term_synonym[]
+  typology_cost_ratio  typology_cost_ratio[]
+  invitation           invitation[]
+  membership           membership[]
+  session              session[]
+
+  @@schema("tenancy")
+}
+
+model session {
+  token_hash   String        @id @db.Char(64)
+  user_id      String        @db.Uuid
+  org_id       String?       @db.Uuid
+  created_at   DateTime      @default(now()) @db.Timestamptz(6)
+  expires_at   DateTime      @db.Timestamptz(6)
+  organization organization? @relation(fields: [org_id], references: [org_id], onUpdate: NoAction)
+  app_user     app_user      @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id], map: "session_by_user")
+  @@schema("tenancy")
 }

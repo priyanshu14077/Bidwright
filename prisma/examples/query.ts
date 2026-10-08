@@ -1,13 +1,10 @@
-// Example: query the sog database through the generated Prisma client.
+// Example: query the bidwright database through the generated Prisma client.
 //   pnpm example
-import path from "node:path";
-import { config } from "dotenv";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/client.js";
+import { studioUrl } from "../studio-url.js";
 
-config({ path: path.resolve(import.meta.dirname, "../../.env"), quiet: true });
-const url = process.env.SOG_PRISMA_DATABASE_URL;
-if (!url) throw new Error("SOG_PRISMA_DATABASE_URL is not set in .env");
+const url = studioUrl();
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
 
