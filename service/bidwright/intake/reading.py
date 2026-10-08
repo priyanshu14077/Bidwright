@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pymupdf
 
-from sog.config import settings
+from bidwright.config import settings
 
 OFFICE_SUFFIXES = {".docx", ".doc", ".xlsx", ".xls", ".pptx", ".odt", ".ods", ".rtf"}
 UNSUPPORTED_SUFFIXES = {".dwg", ".dxf", ".rvt", ".ifc", ".skp", ".3dm", ".nwd"}
@@ -58,7 +58,7 @@ def office_to_pdf(file_name: str, data: bytes) -> bytes:
         src = Path(tmp) / Path(file_name).name
         src.write_bytes(data)
         subprocess.run(
-            [settings.sog_libreoffice, "--headless", f"-env:UserInstallation=file://{tmp}/profile",
+            [settings.libreoffice, "--headless", f"-env:UserInstallation=file://{tmp}/profile",
              "--convert-to", "pdf", "--outdir", tmp, str(src)],
             check=True, capture_output=True, timeout=120,
         )

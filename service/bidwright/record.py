@@ -5,7 +5,7 @@ from collections import defaultdict
 
 from sqlalchemy import Connection, text
 
-from sog.schema import fields
+from bidwright.schema import fields
 
 ENGINE_FIELDS = {
     "location_tier": "Location tier",

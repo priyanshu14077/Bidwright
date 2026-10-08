@@ -16,8 +16,8 @@ from typing import Any
 import anthropic
 from sqlalchemy import text
 
-from sog.config import settings
-from sog.db import engine
+from bidwright.config import settings
+from bidwright.db import engine
 
 # USD per million tokens: (input, output, cache read, cache write 5m)
 PRICES = {
@@ -34,7 +34,7 @@ def client() -> anthropic.Anthropic:
     if _client is None:
         if not settings.anthropic_api_key:
             raise RuntimeError("ANTHROPIC_API_KEY is not set in .env")
-        _client = anthropic.Anthropic(api_key=settings.anthropic_api_key, base_url=settings.sog_anthropic_base_url,
+        _client = anthropic.Anthropic(api_key=settings.anthropic_api_key, base_url=settings.anthropic_base_url,
                                       max_retries=3, timeout=300)
     return _client
 

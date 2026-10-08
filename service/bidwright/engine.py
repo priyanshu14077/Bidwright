@@ -1,7 +1,7 @@
 """Reference engine (pass 2). Deterministic: no model calls.
 
 For one envelope it
-1. normalises every AI mention against SOG's reference data (units, synonyms, places),
+1. normalises every AI mention against the workspace's reference data (units, synonyms, places),
 2. consolidates mentions across documents and flags conflicts instead of resolving them,
 3. enriches: location tier, billing currency, routed studio, client match,
 4. checks plausibility against the archive and suggests values for gaps,
@@ -23,9 +23,9 @@ from decimal import Decimal
 from rapidfuzz import fuzz
 from sqlalchemy import Connection, text
 
-from sog.config import settings
-from sog.db import engine
-from sog.schema import SCHEMA_VERSION, Field, fields
+from bidwright.config import settings
+from bidwright.db import engine
+from bidwright.schema import SCHEMA_VERSION, Field, fields
 
 ENGINE_VERSION = "engine-v0"
 TO_M2 = {"m2": 1.0, "sqft": 0.09290304, "ha": 10000.0, "acre": 4046.8564224}
@@ -168,12 +168,12 @@ def normalize(f: Field, c: Candidate, ref: Reference, country: str | None) -> li
             c.normalized = suggestion
             c.notes.append("mapped by AI suggestion")
             flags.append(Flag("term_not_in_synonyms", "info",
-                              f"'{v['value_text']}' mapped to {suggestion} by the AI; not in SOG's synonym list",
+                              f"'{v['value_text']}' mapped to {suggestion} by the AI; not in the workspace's synonym list",
                               f.name, c.field_value_id, {"term": v["value_text"], "code": suggestion}))
         else:
             c.status = "rejected"
             flags.append(Flag("unmapped_term", "warn",
-                              f"'{v['value_text']}' has no place in SOG's {f.vocab} list", f.name, c.field_value_id,
+                              f"'{v['value_text']}' has no place in the workspace's {f.vocab} list", f.name, c.field_value_id,
                               {"term": v["value_text"]}))
     elif f.kind == "country":
         code = ref.country(v.get("normalized_text")) or ref.country(v["value_text"])
@@ -267,7 +267,7 @@ def run_engine(envelope_id: int, trace_id: uuid.UUID | None = None) -> None:
         run_id = conn.execute(
             text("""INSERT INTO intake.extraction_run (envelope_id, kind, engine_version, schema_version,
                     dataset_version, trace_id) VALUES (:e, 'engine', :ev, :sv, :dv, :t) RETURNING run_id"""),
-            dict(e=envelope_id, ev=ENGINE_VERSION, sv=SCHEMA_VERSION, dv=settings.sog_dataset_version,
+            dict(e=envelope_id, ev=ENGINE_VERSION, sv=SCHEMA_VERSION, dv=settings.dataset_version,
                  t=str(trace_id or uuid.uuid4())),
         ).scalar_one()
         Engine(conn, envelope_id, run_id).run()
@@ -391,8 +391,8 @@ class Engine:
                    array(SELECT service FROM archive.proposal_service s WHERE s.proposal_id = p.proposal_id) AS services
             FROM archive.proposal p JOIN ref.location l USING (location_id) LEFT JOIN archive.client c USING (client_id)
             WHERE p.dataset_version = :v AND p.data_origin <> 'rfp_new'
-              -- only history SOG had when the RFP arrived
-              AND p.submission_date < (SELECT received_at FROM intake.envelope WHERE envelope_id = :e)::date"""), dict(v=settings.sog_dataset_version, e=self.envelope_id))]
+              -- only history the practice had when the RFP arrived
+              AND p.submission_date < (SELECT received_at FROM intake.envelope WHERE envelope_id = :e)::date"""), dict(v=settings.dataset_version, e=self.envelope_id))]
 
     def enrich(self, country: str | None) -> None:
         archive = self.archive()
@@ -608,7 +608,7 @@ def comparables(conn: Connection, envelope_id: int, limit: int = 3) -> dict:
                array(SELECT service FROM archive.proposal_service s WHERE s.proposal_id = p.proposal_id) AS services
         FROM archive.proposal p JOIN ref.location l USING (location_id) JOIN ref.country c ON c.code = l.country
         WHERE p.dataset_version = :v AND p.data_origin <> 'rfp_new'
-          AND p.submission_date < (SELECT received_at FROM intake.envelope WHERE envelope_id = :e)::date"""), dict(v=settings.sog_dataset_version, e=envelope_id)).all()
+          AND p.submission_date < (SELECT received_at FROM intake.envelope WHERE envelope_id = :e)::date"""), dict(v=settings.dataset_version, e=envelope_id)).all()
     scored = []
     for p in rows:
         score = 3.0 * (p.typology == vals.get("typology")) + 2.0 * (p.country == env.country) + 1.0 * (p.region == region)

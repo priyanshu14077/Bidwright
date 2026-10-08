@@ -1,6 +1,6 @@
 """Preflight: is everything the pipeline needs in place?
 
-    uv run python -m sog.check
+    uv run python -m bidwright.check
 """
 
 import shutil
@@ -10,10 +10,10 @@ import urllib.request
 import anthropic
 from sqlalchemy import text
 
-from sog.config import settings
-from sog.db import engine
+from bidwright.config import settings
+from bidwright.db import engine, workspace
 
-EXPECTED_MIGRATION = "0004"
+EXPECTED_MIGRATION = "0001"
 
 
 def main() -> int:
@@ -30,9 +30,15 @@ def main() -> int:
             version = conn.execute(text("SELECT version_num FROM public.alembic_version")).scalar()
             report(version == EXPECTED_MIGRATION, "migrations", f"at {version}, expected {EXPECTED_MIGRATION}"
                    + ("" if version == EXPECTED_MIGRATION else " (run: make migrate)"))
-            n = conn.execute(text("SELECT count(*) FROM archive.proposal")).scalar()
-            g = conn.execute(text("SELECT count(*) FROM eval.gold_case")).scalar()
-            report(n > 0 and g > 0, "seed data", f"{n} proposals, {g} gold packs" + ("" if n and g else " (run: make seed)"))
+            demo = conn.execute(text("SELECT org_id FROM tenancy.organization WHERE is_demo")).scalar()
+        if demo is None:
+            report(False, "demo workspace", "missing (run: make seed)")
+        else:
+            with workspace(demo), engine.connect() as conn:
+                n = conn.execute(text("SELECT count(*) FROM archive.proposal")).scalar()
+                g = conn.execute(text("SELECT count(*) FROM eval.gold_case")).scalar()
+            report(n > 0 and g > 0, "demo workspace", f"{n} proposals, {g} gold packs"
+                   + ("" if n and g else " (run: make seed)"))
     except Exception as e:  # noqa: BLE001 - preflight reports every failure
         report(False, "connection", f"{str(e).splitlines()[0]} (is Docker running? run: make db)")
 
@@ -41,8 +47,8 @@ def main() -> int:
         report(False, "ANTHROPIC_API_KEY", "empty in .env (paste the key and save the file)")
     else:
         try:
-            client = anthropic.Anthropic(api_key=settings.anthropic_api_key, base_url=settings.sog_anthropic_base_url)
-            model = client.models.retrieve(settings.sog_model_extract)
+            client = anthropic.Anthropic(api_key=settings.anthropic_api_key, base_url=settings.anthropic_base_url)
+            model = client.models.retrieve(settings.model_extract)
             report(True, "API key", f"accepted, {model.id} available")
         except anthropic.AuthenticationError:
             report(False, "API key", "rejected by Anthropic (check it was copied completely)")
@@ -50,11 +56,11 @@ def main() -> int:
             report(False, "API key", f"{type(e).__name__}: {str(e)[:120]}")
 
     print("Tools")
-    report(shutil.which(settings.sog_libreoffice) is not None or __import__("os").path.exists(settings.sog_libreoffice),
-           "LibreOffice", settings.sog_libreoffice)
+    report(shutil.which(settings.libreoffice) is not None or __import__("os").path.exists(settings.libreoffice),
+           "LibreOffice", settings.libreoffice)
 
     print("Services (only needed while `make dev` is running)")
-    for name, url in [("API", "http://localhost:8000/api/health"), ("Review UI", "http://localhost:5173"),
+    for name, url in [("API", "http://localhost:8000/api/health"), ("Web app", "http://localhost:5173"),
                       ("Prisma Studio", "http://localhost:5555")]:
         try:
             urllib.request.urlopen(url, timeout=2)

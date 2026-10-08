@@ -1,30 +1,35 @@
-"""HTTP API for the review frontend and for n8n.
+"""HTTP API for the Bidwright app and for integrations (n8n, mail ingest).
 
-    uv run uvicorn sog.api:app --reload --port 8000
+Every endpoint asks for one permission (see tenancy.PERMISSIONS) and runs inside
+the caller's workspace; row-level security does the rest.
+
+    uv run uvicorn bidwright.api:app --reload --port 8000
 """
 
 import json
 from datetime import datetime
 
-from fastapi import BackgroundTasks, FastAPI, File, Form, Header, HTTPException, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field as PField
 from sqlalchemy import text
 
-from sog import record
-from sog.config import REPO_ROOT, settings
-from sog.db import engine
-from sog.engine import comparables, run_engine
-from sog.extraction import extract_envelope
-from sog.intake.ingest import ingest
-from sog.schema import SCHEMA_VERSION, fields
-from sog.storage import blob_store
+from bidwright import record
+from bidwright.auth import require, router as auth_router
+from bidwright.config import REPO_ROOT, settings
+from bidwright.db import engine, in_workspace
+from bidwright.engine import comparables, run_engine
+from bidwright.extraction import extract_envelope
+from bidwright.intake.ingest import ingest
+from bidwright.schema import SCHEMA_VERSION, fields
+from bidwright.storage import blob_store
+from bidwright.tenancy import Principal
 
-app = FastAPI(title="SOG RFP Intelligence Platform", version="0.1.0")
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allow_methods=["*"], allow_headers=["*"])
+app = FastAPI(title="Bidwright", version="0.2.0")
+app.include_router(auth_router)
 
-DEFAULT_USER = "demo.reviewer@sogdesign.example"
+READ, INTAKE, REVIEW, REFERENCE, BACKTEST = (Depends(require(p)) for p in
+                                             ("read", "intake", "review", "reference", "backtest"))
 
 
 def rows(sql: str, **params) -> list[dict]:
@@ -36,7 +41,7 @@ def rows(sql: str, **params) -> list[dict]:
 
 @app.post("/api/envelopes")
 async def upload(background: BackgroundTasks, files: list[UploadFile] = File(...), channel: str = Form("upload"),
-                 sender: str | None = Form(None)):
+                 sender: str | None = Form(None), who: Principal = INTAKE):
     payload = [(f.filename or "file", await f.read()) for f in files]
     with engine.begin() as conn:
         envelope_id, created = ingest(conn, payload, channel, sender=sender)
@@ -44,20 +49,20 @@ async def upload(background: BackgroundTasks, files: list[UploadFile] = File(...
             conn.execute(text("UPDATE intake.envelope SET status = 'extracting' WHERE envelope_id = :e"),
                          dict(e=envelope_id))
     if created:
-        background.add_task(extract_envelope, envelope_id)
+        background.add_task(in_workspace, who.org_id, extract_envelope, envelope_id)
     return {"envelope_id": envelope_id, "created": created}
 
 
 @app.post("/api/envelopes/{envelope_id}/extract")
-def rerun(envelope_id: int, background: BackgroundTasks):
-    background.add_task(extract_envelope, envelope_id)
+def rerun(envelope_id: int, background: BackgroundTasks, who: Principal = INTAKE):
+    background.add_task(in_workspace, who.org_id, extract_envelope, envelope_id)
     return {"envelope_id": envelope_id, "status": "extracting"}
 
 
 # ---------------------------------------------------------------- inbox and review
 
 @app.get("/api/envelopes")
-def inbox():
+def inbox(_: Principal = READ):
     return rows("""
         SELECT e.envelope_id, e.title, e.channel, e.sender, e.received_at, e.submission_deadline, e.status,
                e.lead_status, e.completeness, e.owner, e.country, l.city, l.tier, e.billing_currency, e.routed_studio,
@@ -73,7 +78,7 @@ def inbox():
 
 
 @app.get("/api/envelopes/{envelope_id}")
-def envelope(envelope_id: int):
+def envelope(envelope_id: int, _: Principal = READ):
     env = rows("""SELECT e.*, l.city, l.tier FROM intake.envelope e LEFT JOIN ref.location l USING (location_id)
                   WHERE envelope_id = :e""", e=envelope_id)
     if not env:
@@ -92,7 +97,7 @@ def envelope(envelope_id: int):
 
 
 @app.get("/api/documents/{document_id}/pdf")
-def document_pdf(document_id: int):
+def document_pdf(document_id: int, _: Principal = READ):
     uri = rows("SELECT render_uri FROM lineage.source_document WHERE document_id = :d", d=document_id)
     if not uri or not uri[0]["render_uri"]:
         raise HTTPException(404)
@@ -100,7 +105,7 @@ def document_pdf(document_id: int):
 
 
 @app.get("/api/documents/{document_id}/original")
-def document_original(document_id: int):
+def document_original(document_id: int, _: Principal = READ):
     doc = rows("SELECT blob_uri, file_name, mime_type FROM lineage.source_document WHERE document_id = :d", d=document_id)
     if not doc:
         raise HTTPException(404)
@@ -118,7 +123,7 @@ class Change(BaseModel):
 
 
 @app.post("/api/envelopes/{envelope_id}/fields/{field_name}")
-def change_field(envelope_id: int, field_name: str, change: Change, x_user: str = Header(DEFAULT_USER)):
+def change_field(envelope_id: int, field_name: str, change: Change, who: Principal = REVIEW):
     if field_name not in fields() and field_name not in record.ENGINE_FIELDS:
         raise HTTPException(400, f"unknown field {field_name}")
     with engine.begin() as conn:
@@ -150,7 +155,7 @@ def change_field(envelope_id: int, field_name: str, change: Change, x_user: str 
             dict(e=envelope_id, f=field_name, src=change.field_value_id,
                  v=json.dumps({"value_text": written or json.dumps(new_value), "reason": change.reason,
                                "based_on": change.field_value_id}),
-                 n=json.dumps({"value": new_value, "notes": [f"set by {x_user}"]})),
+                 n=json.dumps({"value": new_value, "notes": [f"set by {who.email}"]})),
         ).scalar_one()
         conn.execute(
             text("""INSERT INTO lineage.field_change (field, old_field_value_id, new_field_value_id, old_value, new_value,
@@ -159,7 +164,7 @@ def change_field(envelope_id: int, field_name: str, change: Change, x_user: str 
                  new=new_id, ov=json.dumps(old_value), nv=json.dumps(new_value),
                  a="resolve_conflict" if change.action == "resolve_conflict" else
                    ("accept" if change.action in ("accept", "accept_suggestion") else "edit"),
-                 r=change.reason, u=x_user))
+                 r=change.reason, u=who.email))
         if change.action == "resolve_conflict":
             conn.execute(text("""UPDATE intake.field_conflict SET status = 'resolved', resolved_value_id = :v
                                  WHERE envelope_id = :e AND field = :f AND status = 'open'"""),
@@ -173,7 +178,7 @@ class Confirm(BaseModel):
 
 
 @app.post("/api/envelopes/{envelope_id}/confirm")
-def confirm(envelope_id: int, body: Confirm, x_user: str = Header(DEFAULT_USER)):
+def confirm(envelope_id: int, body: Confirm, who: Principal = REVIEW):
     with engine.begin() as conn:
         open_conflicts = conn.execute(text("SELECT count(*) FROM intake.field_conflict WHERE envelope_id = :e "
                                            "AND status = 'open'"), dict(e=envelope_id)).scalar()
@@ -186,14 +191,15 @@ def confirm(envelope_id: int, body: Confirm, x_user: str = Header(DEFAULT_USER))
         snapshot |= {"lead_status": env.lead_status, "completeness": float(env.completeness or 0)}
         version = (conn.execute(text("SELECT max(version) FROM intake.opportunity WHERE envelope_id = :e"),
                                 dict(e=envelope_id)).scalar() or 0) + 1
-        conn.execute(text("INSERT INTO intake.opportunity VALUES (:e, :v, CAST(:r AS jsonb), :sv, :u, now())"),
-                     dict(e=envelope_id, v=version, r=json.dumps(snapshot, default=str), sv=SCHEMA_VERSION, u=x_user))
+        conn.execute(text("INSERT INTO intake.opportunity (envelope_id, version, record, schema_version, confirmed_by) "
+                          "VALUES (:e, :v, CAST(:r AS jsonb), :sv, :u)"),
+                     dict(e=envelope_id, v=version, r=json.dumps(snapshot, default=str), sv=SCHEMA_VERSION, u=who.email))
         ids = conn.execute(text("""UPDATE lineage.field_value SET status = 'confirmed' WHERE envelope_id = :e
                                    AND status = 'proposed' RETURNING field_value_id"""), dict(e=envelope_id)).scalars().all()
         conn.execute(text("""INSERT INTO lineage.field_change (field, new_value, action, reason, changed_by)
                              VALUES ('*', CAST(:v AS jsonb), 'confirm', :r, :u)"""),
                      dict(v=json.dumps({"envelope_id": envelope_id, "version": version, "values_locked": len(ids)}),
-                          r=body.reason, u=x_user))
+                          r=body.reason, u=who.email))
         conn.execute(text("UPDATE intake.envelope SET status = 'confirmed', updated_at = now() WHERE envelope_id = :e"),
                      dict(e=envelope_id))
     return {"envelope_id": envelope_id, "version": version}
@@ -202,7 +208,7 @@ def confirm(envelope_id: int, body: Confirm, x_user: str = Header(DEFAULT_USER))
 # ---------------------------------------------------------------- audit, mapping, admin, observability
 
 @app.get("/api/envelopes/{envelope_id}/audit")
-def audit(envelope_id: int):
+def audit(envelope_id: int, _: Principal = READ):
     values = rows("""SELECT fv.field_value_id, fv.field, fv.value->>'value_text' AS value_text, fv.normalized->'value' AS normalized,
                             fv.origin, fv.kind, fv.status, fv.confidence, fv.created_at, d.file_name, fv.page,
                             r.model, r.prompt_version, r.engine_version, r.kind AS run_kind
@@ -237,7 +243,7 @@ SECTION_MAP = [
 
 
 @app.get("/api/envelopes/{envelope_id}/mapping")
-def mapping(envelope_id: int):
+def mapping(envelope_id: int, _: Principal = READ):
     with engine.connect() as conn:
         rec = record.build(conn, envelope_id)
         usual = {code: n for code, n in conn.execute(text(
@@ -258,7 +264,7 @@ def mapping(envelope_id: int):
 
 
 @app.get("/api/reference")
-def reference():
+def reference(_: Principal = READ):
     return {
         "typology": rows("SELECT * FROM ref.typology ORDER BY code"),
         "service": rows("SELECT * FROM ref.service ORDER BY code"),
@@ -282,16 +288,18 @@ class Synonym(BaseModel):
 
 
 @app.post("/api/reference/synonyms")
-def add_synonym(s: Synonym, x_user: str = Header(DEFAULT_USER)):
+def add_synonym(s: Synonym, who: Principal = REFERENCE):
     with engine.begin() as conn:
-        conn.execute(text("""INSERT INTO ref.term_synonym VALUES (lower(:syn), :t, :c, :scope, 'en')
-                             ON CONFLICT (synonym, target_table, scope) DO UPDATE SET target_code = EXCLUDED.target_code"""),
+        conn.execute(text("""INSERT INTO ref.term_synonym (synonym, target_table, target_code, scope, language)
+                             VALUES (lower(:syn), :t, :c, :scope, 'en')
+                             ON CONFLICT (org_id, synonym, target_table, scope)
+                             DO UPDATE SET target_code = EXCLUDED.target_code"""),
                      dict(syn=s.synonym.strip(), t=s.target_table, c=s.target_code, scope=s.scope))
-    return {"ok": True, "by": x_user}
+    return {"ok": True, "by": who.email}
 
 
 @app.get("/api/observability")
-def observability():
+def observability(_: Principal = BACKTEST):
     totals = rows("""SELECT count(*) AS calls, count(DISTINCT trace_id) AS traces, sum(cost_usd) AS cost_usd,
                             sum(input_tokens) AS input_tokens, sum(output_tokens) AS output_tokens,
                             sum(cache_read_tokens) AS cache_read_tokens,
@@ -314,9 +322,9 @@ def observability():
 
 
 @app.get("/api/evaluation/latest")
-def latest_evaluation():
+def latest_evaluation(_: Principal = READ):
     run = rows("SELECT * FROM eval.run WHERE dataset_version = :v ORDER BY run_id DESC LIMIT 1",
-               v=settings.sog_dataset_version)
+               v=settings.dataset_version)
     if not run:
         return None
     r = run[0]
@@ -332,6 +340,6 @@ def latest_evaluation():
 def health():
     with engine.connect() as conn:
         version = conn.execute(text("SELECT version_num FROM public.alembic_version")).scalar()
-    return {"ok": True, "migration": version, "dataset": settings.sog_dataset_version,
-            "model": settings.sog_model_extract, "llm_configured": bool(settings.anthropic_api_key),
+    return {"ok": True, "migration": version, "dataset": settings.dataset_version,
+            "model": settings.model_extract, "llm_configured": bool(settings.anthropic_api_key),
             "time": datetime.now().isoformat()}
