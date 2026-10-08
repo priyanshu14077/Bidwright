@@ -1,15 +1,18 @@
-# Local PoC stack. One Postgres server holds two databases:
-#   sog  - owned by the Python service; shape changed only through Alembic
-#   n8n  - n8n's own state; n8n never writes to sog, it calls the API
+# Local stack. One Postgres server holds two databases:
+#   bidwright  - owned by the Python service; shape changed only through Alembic
+#   n8n        - n8n's own state; n8n never writes to bidwright, it calls the API
+name: bidwright
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-postgres}
-      SOG_DB_PASSWORD: ${SOG_DB_PASSWORD:-sog}
-      N8N_DB_PASSWORD: ${N8N_DB_PASSWORD:-n8n}
-      SOG_PRISMA_PASSWORD: ${SOG_PRISMA_PASSWORD:-sog_prisma}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?run make env to create .env}
+      BIDWRIGHT_DB_PASSWORD: ${BIDWRIGHT_DB_PASSWORD:?run make env to create .env}
+      BIDWRIGHT_APP_PASSWORD: ${BIDWRIGHT_APP_PASSWORD:?run make env to create .env}
+      BIDWRIGHT_STUDIO_PASSWORD: ${BIDWRIGHT_STUDIO_PASSWORD:?run make env to create .env}
+      N8N_DB_PASSWORD: ${N8N_DB_PASSWORD:?run make env to create .env}
     ports:
       - "${POSTGRES_PORT:-5434}:5432"
     volumes:
@@ -31,8 +34,8 @@ services:
       DB_POSTGRESDB_HOST: postgres
       DB_POSTGRESDB_DATABASE: n8n
       DB_POSTGRESDB_USER: n8n
-      DB_POSTGRESDB_PASSWORD: ${N8N_DB_PASSWORD:-n8n}
-      SOG_API_URL: http://host.docker.internal:8000
+      DB_POSTGRESDB_PASSWORD: ${N8N_DB_PASSWORD:?run make env to create .env}
+      BIDWRIGHT_API_URL: http://host.docker.internal:8000
     ports:
       - "5679:5678"
     volumes:
