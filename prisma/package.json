@@ -1,8 +1,8 @@
 {
-  "name": "sog-prisma",
+  "name": "bidwright-prisma",
   "private": true,
   "type": "module",
-  "description": "Read-mostly Prisma view of the sog database. Alembic (service/) owns the schema; this package only introspects it.",
+  "description": "Read-mostly Prisma view of the bidwright database. Alembic (service/) owns the schema; this package only introspects it.",
   "scripts": {
     "pull": "prisma db pull && prisma generate",
     "generate": "prisma generate",
