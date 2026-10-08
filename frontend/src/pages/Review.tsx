@@ -4,6 +4,7 @@ import { PdfViewer, type Highlight } from "../components/PdfViewer";
 import {
   DOC_CLASS, LEAD, ORIGIN, codeLabel, countryName, daysLeft, formatDate, formatDateTime, formatValue, money,
 } from "../format";
+import { useCan } from "../session";
 
 type Tab = "record" | "sections" | "references" | "audit";
 const GROUP_ORDER = ["Client", "Location", "Project", "Areas", "Scope", "Dates", "Commercial", "Enrichment"];
@@ -101,6 +102,7 @@ function TitleBlock({ detail, openConflicts, onBack, onChanged }:
   const left = daysLeft(env.submission_deadline, env.received_at);
   const project = String(record.project_name?.value ?? env.title ?? `Envelope ${env.envelope_id}`);
   const confirmed = env.status === "confirmed";
+  const can = useCan();
 
   const confirm = async () => {
     try {
@@ -136,6 +138,8 @@ function TitleBlock({ detail, openConflicts, onBack, onChanged }:
       <div className="tb-cell tb-actions">
         {confirmed ? (
           <span className="stamp">Confirmed</span>
+        ) : !can("review") ? (
+          <span className="tb-sub">Your role can read this record but not change it.</span>
         ) : confirming ? (
           <div className="confirm-box">
             <label>Reason for confirming
@@ -207,6 +211,7 @@ function FieldRow({ id, name, f, reference, locked, active, onShow, onChanged }:
   const [draft, setDraft] = useState<unknown>(f.value);
   const [reason, setReason] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const canEdit = useCan()("review");
   const live = f.sources.filter((s) => s.status === "proposed" || s.status === "confirmed");
   const primary = live.find((s) => s.origin === "human") ?? live.find((s) => s.origin === "ai") ?? live[0];
   const corroborating = f.sources.filter((s) => s.origin === "ai" && s.status === "superseded");
@@ -250,7 +255,7 @@ function FieldRow({ id, name, f, reference, locked, active, onShow, onChanged }:
                 <button className="link" onClick={() => onShow(name, s, "conflict")}>
                   {s.value_text} <span className="dim">({DOC_CLASS[s.doc_class ?? ""] ?? s.file_name}, p. {s.page})</span>
                 </button>
-                <button onClick={() => { setEditing({ action: "resolve_conflict", fvId }); setReason(""); }}>Keep this</button>
+                {canEdit && <button onClick={() => { setEditing({ action: "resolve_conflict", fvId }); setReason(""); }}>Keep this</button>}
               </div>
             );
           })}
@@ -260,7 +265,7 @@ function FieldRow({ id, name, f, reference, locked, active, onShow, onChanged }:
       {f.suggestion != null && !locked && (
         <div className="suggestion">
           <span>Suggested {formatValue(f.kind, f.suggestion)}. {String(f.suggestion_evidence?.basis ?? "")}</span>
-          <button onClick={() => { setEditing({ action: "accept_suggestion" }); setReason(""); }}>Accept suggestion</button>
+          {canEdit && <button onClick={() => { setEditing({ action: "accept_suggestion" }); setReason(""); }}>Accept suggestion</button>}
         </div>
       )}
 
@@ -273,7 +278,7 @@ function FieldRow({ id, name, f, reference, locked, active, onShow, onChanged }:
         <p className="note">{String(primary.evidence.basis ?? JSON.stringify(primary.evidence))}</p>
       )}
 
-      {!locked && !editing && (
+      {!locked && canEdit && !editing && (
         <button className="edit" onClick={() => { setDraft(f.value); setEditing({ action: "edit" }); }}>Change</button>
       )}
 
@@ -356,7 +361,7 @@ function Sections({ id, version }: { id: number; version: string }) {
   if (!m) return <p className="empty">Loading…</p>;
   return (
     <div className="sections">
-      <p className="lede">The RFP's requirements arranged under the sections of a SOG proposal.</p>
+      <p className="lede">The RFP's requirements arranged under the sections of one of your proposals.</p>
       {m.sections.map((s) => (
         <section key={s.code} className="group">
           <h2>{s.title} <span className="dim">in {s.in_archive}</span></h2>
@@ -372,8 +377,8 @@ function Sections({ id, version }: { id: number; version: string }) {
         </section>
       ))}
       <section className="group unmapped">
-        <h2>Not in SOG's usual structure</h2>
-        <p className="lede">Requests with no place in a standard SOG proposal. These usually change scope or price.</p>
+        <h2>Outside your usual proposal structure</h2>
+        <p className="lede">Requests with no place in your standard proposal. These usually change scope or price.</p>
         {m.unmapped.length ? (
           <ul>{m.unmapped.map((u, i) => (
             <li key={i}>{u.text} <span className="dim">{u.kind === "special_request" ? "special request" : u.kind}{u.file_name ? `, ${u.file_name} p. ${u.page}` : ""}</span></li>

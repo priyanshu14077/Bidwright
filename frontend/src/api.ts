@@ -78,8 +78,11 @@ export type Detail = {
   comparables: { currency: string; fx_as_of: string; fx_note: string; label: string; items: Comparable[] } | null;
 };
 
+export const SIGNED_OUT = "bidwright:signed-out";
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init);
+  if (res.status === 401 && !path.startsWith("/api/auth/")) window.dispatchEvent(new Event(SIGNED_OUT));
   if (!res.ok) {
     let detail = res.statusText;
     try { detail = (await res.json()).detail ?? detail; } catch { /* body was not JSON */ }
@@ -90,6 +93,35 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 
 const json = (body: unknown): RequestInit =>
   ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+const send = (method: string, body?: unknown): RequestInit =>
+  ({ method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+
+export type Role = "owner" | "admin" | "estimator" | "viewer";
+export type Permission = "read" | "intake" | "review" | "reference" | "backtest" | "members" | "workspace";
+export type Workspace = { org_id: string; slug: string; name: string; is_demo: boolean; role: Role };
+export type Me = { user: { user_id: string; email: string; name: string }; workspace: Workspace | null; role: Role | null;
+  permissions: Permission[]; workspaces: Workspace[] };
+export type Members = {
+  members: { user_id: string; email: string; name: string; role: Role; joined_at: string; last_login_at: string | null }[];
+  invitations: { email: string; role: Role; created_at: string; expires_at: string }[];
+};
+
+export const auth = {
+  me: () => call<Me>("/api/auth/me"),
+  login: (email: string, password: string) => call("/api/auth/login", json({ email, password })),
+  signup: (body: { name: string; email: string; password: string; workspace: string; practice_description?: string;
+    invitation?: string }) => call<{ org_id: string }>("/api/auth/signup", json(body)),
+  logout: () => call("/api/auth/logout", { method: "POST" }),
+  switchTo: (org_id: string) => call("/api/auth/switch", json({ org_id })),
+  createWorkspace: (name: string, practice_description?: string) =>
+    call<{ org_id: string }>("/api/auth/workspaces", json({ name, practice_description })),
+  join: (token: string) => call<{ org_id: string }>("/api/auth/join", json({ token })),
+  members: () => call<Members>("/api/auth/members"),
+  invite: (email: string, role: Role) => call<{ link: string }>("/api/auth/invitations", json({ email, role })),
+  changeRole: (userId: string, role: Role) => call(`/api/auth/members/${userId}`, send("PUT", { role })),
+  remove: (userId: string) => call(`/api/auth/members/${userId}`, send("DELETE")),
+};
 
 export const api = {
   inbox: () => call<Envelope[]>("/api/envelopes"),
