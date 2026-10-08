@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { api, type Evaluation, type Observability, type Reference } from "../api";
 import { codeLabel } from "../format";
+import { useCan } from "../session";
 
 export function ReferenceData({ reference, onChanged }: { reference: Reference | null; onChanged: () => void }) {
   const [syn, setSyn] = useState({ synonym: "", target_table: "stage", target_code: "", scope: "global" });
   const [msg, setMsg] = useState<string | null>(null);
+  const can = useCan();
   if (!reference) return <div className="page"><p className="empty">Loading…</p></div>;
   const codes = syn.target_table === "stage" ? reference.stage : syn.target_table === "service" ? reference.service : reference.typology;
   const add = async () => {
@@ -16,14 +18,14 @@ export function ReferenceData({ reference, onChanged }: { reference: Reference |
   return (
     <div className="page admin">
       <h1>Reference data</h1>
-      <p className="lede">The engine accepts only these terms. Fruition assumptions for the proof of concept, to be confirmed with SOG.</p>
+      <p className="lede">The vocabulary, markets and bid rules the engine checks every RFP against. Your workspace started with a standard set; teach it the terms your clients use.</p>
       <div className="cols">
         <section className="group">
           <h2>Controlled terms</h2>
           {(["typology", "service", "stage"] as const).map((t) => (
             <p key={t}><strong>{t === "stage" ? "Stages" : t === "service" ? "Services" : "Typologies"}:</strong> {reference[t].map((r) => r.label).join(", ")}</p>
           ))}
-          <h2>Teach a new term</h2>
+          {can("reference") && <><h2>Teach a new term</h2>
           <div className="form">
             <label>Term as written<input value={syn.synonym} onChange={(e) => setSyn({ ...syn, synonym: e.target.value })} placeholder="e.g. Contract Documentation" /></label>
             <label>List<select value={syn.target_table} onChange={(e) => setSyn({ ...syn, target_table: e.target.value, target_code: "" })}>
@@ -33,7 +35,7 @@ export function ReferenceData({ reference, onChanged }: { reference: Reference |
             <label>Only in country<input value={syn.scope} onChange={(e) => setSyn({ ...syn, scope: e.target.value || "global" })} placeholder="global or ISO code, e.g. AU" /></label>
             <button className="primary" disabled={!syn.synonym || !syn.target_code} onClick={add}>Add term</button>
             {msg && <p role="status">{msg}</p>}
-          </div>
+          </div></>}
         </section>
         <section className="group">
           <h2>Synonyms ({reference.synonyms.length})</h2>
@@ -55,11 +57,12 @@ export function ReferenceData({ reference, onChanged }: { reference: Reference |
           <h2>Qualification rules</h2>
           <ul>{reference.rules.map((r) => <li key={r.name}><strong>{r.effect.replace(/_/g, " ")}</strong>: {r.message}</li>)}</ul>
           <h2>Archive ({reference.archive.length} proposals)</h2>
-          <table><thead><tr><th>Ref</th><th>Project</th><th>Outcome</th><th>Data</th></tr></thead>
+          {!reference.archive.length && <p className="dim">No past proposals yet. Comparables and fee benchmarks appear once your archive is loaded.</p>}
+          {reference.archive.length > 0 && <table><thead><tr><th>Ref</th><th>Project</th><th>Outcome</th><th>Data</th></tr></thead>
             <tbody>{reference.archive.map((p) => (
               <tr key={p.proposal_id}><td>{p.reference}</td><td>{p.title}<br /><span className="dim">{p.city}, {codeLabel(p.typology)}</span></td>
                 <td>{p.status}</td><td>{p.data_origin}, {p.dataset_version}</td></tr>))}
-            </tbody></table>
+            </tbody></table>}
         </section>
       </div>
     </div>
@@ -119,13 +122,18 @@ export function Accuracy({ onOpen }: { onOpen: (id: number) => void }) {
   const [e, setE] = useState<Evaluation | null | undefined>(undefined);
   useEffect(() => { api.evaluation().then(setE); }, []);
   if (e === undefined) return <div className="page"><p className="empty">Loading…</p></div>;
-  if (e === null) return <div className="page"><h1>Accuracy</h1><p className="empty">No evaluation run yet. Run <code>uv run python -m sog.evaluation</code>.</p></div>;
+  if (e === null) return (
+    <div className="page admin">
+      <h1>Backtests</h1>
+      <p className="lede">A backtest runs the extraction on every pack in your gold set, RFP packs paired with the proposals your practice actually wrote, and scores each value against the answer.</p>
+      <p className="empty">No backtest has run in this workspace yet. An admin starts one with <code>make eval</code> (the whole gold set) or <code>make eval-one CASE=P13</code> (one pack).</p>
+    </div>);
   const s = e.summary;
   const fieldsList = Object.keys(s.per_field);
   return (
     <div className="page admin">
-      <h1>Accuracy on the gold set</h1>
-      <p className="lede">{e.results.length} synthetic RFP packs, each paired with the proposal SOG wrote. What the platform extracts is compared with what the proposal says. Synthetic accuracy is an upper bound; the real figure comes from SOG's own RFP and proposal pairs.</p>
+      <h1>Backtests</h1>
+      <p className="lede">The latest run over {e.results.length} gold packs, each paired with the proposal the practice wrote. What Bidwright extracts is compared with what the proposal says. Click a pack to open its record.</p>
       <dl className="figures">
         <div><dt>Pricing-critical fields</dt><dd>{(s.pricing_critical_accuracy * 100).toFixed(1)}%</dd><dd className="dim">target 90%</dd></div>
         <div><dt>Values with a source highlight</dt><dd>{(s.citation_coverage * 100).toFixed(1)}%</dd><dd className="dim">target 100%</dd></div>
