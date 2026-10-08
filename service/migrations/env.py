@@ -9,12 +9,12 @@ this service does not own.
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from sog.config import settings
+from bidwright.config import settings
 
-OWNED_SCHEMAS = {"ref", "archive", "lineage", "intake", "eval"}
+OWNED_SCHEMAS = {"tenancy", "ref", "archive", "lineage", "intake", "eval"}
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.sog_database_url)
+config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 
 
 def include_name(name, type_, parent_names):
