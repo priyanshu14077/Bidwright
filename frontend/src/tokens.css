@@ -1,0 +1,23 @@
+/* Bidwright brand tokens: drafting film, graphite, one revision red. Shared by the landing page and the app. */
+:root {
+  --film: #edefeb;      /* page ground: drafting film */
+  --sheet: #fafaf7;     /* surfaces: a clean sheet */
+  --ink: #1e2226;       /* graphite */
+  --ink-2: #59616a;     /* secondary graphite */
+  --line: #c6cbcd;
+  --line-soft: #dde0df;
+  --redline: #c4122f;   /* revision red: only for "look here" */
+  --blueprint: #1f4e8c; /* confirmed, correct */
+  --amber: #9a6410;
+  --red-wash: #fbe8eb;
+  --blue-wash: #e5ecf5;
+  --amber-wash: #f5ecda;
+  --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+}
+
+.wordmark {
+  display: inline-flex; align-items: center; gap: 9px; text-decoration: none; color: var(--ink);
+  font: 700 19px/1 var(--font); font-variation-settings: "wdth" 125; letter-spacing: -0.01em;
+}
+.wordmark svg { width: 24px; height: 24px; flex: none; }

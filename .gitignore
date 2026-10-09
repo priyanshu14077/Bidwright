@@ -18,3 +18,9 @@ prisma/generated/
 data/gold/*/runs/
 # duplicate of data/archive/v0-synthetic
 docs/files.zip
+# Client material under NDA (SOG): never commit; deleted at the end of the evaluation phase
+docs/business requiremets/
+confidential/
+corrected-format/
+# TypeScript incremental build cache
+*.tsbuildinfo

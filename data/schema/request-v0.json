@@ -1,13 +1,13 @@
 {
  "version": "request-v0",
- "note": "Request side of the SOG Proposal Schema, assumed for the PoC from the synthetic archive. The schema workshop replaces it; extraction prompt, validation and review form all derive from this file.",
+ "note": "Request side of the proposal schema: what a client asks for in an RFP. The extraction prompt, output validation and review form all derive from this file.",
  "fields": [
   {"name": "client_name", "kind": "text", "label": "Client", "group": "Client",
    "hint": "The organisation issuing the RFP and appointing the consultant, as written."},
   {"name": "project_name", "kind": "text", "label": "Project", "group": "Client"},
   {"name": "rfp_reference", "kind": "text", "label": "RFP reference", "group": "Client"},
   {"name": "country", "kind": "country", "label": "Country", "group": "Location",
-   "hint": "Country where the project is built (not the client's or SOG's office)."},
+   "hint": "Country where the project is built (not the client's or the practice's office)."},
   {"name": "city", "kind": "city", "label": "City", "group": "Location",
    "hint": "City where the project is built."},
   {"name": "typology", "kind": "vocab", "vocab": "typology", "label": "Typology", "group": "Project",

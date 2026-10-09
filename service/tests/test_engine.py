@@ -2,14 +2,14 @@
 
 import pytest
 
-from sog.db import engine
-from sog.engine import Candidate, Reference, consolidate, normalize
-from sog.schema import fields
+from bidwright.db import engine, workspace
+from bidwright.engine import Candidate, Reference, consolidate, normalize
+from bidwright.schema import fields
 
 
 @pytest.fixture(scope="module")
-def ref():
-    with engine.connect() as conn:
+def ref(demo_org):
+    with workspace(demo_org), engine.connect() as conn:
         return Reference(conn)
 
 
@@ -29,7 +29,7 @@ def cand(i, field, value_text, number=None, unit="none", normalized_text=None, d
     ("Feasibility Study", "CN", "feasibility"),
     ("Preliminary Drawings", "IN", "schematic_design"),
 ])
-def test_stage_names_map_to_sog_codes(ref, written, country, code):
+def test_stage_names_map_to_stage_codes(ref, written, country, code):
     c = cand(1, "stage_package", written)
     normalize(fields()["stage_package"], c, ref, country)
     assert c.normalized == code

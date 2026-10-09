@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Envelope } from "../api";
 import { LEAD, countryName, daysLeft, formatDate } from "../format";
+import { useCan } from "../session";
 
 const STATUS: Record<Envelope["status"], string> = {
   received: "Received", reading: "Reading", extracting: "Extracting", review: "In review", confirmed: "Confirmed",
@@ -12,6 +13,7 @@ export function Inbox({ onOpen }: { onOpen: (id: number) => void }) {
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const can = useCan();
 
   const load = useCallback(() => api.inbox().then(setItems), []);
   useEffect(() => { load(); }, [load]);
@@ -38,7 +40,7 @@ export function Inbox({ onOpen }: { onOpen: (id: number) => void }) {
     <div className="page inbox">
       <div className="page-head">
         <h1>RFP inbox</h1>
-        <div className="drop"
+        {can("intake") && <div className="drop"
              onDragOver={(e) => e.preventDefault()}
              onDrop={(e) => { e.preventDefault(); upload([...e.dataTransfer.files]); }}>
           <span>Drop an RFP pack here: a zip, an email (.eml), or the individual files.</span>
@@ -46,11 +48,11 @@ export function Inbox({ onOpen }: { onOpen: (id: number) => void }) {
             {uploading ? "Uploading…" : "Upload RFP pack"}
           </button>
           <input ref={input} type="file" multiple hidden onChange={(e) => upload([...(e.target.files ?? [])])} />
-        </div>
+        </div>}
         {msg && <p role="status" className="status-msg">{msg}</p>}
       </div>
       {!items ? <p className="empty">Loading…</p> : !items.length ? (
-        <p className="empty">No RFPs yet. Upload a pack to start.</p>
+        <p className="empty">{can("intake") ? "No RFPs yet. Upload the pack a client sent you to start." : "No RFPs yet. An estimator or admin can upload one."}</p>
       ) : (
         <table className="register-table">
           <thead>

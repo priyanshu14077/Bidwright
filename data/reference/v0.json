@@ -1,6 +1,6 @@
 {
  "version": "v0",
- "note": "PoC reference data. Typology/service/stage codes come from the synthetic archive schema; markets, synonyms and rules are Fruition assumptions to confirm with SOG.",
+ "note": "Starter reference pack. Every new workspace gets a copy and edits it from there. Typology, service and stage codes are the shared vocabulary; markets, tiers, synonyms and rules are starting points for a practice to adjust.",
  "countries": [
   [
    "AE",
@@ -1057,16 +1057,16 @@
     "ref": "country"
    },
    "effect": "recommend_no_bid",
-   "message": "Project country is not a market SOG serves"
+   "message": "Project country is not one of the practice's markets"
   },
   {
-   "name": "no_sog_service",
+   "name": "no_matching_service",
    "expression": {
     "field": "services",
     "op": "empty"
    },
    "effect": "recommend_no_bid",
-   "message": "No requested service matches SOG's services"
+   "message": "No requested service matches the practice's services"
   },
   {
    "name": "low_completeness",
@@ -1086,7 +1086,7 @@
     "pattern": "uncapped|unlimited"
    },
    "effect": "flag",
-   "message": "Client asks for uncapped liability; SOG's standard is 100% of fee"
+   "message": "Client asks for uncapped liability; the practice standard is 100% of fee"
   }
  ]
 }
