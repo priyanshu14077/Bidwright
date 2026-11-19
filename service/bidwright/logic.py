@@ -120,12 +120,13 @@ def fmt(value, unit: str | None) -> str:
     return str(value)
 
 
-def changes(conn: Connection) -> dict[tuple[str, str], dict]:
-    out: dict[tuple[str, str], dict] = {}
+def changes(conn: Connection) -> dict[tuple[str, str], list[dict]]:
+    """Every logged change per setting, newest first."""
+    out: dict[tuple[str, str], list[dict]] = {}
     for r in conn.execute(text("SELECT setting, key, old, new, reason, changed_by, changed_at FROM ref.setting_change "
                                "ORDER BY changed_at")):
         k = (r.setting, r.key.split("/")[0] if r.setting == "construction_cost" else r.key)
-        out[k] = dict(by=r.changed_by, at=r.changed_at, reason=r.reason, old=r.old, new=r.new)
+        out.setdefault(k, []).insert(0, dict(by=r.changed_by, at=r.changed_at, reason=r.reason, old=r.old, new=r.new))
     return out
 
 
@@ -138,8 +139,10 @@ def entries(conn: Connection) -> list[dict]:
 
     def add(section: str, id_: str, title: str, value: str, rule: str, source: str, kind: str,
             change: tuple[str, str] | None = None, edit: str | None = None) -> None:
+        history = changed.get(change, []) if change else []
         out.append(dict(id=id_, section=section, title=title, value=value, rule=rule, source=source, kind=kind,
-                        changed=changed.get(change) if change else None, edit=edit))
+                        changed=history[0] if history else None, history=history[:10], edit=edit,
+                        editable=kind != "built_in"))
 
     # 1. construction cost: one line per market, then the type ratios and the built-in fallbacks
     names = dict(conn.execute(text("SELECT code, name FROM ref.country")).all())
