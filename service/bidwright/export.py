@@ -31,6 +31,9 @@ from bidwright.storage import blob_store
 from bidwright.tenancy import Principal
 
 DEFAULT_TEMPLATE = REPO_ROOT / "data" / "templates" / "proposal-v0.docx"
+# The two documents a proposal can be exported as: the full proposal, and a short fee letter for quick asks.
+TEMPLATES = {"full": DEFAULT_TEMPLATE, "letter": REPO_ROOT / "data" / "templates" / "fee-letter-v0.docx"}
+TEMPLATE_NAMES = {"full": "Full proposal", "letter": "Fee letter"}
 MIME = {"docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "pdf": "application/pdf"}
 _one_conversion_at_a_time = threading.Lock()  # LibreOffice is memory-hungry; the server is small
 
