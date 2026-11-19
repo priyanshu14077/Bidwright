@@ -23,8 +23,8 @@ ROLES = ("owner", "admin", "estimator", "viewer")
 PERMISSIONS = {
     "viewer": {"read"},
     "estimator": {"read", "intake", "review"},
-    "admin": {"read", "intake", "review", "reference", "backtest", "members"},
-    "owner": {"read", "intake", "review", "reference", "backtest", "members", "workspace"},
+    "admin": {"read", "intake", "review", "approve", "reference", "backtest", "members"},
+    "owner": {"read", "intake", "review", "approve", "reference", "backtest", "members", "workspace"},
 }
 
 _hasher = PasswordHasher()
