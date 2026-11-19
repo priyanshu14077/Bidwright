@@ -17,6 +17,7 @@ import { Settings, type SettingsTab } from "./pages/Settings";
 import { SignIn } from "./pages/SignIn";
 import { Guided, Shell, parseGuided, type GuidedRoute } from "./guided/Guided";
 import { applyTheme } from "./guided/kit";
+import { startTrail } from "./guided/trail";
 
 type Route =
   | { page: "guided"; route: GuidedRoute } | { page: "inbox" } | { page: "review"; id: number } | { page: "proposal"; id: number; version: number }
@@ -133,6 +134,7 @@ function NoWorkspace({ onDone }: { onDone: () => void }) {
   );
 }
 
-applyTheme();  // light unless this person chose dark
+applyTheme();
+startTrail();  // where the person has been in this tab, for "back"  // light unless this person chose dark
 const root = document.getElementById("root");
 if (root) createRoot(root).render(<StrictMode><App /></StrictMode>);
