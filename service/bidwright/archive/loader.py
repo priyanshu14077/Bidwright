@@ -33,7 +33,8 @@ from bidwright.storage import blob_store
 
 REFERENCE_FILE = REPO_ROOT / "data" / "reference" / "v0.json"
 COST_BOOK_FILE = REPO_ROOT / "data" / "reference" / "cost-book-v0.json"
-SETTINGS_TABLES = ("ref.fee_assumption", "ref.typology_cost_ratio", "ref.market", "ref.construction_cost", "ref.clause")
+SETTINGS_TABLES = ("ref.fee_assumption", "ref.typology_cost_ratio", "ref.market", "ref.construction_cost", "ref.clause",
+                   "ref.intake_setting")
 
 # The synthetic JSON's list of services uses "interior"; ref.service uses "interior_design".
 SERVICE_ALIASES = {"interior": "interior_design"}
@@ -171,8 +172,18 @@ def seed_settings(conn: Connection, path: Path = REFERENCE_FILE, cost_book: Path
     inserts.append(("INSERT INTO ref.clause (kind, key, service, stage, seq, label, body, updated_by) "
                     "VALUES (:kind, :key, :service, :stage, :seq, :label, :body, :by)",
                     [dict(c, by=source) for c in clauses]))
+    inserts.append(("INSERT INTO ref.intake_setting (key, value, updated_by) VALUES (:key, CAST(:value AS jsonb), :by)",
+                    [dict(key=k, value=json.dumps(v), by=source) for k, v in ref["intake_policy"].items()]))
     for sql, rows in inserts:
         conn.execute(text(sql + " ON CONFLICT DO NOTHING"), rows)
+    seed_studio_markets(conn, ref, reset)
+
+
+def seed_studio_markets(conn: Connection, ref: dict, reset: bool = False) -> None:
+    """The countries each studio covers, for studios the workspace has. Keeps a workspace's own edits."""
+    for code, markets in ref["studio_markets"].items():
+        conn.execute(text("UPDATE ref.studio SET markets = :m WHERE code = :c AND (:reset OR markets = '{}')"),
+                     dict(c=code, m=markets, reset=reset))
 
 
 def country_codes(conn: Connection) -> dict[str, str]:
