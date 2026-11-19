@@ -19,7 +19,8 @@ from bidwright.storage import blob_store
 
 MIME = {".pdf": "application/pdf", ".eml": "message/rfc822", ".zip": "application/zip",
         ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".txt": "text/plain",
+        ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif"}
 
 
 def expand(files: list[tuple[str, bytes]]) -> list[tuple[str, bytes, str | None]]:
