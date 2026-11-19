@@ -474,12 +474,29 @@ export type RequestCard = { type: "request"; envelope_id: number; title: string 
   questions: { field: string; question: string }[]; message: string };
 export type ChatMessage = { id: number; role: "user" | "assistant" | "system"; created_at: string; text: string;
   sources?: Record<string, Evidence>; cards?: RequestCard[]; actions?: ChatAction[];
-  downloads?: { label: string; url: string }[]; status?: string };
-export type ChatThread = { thread_id: number; envelope_id: number | null; messages: ChatMessage[] };
+  downloads?: { label: string; url: string }[]; status?: string;
+  trace?: { spans: TraceSpan[]; duration: number; model: string } };
+export type ChatThread = { thread_id: number; envelope_id: number | null; title: string | null; messages: ChatMessage[] };
+export type ChatSummary = {
+  thread_id: number; title: string | null; created_at: string; updated_at: string; archived_at: string | null;
+  envelope_id: number | null; owner: string; mine: boolean; messages: number; preview: string;
+  requests: { envelope_id: number; relation: "opened_from" | "created" | "discussed" | "decided"; title: string | null }[];
+};
 
 export const chat = {
-  send: (body: { message: string; thread_id?: number; envelope_id?: number }) => call<ChatThread>("/api/chat", json(body)),
+  send: (body: { message: string; thread_id?: number; envelope_id?: number; effort?: "low" | "medium" | "high"; attached?: boolean;
+          upload_ms?: number; waited_ms?: number }) => call<ChatThread>("/api/chat", json(body)),
   thread: (id: number) => call<ChatThread>(`/api/chat/${id}`),
+  list: (p: { scope?: "mine" | "everyone"; q?: string; envelope_id?: number; archived?: boolean } = {}) => {
+    const qs = new URLSearchParams();
+    if (p.scope) qs.set("scope", p.scope);
+    if (p.q) qs.set("q", p.q);
+    if (p.envelope_id) qs.set("envelope_id", String(p.envelope_id));
+    if (p.archived) qs.set("archived", "true");
+    return call<ChatSummary[]>(`/api/chats?${qs}`);
+  },
+  change: (id: number, body: { title?: string; archived?: boolean }) =>
+    call<ChatThread>(`/api/chats/${id}`, send("PATCH", body)),
   forRequest: (envelopeId: number) => call<ChatThread | null>(`/api/envelopes/${envelopeId}/chat`),
   decide: (actionId: number, choice: "confirm" | "cancel") =>
     call<ChatThread>(`/api/chat/actions/${actionId}/${choice}`, { method: "POST" }),
