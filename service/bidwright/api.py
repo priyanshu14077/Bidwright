@@ -32,6 +32,9 @@ app.include_router(auth_router)
 app.include_router(proposals.router)
 app.include_router(drafting.router)
 app.include_router(export.router)
+app.include_router(gate1.router)
+app.include_router(feecard.router)
+app.include_router(chat.router)
 
 READ, INTAKE, REVIEW, REFERENCE, BACKTEST = (Depends(require(p)) for p in
                                              ("read", "intake", "review", "reference", "backtest"))
