@@ -1,3 +1,4 @@
+import json
 import uuid
 
 import pytest
@@ -5,7 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from bidwright.api import app
-from bidwright.db import engine
+from bidwright.db import engine, workspace
 
 
 @pytest.fixture(scope="session")
@@ -30,3 +31,31 @@ def stranger():
         conn.execute(text("DELETE FROM tenancy.organization WHERE org_id = :o"), dict(o=r.json()["org_id"]))
         conn.execute(text("DELETE FROM tenancy.app_user WHERE email = :e"), dict(e=email))
 
+
+RECORD = {  # the shape of a confirmed record, as the review screen writes it
+    "project_name": "Bay Square Offices", "client_name": "Marina Crest Developments L.L.C.",
+    "rfp_reference": "MCD-RFP-2026-89", "issue_date": "2026-02-11", "country": "AE", "city": "Dubai",
+    "location_tier": "prime", "typology": "office", "services": ["architecture", "interior_design"],
+    "stage_package": ["concept", "schematic_design"], "gfa_m2": 27000, "site_area_m2": 3600,
+    "fitout_area_m2": 9000, "client_status": "repeat", "billing_currency": "AED", "payment_terms_days": 30,
+    "excluded_scope": ["Structural, MEP and civil engineering"], "liability_cap": "capped",
+}
+
+
+def confirm(org, envelope_id: int, record: dict, version: int) -> None:
+    with workspace(org), engine.begin() as conn:
+        conn.execute(text("""INSERT INTO intake.opportunity (envelope_id, version, record, schema_version, confirmed_by)
+                             VALUES (:e, :v, CAST(:r AS jsonb), 'request-v0', 'test')"""),
+                     dict(e=envelope_id, v=version, r=json.dumps(record)))
+
+
+@pytest.fixture
+def request_57(stranger):
+    """A confirmed request in a scratch workspace."""
+    client, org = stranger
+    with workspace(org), engine.begin() as conn:
+        envelope_id = conn.execute(text("""INSERT INTO intake.envelope (title, channel, status, dataset_version)
+                                           VALUES ('Bay Square', 'upload', 'confirmed', 'test')
+                                           RETURNING envelope_id""")).scalar_one()
+    confirm(org, envelope_id, RECORD, 1)
+    return client, org, envelope_id
