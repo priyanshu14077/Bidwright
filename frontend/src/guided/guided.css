@@ -88,7 +88,12 @@
 /* ---------------------------------------------------------------- chat */
 .bw-chat-home { padding: 14px 6px 6px; }
 @media (min-width: 1024px) { .bw-chat-home { padding: 18px 10px 10px; } }
-.bw-chat-home .bw-chat__log { max-height: 52dvh; min-height: 160px; }
+.bw-chat-home .bw-chat__log { max-height: none; min-height: 160px; height: calc(100dvh - 520px); }
+@media (min-width: 1024px) { .bw-chat-home .bw-chat__log { height: calc(100dvh - 400px); min-height: 280px; } }
+.bw-goto { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 6px 4px;
+  border-top: 1px solid var(--bw-divider); margin-top: 8px; }
+.bw-goto .bw-caps { margin-right: 4px; }
+.bw-goto .bw-badge { margin-left: 2px; }
 dialog.bw-sheet .bw-chat__log { max-height: 56dvh; min-height: 200px; }
 dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
 .bw-chat__hint { padding: 8px 4px; }
