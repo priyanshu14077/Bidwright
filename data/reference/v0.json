@@ -1042,7 +1042,7 @@
     "ref": "country"
    },
    "effect": "recommend_no_bid",
-   "message": "Project country is not one of the practice's markets"
+   "message": "The project is not in one of the practice's markets"
   },
   {
    "name": "no_matching_service",
@@ -1051,7 +1051,17 @@
     "op": "empty"
    },
    "effect": "recommend_no_bid",
-   "message": "No requested service matches the practice's services"
+   "message": "None of the services asked for is one the practice offers"
+  },
+  {
+   "name": "deadline_too_close",
+   "expression": {
+    "field": "submission_deadline",
+    "op": "working_days_lt",
+    "value": 3
+   },
+   "effect": "recommend_no_bid",
+   "message": "The deadline is fewer than 3 working days away"
   },
   {
    "name": "low_completeness",
@@ -1061,7 +1071,35 @@
     "value": 0.75
    },
    "effect": "needs_info",
-   "message": "Too many pricing-critical fields are missing"
+   "message": "Too much of what pricing needs is missing"
+  },
+  {
+   "name": "ambiguous_pricing_field",
+   "expression": {
+    "field": "pricing_critical",
+    "op": "any_ambiguous"
+   },
+   "effect": "needs_info",
+   "message": "A value the price depends on is unclear or contradicted"
+  },
+  {
+   "name": "feasibility_only",
+   "expression": {
+    "field": "request_type",
+    "op": "eq",
+    "value": "feasibility_estimate"
+   },
+   "effect": "needs_info",
+   "message": "The client asks for a rough number and says no appointment is intended yet"
+  },
+  {
+   "name": "currency_unconfirmed",
+   "expression": {
+    "field": "billing_currency",
+    "op": "currency_unconfirmed"
+   },
+   "effect": "needs_info",
+   "message": "The market's usual currency differs from the studio's, and the client has not said which to quote in"
   },
   {
    "name": "uncapped_liability",
