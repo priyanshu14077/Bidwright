@@ -86,6 +86,7 @@ def source(c: dict) -> dict:
         "quote": c["quote"],
         "bbox": c["bbox"],
         "quote_verbatim": value.get("quote_verbatim"),
+        "span": value.get("span"),
         "confidence": float(c["confidence"]) if c["confidence"] is not None else None,
         "origin": c["origin"],
         "kind": c["kind"],
