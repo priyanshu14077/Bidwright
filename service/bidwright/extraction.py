@@ -221,8 +221,9 @@ def extract_document(envelope_id: int, document_id: int, trace_id: uuid.UUID) ->
                         bbox, confidence, origin, kind, status)
                         VALUES (:e, :r, :f, CAST(:v AS jsonb), :d, :p, :q, CAST(:b AS jsonb), :c, 'ai', 'fact', 'proposed')"""),
                 dict(e=envelope_id, r=run_id, f=m["field"], d=document_id, p=page, q=m["quote"],
-                     v=json.dumps({k: m[k] for k in ("value_text", "number", "unit", "normalized_text", "line_ids")}
-                                  | {"quote_verbatim": verbatim}),
+                     v=json.dumps({k: m[k] for k in ("value_text", "number", "unit", "normalized_text", "line_ids",
+                                                     "revises")}
+                                  | {"quote_verbatim": verbatim} | ({"span": span} if span else {})),
                      b=json.dumps(rects), c={"high": 0.9, "medium": 0.7, "low": 0.4}[m["confidence"]]),
             )
         conn.execute(text("UPDATE intake.extraction_run SET status = 'succeeded', finished_at = now() WHERE run_id = :r"),
