@@ -7,6 +7,7 @@ the caller's workspace; row-level security does the rest.
 """
 
 import json
+import re
 from datetime import datetime
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
@@ -74,8 +75,14 @@ def inbox(_: Principal = READ):
                (SELECT count(*) FROM intake.field_conflict c WHERE c.envelope_id = e.envelope_id AND c.status = 'open') AS open_conflicts,
                (SELECT count(*) FROM intake.engine_flag f WHERE f.envelope_id = e.envelope_id AND f.severity <> 'info') AS flags,
                (SELECT count(*) FROM lineage.source_document d WHERE d.envelope_id = e.envelope_id) AS documents,
-               (SELECT max(version) FROM intake.opportunity o WHERE o.envelope_id = e.envelope_id) AS confirmed_version
+               (SELECT max(version) FROM intake.opportunity o WHERE o.envelope_id = e.envelope_id) AS confirmed_version,
+               p.proposal_id, p.reference AS proposal_reference, p.version_no AS proposal_version,
+               p.status AS proposal_status, p.fee_total_local AS proposal_total, p.currency AS proposal_currency
         FROM intake.envelope e LEFT JOIN ref.location l USING (location_id)
+        LEFT JOIN LATERAL (SELECT b.proposal_id, b.reference, v.version_no, v.status, v.fee_total_local, v.currency
+                           FROM proposal.bid b JOIN proposal.version v USING (proposal_id)
+                           WHERE b.envelope_id = e.envelope_id
+                           ORDER BY b.created_at DESC, v.version_no DESC LIMIT 1) p ON true
         ORDER BY e.received_at DESC""")
 
 
@@ -339,6 +346,91 @@ def set_fee_assumption(key: str, body: AssumptionValue, who: Principal = REFEREN
                              WHERE key = :k"""), dict(k=key, t=str(body.value), v=body.value if numeric else None))
         log_setting_change(conn, "fee_assumption", key, dict(old), {"value": body.value}, body.reason, who)
     return {"key": key, "value": body.value}
+
+
+# ---------------------------------------------------------------- standard text and studios
+
+CLAUSE_KINDS = ("scope", "exclusion", "terms", "position")
+
+
+@app.get("/api/settings/library")
+def library(_: Principal = READ):
+    return rows("SELECT * FROM ref.clause ORDER BY kind, seq, key")
+
+
+class ClauseText(BaseModel):
+    body: str = PField(min_length=1)
+    label: str | None = None
+    reason: str | None = None
+
+
+@app.put("/api/settings/library/{kind}/{key}")
+def set_clause(kind: str, key: str, body: ClauseText, who: Principal = REFERENCE):
+    """Change a clause, or add one (a scope for a service and stage, an exclusion, a clause position)."""
+    if kind not in CLAUSE_KINDS:
+        raise HTTPException(422, f"kind must be one of {', '.join(CLAUSE_KINDS)}")
+    service = stage = None
+    if kind == "scope":
+        service, _, stage = key.partition(".")
+    with engine.begin() as conn:
+        old = conn.execute(text("SELECT body, label FROM ref.clause WHERE kind = :k AND key = :key"),
+                           dict(k=kind, key=key)).mappings().first()
+        if old is None and kind == "terms":
+            raise HTTPException(404, "terms has only the standard paragraph and the sign-off")
+        seq = conn.execute(text("SELECT coalesce(max(seq), -1) + 1 FROM ref.clause WHERE kind = :k"),
+                           dict(k=kind)).scalar()
+        try:
+            with conn.begin_nested():
+                conn.execute(text("""INSERT INTO ref.clause (kind, key, service, stage, seq, label, body, updated_by)
+                                     VALUES (:k, :key, :service, :stage, :seq, :label, :body, :who)
+                                     ON CONFLICT (org_id, kind, key) DO UPDATE SET body = EXCLUDED.body,
+                                       label = COALESCE(EXCLUDED.label, ref.clause.label),
+                                       updated_by = EXCLUDED.updated_by, updated_at = now()"""),
+                             dict(k=kind, key=key, service=service, stage=stage, seq=seq, label=body.label,
+                                  body=body.body.strip(), who=who.email))
+        except Exception:
+            raise HTTPException(422, "a scope key is <service>.<stage>, both known codes")
+        log_setting_change(conn, "clause", f"{kind}/{key}", dict(old) if old else None,
+                           {"body": body.body.strip(), "label": body.label}, body.reason, who)
+    return {"kind": kind, "key": key}
+
+
+@app.delete("/api/settings/library/{kind}/{key}")
+def delete_clause(kind: str, key: str, reason: str, who: Principal = REFERENCE):
+    if kind == "terms":
+        raise HTTPException(422, "the standard terms and sign-off can be changed, not removed")
+    with engine.begin() as conn:
+        old = conn.execute(text("DELETE FROM ref.clause WHERE kind = :k AND key = :key RETURNING body, label"),
+                           dict(k=kind, key=key)).mappings().first()
+        if old is None:
+            raise HTTPException(404, "no such clause")
+        log_setting_change(conn, "clause", f"{kind}/{key}", dict(old), {"deleted": True}, reason, who)
+    return {"deleted": f"{kind}/{key}"}
+
+
+class Studio(BaseModel):
+    name: str = PField(min_length=2)
+    city: str = PField(min_length=2)
+    country: str = PField(min_length=2, max_length=2)
+    reason: str | None = None
+
+
+@app.put("/api/settings/studios/{code}")
+def set_studio(code: str, body: Studio, who: Principal = REFERENCE):
+    code = code.strip().upper()
+    if not re.fullmatch(r"[A-Z0-9]{2,6}", code):
+        raise HTTPException(422, "a studio code is 2 to 6 letters or digits, for example DXB")
+    with engine.begin() as conn:
+        if not conn.execute(text("SELECT 1 FROM ref.country WHERE code = :c"), dict(c=body.country.upper())).first():
+            raise HTTPException(422, f"unknown country {body.country}")
+        old = conn.execute(text("SELECT name, city, country FROM ref.studio WHERE code = :c"),
+                           dict(c=code)).mappings().first()
+        new = dict(name=body.name.strip(), city=body.city.strip(), country=body.country.upper())
+        conn.execute(text("""INSERT INTO ref.studio (code, name, city, country) VALUES (:code, :name, :city, :country)
+                             ON CONFLICT (org_id, code) DO UPDATE SET name = EXCLUDED.name, city = EXCLUDED.city,
+                               country = EXCLUDED.country"""), dict(new, code=code))
+        log_setting_change(conn, "studio", code, dict(old) if old else None, new, body.reason, who)
+    return {"code": code, **new}
 
 
 # ---------------------------------------------------------------- audit, mapping, admin, observability
