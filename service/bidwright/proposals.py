@@ -235,28 +235,33 @@ class NewProposal(PricingChoices):
     title: str | None = None
 
 
+def create(conn: Connection, envelope_id: int, choices: dict, who: Principal, title: str | None = None) -> int:
+    """A new proposal, version 1, priced from the latest confirmed record. Returns the proposal id."""
+    opp, est, params = price(conn, envelope_id, choices)
+    reference = next_reference(conn, who.org_id)
+    title = title or opp.record.get("project_name") or opp.title or reference
+    proposal_id = conn.execute(text("""INSERT INTO proposal.bid (reference, envelope_id, title, created_by)
+                                       VALUES (:r, :e, :t, :who) RETURNING proposal_id"""),
+                               dict(r=reference, e=envelope_id, t=title, who=who.email)).scalar_one()
+    version_id = conn.execute(text("""
+        INSERT INTO proposal.version (proposal_id, version_no, record_version, pricing_choices, estimate,
+          engine_version, currency, fx_per_usd, engine_total_local, fee_total_local, created_by)
+        VALUES (:p, 1, :rv, CAST(:choices AS jsonb), CAST(:est AS jsonb), :ev, :cur, :fx, :total, :total, :who)
+        RETURNING version_id"""),
+        dict(p=proposal_id, rv=opp.version, choices=dumps(choices), est=dumps(est.to_dict()),
+             ev=est.engine_version, cur=est.currency, fx=est.fx_per_usd, total=est.fee_total_local,
+             who=who.email)).scalar_one()
+    write_engine_content(conn, version_id, opp.record, est, params, reference)
+    recompute(conn, version_id)
+    log(conn, proposal_id, version_id, "create", who, new={"reference": reference, "record_version": opp.version,
+                                                          "fee_total_local": est.fee_total_local, "choices": choices})
+    return proposal_id
+
+
 @router.post("/envelopes/{envelope_id}/proposals")
 def create_proposal(envelope_id: int, body: NewProposal, who: Principal = REVIEW):
     with engine.begin() as conn:
-        opp, est, params = price(conn, envelope_id, body.choices())
-        reference = next_reference(conn, who.org_id)
-        title = body.title or opp.record.get("project_name") or opp.title or reference
-        proposal_id = conn.execute(text("""INSERT INTO proposal.bid (reference, envelope_id, title, created_by)
-                                           VALUES (:r, :e, :t, :who) RETURNING proposal_id"""),
-                                   dict(r=reference, e=envelope_id, t=title, who=who.email)).scalar_one()
-        version_id = conn.execute(text("""
-            INSERT INTO proposal.version (proposal_id, version_no, record_version, pricing_choices, estimate,
-              engine_version, currency, fx_per_usd, engine_total_local, fee_total_local, created_by)
-            VALUES (:p, 1, :rv, CAST(:choices AS jsonb), CAST(:est AS jsonb), :ev, :cur, :fx, :total, :total, :who)
-            RETURNING version_id"""),
-            dict(p=proposal_id, rv=opp.version, choices=dumps(body.choices()), est=dumps(est.to_dict()),
-                 ev=est.engine_version, cur=est.currency, fx=est.fx_per_usd, total=est.fee_total_local,
-                 who=who.email)).scalar_one()
-        write_engine_content(conn, version_id, opp.record, est, params, reference)
-        recompute(conn, version_id)
-        log(conn, proposal_id, version_id, "create", who, new={"reference": reference, "record_version": opp.version,
-                                                              "fee_total_local": est.fee_total_local,
-                                                              "choices": body.choices()})
+        proposal_id = create(conn, envelope_id, body.choices(), who, body.title)
         return load_version(conn, proposal_id, 1)
 
 
