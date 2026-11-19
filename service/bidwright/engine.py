@@ -609,7 +609,15 @@ class Engine:
             return
         clean = lambda s: re.sub(r"\s+", " ", re.sub(LEGAL_SUFFIXES, "", s.lower())).strip(" .,")  # noqa: E731
         clients = {(p["client_id"], p["client_name"]) for p in archive if p["client_name"]}
-        scored = sorted(((fuzz.token_sort_ratio(clean(name), clean(cn)), cid, cn) for cid, cn in clients), reverse=True)
+        said = clean(name)
+
+        def score(cn: str) -> float:
+            # messages use short names ("Marina Crest"): a name of two or more words contained in the archive
+            # name counts, a single word does not ("Crest" would match too much)
+            whole = fuzz.token_sort_ratio(said, clean(cn))
+            return max(whole, fuzz.token_set_ratio(said, clean(cn))) if len(said.split()) >= 2 else whole
+
+        scored = sorted(((score(cn), cid, cn) for cid, cn in clients), reverse=True)
         if scored and scored[0][0] >= 90:
             score, cid, cn = scored[0]
             past = [p["reference"] for p in archive if p["client_id"] == cid]
