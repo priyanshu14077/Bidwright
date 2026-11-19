@@ -136,6 +136,12 @@ def inbox(_: Principal = READ):
                (SELECT count(*) FROM intake.engine_flag f WHERE f.envelope_id = e.envelope_id AND f.severity <> 'info') AS flags,
                (SELECT count(*) FROM lineage.source_document d WHERE d.envelope_id = e.envelope_id) AS documents,
                (SELECT max(version) FROM intake.opportunity o WHERE o.envelope_id = e.envelope_id) AS confirmed_version,
+               (SELECT decision FROM intake.gate_decision d WHERE d.envelope_id = e.envelope_id AND d.gate = 1
+                  ORDER BY decided_at DESC, decision_id DESC LIMIT 1) AS gate1_decision,
+               (SELECT decision FROM intake.gate_decision d WHERE d.envelope_id = e.envelope_id AND d.gate = 2
+                  ORDER BY decided_at DESC, decision_id DESC LIMIT 1) AS gate2_decision,
+               (SELECT jsonb_array_length(assessment->'ask') FROM intake.assessment a
+                  WHERE a.envelope_id = e.envelope_id) AS open_questions,
                p.proposal_id, p.reference AS proposal_reference, p.version_no AS proposal_version,
                p.status AS proposal_status, p.fee_total_local AS proposal_total, p.currency AS proposal_currency
         FROM intake.envelope e LEFT JOIN ref.location l USING (location_id)
