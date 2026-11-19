@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     model_extract: str = "claude-haiku-4-5"
     model_classify: str = "claude-haiku-4-5"
     model_draft: str = "claude-opus-5-5"
+    model_questions: str = "claude-sonnet-5-5"
+    model_chat: str = "claude-sonnet-5-5"
     libreoffice: str = "/Applications/LibreOffice.app/Contents/MacOS/soffice"
     session_days: int = 14
     cookie_secure: bool = False
