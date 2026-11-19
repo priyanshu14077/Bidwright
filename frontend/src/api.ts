@@ -30,6 +30,7 @@ export type RecordField = {
   group: string;
   kind: string;
   is_list: boolean;
+  options: string[];
   value: unknown;
   suggestion: unknown;
   suggestion_evidence: Record<string, unknown> | null;
@@ -66,6 +67,9 @@ export type Envelope = {
   proposal_status?: VersionStatus | null;
   proposal_total?: number | null;
   proposal_currency?: string | null;
+  gate1_decision?: "qualify" | "ask" | "decline" | null;
+  gate2_decision?: "approve" | "override" | "reject" | null;
+  open_questions?: number | null;
 };
 
 export type Doc = { document_id: number; file_name: string; doc_class: string | null; page_count: number | null;
