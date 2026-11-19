@@ -1,0 +1,750 @@
+/* ==========================================================================
+   Bidwright — guided UI stylesheet v2 (direction 1b "Pin-up")
+   v2: light is the default (dark is opt-in), dark hierarchy fixed, labels
+   never inherit the display font, source kinds + flag levels completed,
+   disabled state readable, full motion system (§19).
+   Mobile-first. Light + dark. Plain CSS, no build step, safe next to Tailwind
+   (every class is prefixed `bw-`).
+
+   Imported once in src/main.tsx, after the older styles.css, so its base rules win.
+   Caprasimo and Figtree load from Google Fonts in app/index.html as the families
+   the --font-* fallbacks name.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Tokens — raw ramps (do not use these directly in components)
+   -------------------------------------------------------------------------- */
+:root {
+  --sand-100: #f9f4ed;
+  --sand-200: #eee7db;
+  --sand-300: #dcd3c4;
+  --sand-400: #c0b6a5;
+  --sand-500: #a19786;
+  --sand-600: #82796a;
+  --sand-700: #645c50;
+  --sand-800: #474238;
+  --sand-900: #2e2b25;
+  --ink: #201e1d;
+  --paper: #f5ead8;
+  --paper-deep: #ebddc5;
+
+  --clay-100: #fff2eb;
+  --clay-200: #ffe1d0;
+  --clay-300: #ffc6a5;
+  --clay-400: #f6a06b;
+  --clay-500: #d67f48;
+  --clay-600: #b2622d;
+  --clay-700: #8c491a;
+  --clay-800: #643312;
+  --clay-900: #402310;
+
+  --sage-100: #f0fae1;
+  --sage-200: #e1eecc;
+  --sage-300: #ccdbb2;
+  --sage-400: #aebf92;
+  --sage-500: #8fa073;
+  --sage-600: #728157;
+  --sage-700: #56633f;
+  --sage-800: #3d472b;
+  --sage-900: #272e1b;
+}
+
+/* --------------------------------------------------------------------------
+   2. Tokens — semantic (components use ONLY these). Light theme.
+   -------------------------------------------------------------------------- */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* surfaces: wall → pinned card → hero card */
+  --bw-bg: var(--paper);             /* the studio wall */
+  --bw-surface: var(--paper-deep);   /* pinned cards, inputs, pills */
+  --bw-card: var(--sand-100);        /* hero card (one per view) */
+  --bw-divider: color-mix(in srgb, var(--ink) 16%, transparent);
+  --bw-scrim: color-mix(in srgb, var(--sand-900) 45%, transparent);
+
+  /* text */
+  --bw-text: var(--ink);
+  --bw-text-muted: var(--sand-800);  /* body-size secondary text */
+  --bw-text-label: var(--sand-700);  /* 11–12px caps labels, on bg/card only */
+  --bw-link: var(--clay-700);
+
+  /* actions */
+  --bw-primary-bg: var(--ink);       /* the one next step */
+  --bw-primary-fg: var(--sand-100);
+  --bw-approve-bg: var(--sage-700);
+  --bw-approve-fg: var(--sand-100);
+  --bw-override-bg: var(--clay-200);
+  --bw-override-fg: var(--clay-900);
+  --bw-outline: var(--sand-500);
+
+  /* status: found (quoted) / estimated / missing */
+  --bw-found-bg: var(--sage-200);
+  --bw-found-fg: var(--sage-800);
+  --bw-found-dot: var(--sage-600);
+  --bw-est-bg: var(--clay-200);
+  --bw-est-fg: var(--clay-800);
+  --bw-est-strong: var(--clay-900);
+  --bw-est-dot: var(--clay-600);
+  --bw-miss-ring: var(--sand-600);
+  --bw-info-bg: var(--bw-surface);   /* neutral notes: not a flag */
+  --bw-info-fg: var(--sand-800);
+  --bw-disabled-bg: var(--bw-surface);
+  --bw-disabled-fg: var(--sand-700);
+
+  /* fee figures */
+  --bw-open-bg: var(--clay-200);
+  --bw-open-fg: var(--clay-900);
+  --bw-open-label: var(--clay-800);
+  --bw-agreed-bg: var(--sage-200);
+  --bw-agreed-fg: var(--sage-900);
+  --bw-agreed-label: var(--sage-800);
+  --bw-range-track: var(--paper-deep);
+  --bw-range-fill: var(--clay-300);
+  --bw-range-open: var(--clay-700);
+  --bw-range-agreed: var(--sage-700);
+  --bw-highlight-found: var(--sage-200);
+  --bw-highlight-est: var(--clay-200);
+
+  /* type */
+  --bw-font-display: var(--font-caprasimo, "Caprasimo"), Georgia, serif;
+  --bw-font-body: var(--font-figtree, "Figtree"), system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* space (4px base) */
+  --bw-s1: 4px;
+  --bw-s2: 8px;
+  --bw-s3: 12px;
+  --bw-s4: 16px;
+  --bw-s5: 20px;
+  --bw-s6: 24px;
+  --bw-s8: 32px;
+  --bw-s10: 40px;
+  --bw-s12: 48px;
+
+  /* radius: everything soft, small controls pill */
+  --bw-r-sm: 12px;
+  --bw-r-md: 18px;
+  --bw-r-lg: 28px;
+  --bw-r-xl: 32px;
+  --bw-r-pill: 999px;
+
+  /* elevation: only the hero card, sheets and dialogs get shadow */
+  --bw-shadow-sm: 0 1px 2px color-mix(in srgb, var(--sand-900) 14%, transparent);
+  --bw-shadow-md: 0 3px 10px color-mix(in srgb, var(--sand-900) 16%, transparent);
+  --bw-shadow-lg: 0 12px 32px color-mix(in srgb, var(--sand-900) 22%, transparent);
+
+  /* sizing */
+  --bw-tap: 44px;        /* minimum tap target */
+  --bw-tap-lg: 56px;     /* primary actions on mobile */
+  --bw-tap-xl: 60px;     /* approve */
+  --bw-rail-w: 236px;
+  --bw-chat-w: 384px;
+  --bw-content-max: 1200px;
+
+  /* motion: calm, physical, never bouncy */
+  --bw-ease: cubic-bezier(.2, .8, .2, 1);        /* settle */
+  --bw-ease-in-out: cubic-bezier(.65, 0, .35, 1); /* flips, sheets */
+  --bw-dur-fast: 120ms;    /* press, hover */
+  --bw-dur: 180ms;         /* state changes */
+  --bw-dur-slow: 320ms;    /* enter, flip, sheet */
+  --bw-stagger: 45ms;      /* per item in a list entering */
+}
+
+/* Dark: "deep sage". OPT-IN ONLY: <html data-theme="dark">.
+   Light is the reviewed design and the default, whatever the OS says.
+   Hierarchy rule (same as light): wall darkest → pinned card → hero card lightest. */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bw-bg: #1d2214;
+  --bw-surface: #2a3220;
+  --bw-card: #3a4430;
+  --bw-divider: color-mix(in srgb, var(--sand-100) 14%, transparent);
+  --bw-scrim: color-mix(in srgb, #000 55%, transparent);
+  --bw-text: var(--sand-100);
+  --bw-text-muted: var(--sand-300);
+  --bw-text-label: var(--sand-400);
+  --bw-link: var(--clay-400);
+  --bw-primary-bg: var(--sand-100);
+  --bw-primary-fg: var(--sage-900);
+  --bw-approve-bg: var(--sage-400);
+  --bw-approve-fg: var(--sage-900);
+  --bw-override-bg: var(--clay-800);
+  --bw-override-fg: var(--clay-100);
+  --bw-outline: var(--sand-500);
+  --bw-disabled-bg: var(--bw-surface);
+  --bw-disabled-fg: var(--sand-400);
+  --bw-found-bg: #33401f;
+  --bw-found-fg: var(--sage-200);
+  --bw-found-dot: var(--sage-400);
+  --bw-est-bg: #4a2a12;
+  --bw-est-fg: var(--clay-200);
+  --bw-est-strong: var(--clay-200);
+  --bw-est-dot: var(--clay-400);
+  --bw-miss-ring: var(--sand-400);
+  --bw-info-bg: var(--bw-surface);
+  --bw-info-fg: var(--sand-200);
+  --bw-open-bg: #4a2a12;
+  --bw-open-fg: var(--clay-100);
+  --bw-open-label: var(--clay-300);
+  --bw-agreed-bg: #33401f;
+  --bw-agreed-fg: var(--sage-100);
+  --bw-agreed-label: var(--sage-300);
+  --bw-range-track: var(--bw-surface);
+  --bw-range-fill: var(--clay-700);
+  --bw-range-open: var(--clay-400);
+  --bw-range-agreed: var(--sage-300);
+  --bw-highlight-found: #46552b;
+  --bw-highlight-est: var(--clay-800);
+  --bw-shadow-sm: 0 0 0 1px color-mix(in srgb, var(--sand-100) 8%, transparent);
+  --bw-shadow-md: 0 0 0 1px color-mix(in srgb, var(--sand-100) 12%, transparent), 0 6px 18px rgb(0 0 0 / .4);
+  --bw-shadow-lg: 0 0 0 1px color-mix(in srgb, var(--sand-100) 12%, transparent), 0 16px 40px rgb(0 0 0 / .55);
+}
+
+/* --------------------------------------------------------------------------
+   3. Base
+   -------------------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bw-bg);
+  color: var(--bw-text);
+  font-family: var(--bw-font-body);
+  font-size: 16px;               /* 16px keeps iOS from zooming into inputs */
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { font-family: var(--bw-font-display); font-weight: 400; line-height: 1.12; letter-spacing: -0.015em; margin: 0; }
+p { margin: 0; }
+a { color: var(--bw-link); text-underline-offset: 3px; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--bw-link); outline-offset: 2px; }
+::selection { background: color-mix(in srgb, var(--clay-500) 30%, transparent); }
+.bw-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* --------------------------------------------------------------------------
+   4. Type scale (mobile → desktop)
+   -------------------------------------------------------------------------- */
+.bw-display { font-family: var(--bw-font-display); font-size: 32px; line-height: 1.1; }   /* page title, 1 per screen */
+.bw-title   { font-family: var(--bw-font-display); font-size: 22px; line-height: 1.15; }  /* card / project title */
+.bw-title-sm{ font-family: var(--bw-font-display); font-size: 19px; line-height: 1.15; }  /* mobile header */
+.bw-lead, .bw-body, .bw-muted, .bw-label, .bw-caps, .bw-figure, .bw-figure-lg {
+  font-family: var(--bw-font-body); letter-spacing: normal; line-height: 1.4; margin: 0;
+}
+.bw-lead    { font-size: 15px; color: var(--bw-text-muted); }
+.bw-body    { font-size: 15px; }
+.bw-muted   { font-size: 13px; color: var(--bw-text-muted); }
+.bw-label   { font-size: 12px; font-weight: 600; color: var(--bw-text-muted); }
+.bw-caps    { font-family: var(--bw-font-body); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--bw-text-label); }
+.bw-figure  { font-size: 30px; font-weight: 700; line-height: 1.1; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.bw-figure-lg { font-size: 42px; font-weight: 700; line-height: 1.05; letter-spacing: -.015em; font-variant-numeric: tabular-nums; }
+@media (min-width: 1024px) {
+  .bw-display { font-size: 44px; }
+  .bw-title   { font-size: 26px; }
+  .bw-figure  { font-size: 40px; }
+}
+
+/* --------------------------------------------------------------------------
+   5. Layout shell
+   Mobile: header + scrolling column + sticky action bar + chat bottom sheet.
+   ≥1024: rail | main | optional chat panel.
+   -------------------------------------------------------------------------- */
+.bw-app { min-height: 100dvh; display: flex; flex-direction: column; }
+.bw-rail { display: none; }
+.bw-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--bw-s4); padding: var(--bw-s1) var(--bw-s4) var(--bw-s8); }
+.bw-chat-panel { display: none; }
+
+.bw-header {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: var(--bw-s3);
+  padding: calc(var(--bw-s2) + env(safe-area-inset-top)) var(--bw-s4) var(--bw-s3);
+  background: var(--bw-bg);
+}
+.bw-header__text { min-width: 0; flex: 1; }
+.bw-header__text .bw-title-sm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bw-brand { font-family: var(--bw-font-display); font-size: 20px; line-height: 1.1; }
+
+.bw-steps { display: none; gap: 6px; }
+.bw-steps > li { list-style: none; font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: var(--bw-r-pill); background: var(--bw-surface); color: var(--bw-text-muted); }
+.bw-steps > li[aria-current="step"] { background: var(--bw-primary-bg); color: var(--bw-primary-fg); }
+.bw-steps > li[data-done] { background: var(--bw-found-bg); color: var(--bw-found-fg); }
+
+.bw-grid-2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--bw-s4); }
+
+/* Tablet / narrow desktop (<1024): don't stretch phone cards edge to edge */
+.bw-main__inner { width: 100%; max-width: 640px; margin-inline: auto; display: flex; flex-direction: column; gap: var(--bw-s4); }
+
+@media (min-width: 1024px) {
+  .bw-app { flex-direction: row; height: 100dvh; overflow: hidden; }
+  .bw-rail {
+    display: flex; flex-direction: column; gap: var(--bw-s1);
+    width: var(--bw-rail-w); flex: none; padding: 28px 18px; overflow-y: auto;
+  }
+  .bw-rail .bw-brand { padding: 0 12px 22px; font-size: 22px; }
+  .bw-main { overflow-y: auto; padding: 28px 32px 32px 8px; gap: 18px; }
+  .bw-main__inner { max-width: var(--bw-content-max); margin-inline: 0; gap: 18px; }
+  .bw-header { position: static; padding: 0; background: none; }
+  .bw-header .bw-back { display: none; }
+  .bw-steps { display: flex; margin: 0 0 0 auto; padding: 0; }
+  .bw-grid-2 { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .bw-chat-panel[data-open] {
+    display: flex; flex-direction: column;
+    width: var(--bw-chat-w); flex: none;
+    background: var(--bw-card); border-left: 1px solid var(--bw-divider);
+  }
+}
+
+/* rail nav */
+.bw-nav-link {
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: 42px; padding: 0 14px; border-radius: var(--bw-r-pill);
+  color: var(--bw-text); text-decoration: none; font-size: 14.5px; font-weight: 600;
+}
+.bw-nav-link:hover { background: color-mix(in srgb, var(--bw-surface) 60%, transparent); }
+.bw-nav-link[aria-current="page"] { background: var(--bw-surface); }
+.bw-nav-count { font-size: 12px; font-weight: 700; background: var(--bw-card); border-radius: var(--bw-r-pill); padding: 2px 8px; }
+.bw-office { margin-top: auto; background: var(--bw-surface); border-radius: var(--bw-r-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+
+/* mobile bottom tab bar (replaces the rail under 1024) */
+.bw-tabbar {
+  position: sticky; bottom: 0; z-index: 10;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  background: var(--bw-bg); border-top: 1px solid var(--bw-divider);
+}
+.bw-tabbar a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 52px; font-size: 11.5px; font-weight: 600; color: var(--bw-text-muted); text-decoration: none; border-radius: var(--bw-r-md); }
+.bw-tabbar a[aria-current="page"] { color: var(--bw-text); background: var(--bw-surface); }
+@media (min-width: 1024px) { .bw-tabbar { display: none; } }
+
+/* --------------------------------------------------------------------------
+   6. Cards
+   -------------------------------------------------------------------------- */
+.bw-card {                 /* pinned card: grouping, secondary */
+  background: var(--bw-surface); border-radius: var(--bw-r-lg);
+  padding: var(--bw-s5); display: flex; flex-direction: column; gap: 14px;
+}
+.bw-card--hero {           /* the one card that matters on this view */
+  background: var(--bw-card); border-radius: var(--bw-r-xl);
+  box-shadow: var(--bw-shadow-md); padding: 22px; gap: var(--bw-s4);
+}
+@media (min-width: 1024px) { .bw-card--hero { padding: 28px; gap: 20px; } }
+
+.bw-list-item {            /* compact row: request in progress, queue item */
+  display: flex; align-items: center; gap: var(--bw-s3);
+  min-height: 64px; padding: 14px 16px; border-radius: 22px;
+  background: var(--bw-surface); color: inherit; text-decoration: none;
+}
+.bw-list-item[aria-current="true"] { background: var(--bw-card); box-shadow: var(--bw-shadow-sm); }
+.bw-list-item__main { flex: 1; min-width: 0; }
+.bw-list-item__title { font-weight: 700; font-size: 15px; }
+
+/* --------------------------------------------------------------------------
+   7. Buttons
+   -------------------------------------------------------------------------- */
+.bw-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 52px; padding: 0 22px; border: 0; border-radius: var(--bw-r-pill);
+  font: 700 15px/1.2 var(--bw-font-body); text-decoration: none; cursor: pointer;
+  transition: background-color var(--bw-dur) var(--bw-ease), transform var(--bw-dur) var(--bw-ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.bw-btn:active { transform: scale(.98); }
+.bw-btn:disabled, .bw-btn[aria-disabled="true"] {
+  background: var(--bw-disabled-bg); color: var(--bw-disabled-fg);
+  box-shadow: inset 0 0 0 1.5px var(--bw-divider); cursor: not-allowed; transform: none;
+}
+.bw-btn--primary  { background: var(--bw-primary-bg);  color: var(--bw-primary-fg); }
+.bw-btn--approve  { background: var(--bw-approve-bg);  color: var(--bw-approve-fg); }
+.bw-btn--override { background: var(--bw-override-bg); color: var(--bw-override-fg); }
+.bw-btn--outline  { background: transparent; color: var(--bw-text); box-shadow: inset 0 0 0 1.5px var(--bw-outline); }
+.bw-btn--soft     { background: var(--bw-surface); color: var(--bw-text); }
+.bw-btn--primary:hover  { background: color-mix(in srgb, var(--bw-primary-bg) 88%, var(--bw-bg)); }
+.bw-btn--approve:hover  { background: color-mix(in srgb, var(--bw-approve-bg) 88%, var(--bw-text)); }
+.bw-btn--outline:hover, .bw-btn--soft:hover { background: color-mix(in srgb, var(--bw-text) 7%, var(--bw-surface)); }
+.bw-btn--sm   { min-height: 40px; padding: 0 16px; font-size: 14px; }
+.bw-btn--lg   { min-height: var(--bw-tap-xl); font-size: 17px; }
+.bw-btn--block { width: 100%; }
+.bw-icon-btn {
+  width: var(--bw-tap); height: var(--bw-tap); flex: none; border: 0; border-radius: 50%;
+  display: grid; place-items: center; background: var(--bw-surface); color: var(--bw-text); cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+   8. Icons (Lucide-style, 24 viewBox, stroke 2.5)
+   -------------------------------------------------------------------------- */
+.bw-icon { width: 18px; height: 18px; flex: none; display: block; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.bw-icon--sm { width: 15px; height: 15px; }
+
+/* --------------------------------------------------------------------------
+   9. Status: icon disc, badge pill, counts
+   data-status = "found" | "estimated" | "missing"
+   -------------------------------------------------------------------------- */
+.bw-status {
+  width: 34px; height: 34px; flex: none; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 700; font-size: 15px;
+}
+.bw-status[data-status="found"]     { background: var(--bw-found-bg); color: var(--bw-found-fg); }
+.bw-status[data-status="estimated"] { background: var(--bw-est-bg);   color: var(--bw-est-fg); }
+.bw-status[data-status="missing"]   { background: transparent; color: var(--bw-text); box-shadow: inset 0 0 0 2px var(--bw-miss-ring); }
+
+.bw-badge {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  border-radius: var(--bw-r-pill); padding: 4px 11px; font-size: 12px; font-weight: 600;
+  background: var(--bw-card); color: var(--bw-text-muted);
+}
+.bw-badge[data-status="found"]     { background: var(--bw-found-bg); color: var(--bw-found-fg); }
+.bw-badge[data-status="estimated"] { background: var(--bw-est-bg);   color: var(--bw-est-fg); }
+.bw-badge[data-status="missing"]   { background: var(--bw-card); color: var(--bw-text); box-shadow: inset 0 0 0 1.5px var(--bw-miss-ring); }
+.bw-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* --------------------------------------------------------------------------
+   10. SOURCE PILL — "where did this come from" (use on every value)
+   <button class="bw-source" data-kind="quoted|estimated">
+     <span class="bw-source__dot"></span><span class="bw-source__text">…</span>
+   </button>
+   -------------------------------------------------------------------------- */
+.bw-source {
+  display: inline-flex; align-items: center; gap: 7px; align-self: flex-start; max-width: 100%;
+  min-height: 30px; padding: 5px 12px 5px 9px; border: 0; border-radius: var(--bw-r-pill);
+  background: var(--bw-surface); color: var(--bw-text);
+  font: 400 12.5px/1.3 var(--bw-font-body); text-align: left; cursor: pointer;
+  position: relative;
+}
+/* grow the hit area to 44px without changing the visual */
+.bw-source::after { content: ""; position: absolute; inset: -7px -2px; }
+.bw-card .bw-source { background: var(--bw-card); }
+.bw-card--hero .bw-source, .bw-msg--assistant .bw-source { background: var(--bw-bg); }
+.bw-source:hover { background: color-mix(in srgb, var(--bw-text) 8%, var(--bw-surface)); }
+.bw-source__dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.bw-source[data-kind="quoted"]    .bw-source__dot { background: var(--bw-found-dot); }
+.bw-source[data-kind="estimated"] .bw-source__dot { background: var(--bw-est-dot); }
+/* derived: worked out from a quote (e.g. "JVC" → United Arab Emirates). Hollow sage. */
+.bw-source[data-kind="derived"]   .bw-source__dot { background: transparent; box-shadow: inset 0 0 0 2px var(--bw-found-dot); }
+.bw-source__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Opened source: popover on desktop, bottom sheet on mobile (use .bw-sheet) */
+.bw-source-detail { display: flex; flex-direction: column; gap: 10px; }
+.bw-source-detail__meta { display: flex; align-items: center; gap: 8px; }
+.bw-quote {
+  background: var(--bw-surface); border-radius: var(--bw-r-md);
+  padding: 14px 16px; font-size: 15px; line-height: 1.6;
+}
+.bw-quote mark { color: inherit; border-radius: 4px; padding: 0 2px; background: var(--bw-highlight-found); }
+.bw-quote mark[data-kind="estimated"] { background: var(--bw-highlight-est); }
+.bw-why { font-size: 14px; }
+.bw-why strong { font-weight: 700; }
+.bw-popover {
+  width: min(360px, calc(100vw - 32px));
+  background: var(--bw-card); color: var(--bw-text);
+  border: 0; border-radius: var(--bw-r-lg); box-shadow: var(--bw-shadow-lg); padding: 18px;
+}
+
+/* confidence in words, with an optional 3-step meter */
+.bw-confidence { display: inline-flex; gap: 3px; vertical-align: middle; }
+.bw-confidence i { width: 10px; height: 4px; border-radius: 2px; background: var(--bw-divider); }
+.bw-confidence[data-level="low"]    i:nth-child(-n+1),
+.bw-confidence[data-level="medium"] i:nth-child(-n+2),
+.bw-confidence[data-level="high"]   i { background: var(--bw-est-dot); }
+
+/* --------------------------------------------------------------------------
+   11. Field row (Gate 1)
+   -------------------------------------------------------------------------- */
+.bw-field { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: start; }
+.bw-field__body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.bw-field__label { font-size: 12px; color: var(--bw-text-muted); }
+.bw-field__value { font-size: 16px; font-weight: 600; line-height: 1.3; }
+.bw-field[data-focus] { box-shadow: 0 0 0 3px var(--clay-300); border-radius: var(--bw-r-md); padding: 6px; margin: -6px; }
+.bw-question {           /* ready-to-send question for a missing value */
+  background: var(--bw-card); border-radius: 16px; padding: 10px 12px;
+  font-size: 14px; line-height: 1.4;
+}
+.bw-message-preview { white-space: pre-line; }
+
+/* Segmented decision: Qualify / Clarify / Decline, also currency switch */
+.bw-segmented {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+  gap: 4px; padding: 4px; background: var(--bw-surface); border-radius: var(--bw-r-pill);
+}
+.bw-segmented button {
+  min-height: var(--bw-tap); border: 0; border-radius: var(--bw-r-pill); background: transparent;
+  font: 600 14px var(--bw-font-body); color: var(--bw-text); cursor: pointer;
+}
+.bw-segmented button[aria-pressed="true"] { background: var(--bw-primary-bg); color: var(--bw-primary-fg); }
+
+/* --------------------------------------------------------------------------
+   12. Fee card (Gate 2)
+   -------------------------------------------------------------------------- */
+.bw-fee__figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.bw-fee__box { border-radius: var(--bw-r-md); padding: 14px; min-width: 0; }
+.bw-fee__box[data-kind="opening"] { background: var(--bw-open-bg); }
+.bw-fee__box[data-kind="opening"] .bw-fee__label,
+.bw-fee__box[data-kind="opening"] .bw-fee__cur { color: var(--bw-open-label); }
+.bw-fee__box[data-kind="opening"] .bw-fee__num { color: var(--bw-open-fg); }
+.bw-fee__box[data-kind="agreed"] { background: var(--bw-agreed-bg); }
+.bw-fee__box[data-kind="agreed"] .bw-fee__label,
+.bw-fee__box[data-kind="agreed"] .bw-fee__cur { color: var(--bw-agreed-label); }
+.bw-fee__box[data-kind="agreed"] .bw-fee__num { color: var(--bw-agreed-fg); }
+.bw-fee__label { font-size: 12px; font-weight: 600; }
+.bw-fee__num { font-size: clamp(24px, 7.5vw, 30px); font-weight: 700; line-height: 1.15; letter-spacing: -.01em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.bw-fee__cur { font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+@media (min-width: 1024px) { .bw-fee__box { padding: 18px; } .bw-fee__num { font-size: 40px; } }
+
+/* Range bar. Set positions (0–100%) inline from your data:
+   style={{ "--lo": "28.6%", "--hi": "85.7%", "--open": "47.1%", "--agreed": "20%" }} */
+.bw-range { position: relative; height: 14px; margin: 6px 0 6px; border-radius: var(--bw-r-pill); background: var(--bw-range-track); }
+.bw-range__band { position: absolute; top: 0; bottom: 0; left: var(--lo, 25%); width: calc(var(--hi, 75%) - var(--lo, 25%)); border-radius: var(--bw-r-pill); background: var(--bw-range-fill); }
+.bw-range__marker { position: absolute; top: -4px; width: 22px; height: 22px; margin-left: -11px; border-radius: 50%; box-shadow: 0 0 0 3px var(--bw-card); }
+.bw-range__marker[data-kind="opening"] { left: var(--open, 50%); background: var(--bw-range-open); }
+.bw-range__marker[data-kind="agreed"]  { left: var(--agreed, 40%); background: var(--bw-range-agreed); }
+.bw-range-legend { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--bw-text-muted); }
+
+/* Stage split: widths proportional to fee via inline flex-grow */
+.bw-stages { display: flex; gap: 8px; }
+.bw-stage { flex: var(--share, 1) 1 0; min-width: 88px; background: var(--bw-surface); border-radius: 16px; padding: 10px 14px; }
+.bw-stage__value { font-size: 16px; font-weight: 700; }
+
+/* Red flag */
+/* A flag is something to CHECK before sending. Facts (repeat client, due date)
+   are found fields, not flags. data-level="check" (default) | "info" */
+.bw-flag { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.4; color: var(--bw-est-strong); }
+.bw-flag[data-level="info"] { color: var(--bw-text); }
+.bw-flag[data-level="info"] .bw-status { background: var(--bw-info-bg); color: var(--bw-info-fg); }
+.bw-flag .bw-status { width: 30px; height: 30px; }
+.bw-flag__text { padding-top: 5px; display: flex; flex-direction: column; gap: 6px; }
+
+/* Comparable project */
+.bw-comparable {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px;
+  background: var(--bw-card); border-radius: var(--bw-r-md); padding: 12px 14px;
+}
+.bw-comparable__name, .bw-comparable__amount { font-size: 14px; font-weight: 700; }
+.bw-comparable__amount { text-align: right; }
+.bw-comparable__meta { font-size: 12px; color: var(--bw-text-muted); }
+.bw-comparable__meta:last-child { text-align: right; }
+
+/* Detail on demand: native <details> */
+.bw-details { border-top: 1px solid var(--bw-divider); }
+.bw-details > summary {
+  list-style: none; display: flex; align-items: center; justify-content: space-between;
+  min-height: 50px; padding: 0 2px; font-weight: 600; font-size: 14px; cursor: pointer;
+}
+.bw-details > summary::-webkit-details-marker { display: none; }
+.bw-details > summary::after {
+  content: ""; width: 9px; height: 9px; margin-right: 6px;
+  border-right: 2.5px solid currentColor; border-bottom: 2.5px solid currentColor;
+  transform: rotate(45deg) translateY(-3px); transition: transform var(--bw-dur) var(--bw-ease);
+}
+.bw-details[open] > summary::after { transform: rotate(-135deg) translateY(-1px); }
+.bw-details__body { padding: 0 2px 14px; font-size: 14px; color: var(--bw-text-muted); }
+
+/* --------------------------------------------------------------------------
+   13. Approval action bar (director, mobile thumb zone)
+   -------------------------------------------------------------------------- */
+.bw-actionbar {
+  position: sticky; bottom: 0; z-index: 20;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, transparent, var(--bw-bg) 18px);
+}
+.bw-actionbar__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.bw-actionbar .bw-btn { min-height: var(--bw-tap-lg); }
+.bw-actionbar .bw-btn--approve { min-height: var(--bw-tap-xl); font-size: 17px; }
+@media (min-width: 1024px) {
+  .bw-actionbar { position: static; background: none; padding: 0; width: 248px; flex: none; }
+  .bw-actionbar__row { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* --------------------------------------------------------------------------
+   14. Inputs and chips
+   -------------------------------------------------------------------------- */
+.bw-input, .bw-textarea {
+  width: 100%; border: 0; border-radius: var(--bw-r-md);
+  background: var(--bw-surface); color: var(--bw-text);
+  font: 400 16px/1.5 var(--bw-font-body); padding: 12px 16px; min-height: 52px;
+}
+.bw-card--hero .bw-textarea, .bw-card--hero .bw-input { background: var(--bw-bg); }
+.bw-textarea { resize: vertical; min-height: 120px; }
+.bw-input--figure { font-size: 18px; font-weight: 700; }
+.bw-input::placeholder, .bw-textarea::placeholder { color: var(--bw-text-label); }
+.bw-input:focus-visible, .bw-textarea:focus-visible { outline: 2px solid var(--bw-link); outline-offset: 0; }
+.bw-input[aria-invalid="true"] { box-shadow: inset 0 0 0 2px var(--clay-600); }
+.bw-hint { font-size: 13px; color: var(--bw-text-muted); margin-top: 6px; }
+
+.bw-dropzone {
+  display: flex; align-items: center; gap: 14px; padding: 18px;
+  border: 2px dashed var(--sand-400); border-radius: 22px;
+}
+.bw-dropzone[data-active] { border-color: var(--bw-found-dot); background: var(--bw-found-bg); }
+
+.bw-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.bw-chip {
+  display: inline-flex; align-items: center; gap: 7px; min-height: var(--bw-tap);
+  padding: 0 16px; border: 0; border-radius: var(--bw-r-pill);
+  background: var(--bw-surface); color: var(--bw-text);
+  font: 600 14px var(--bw-font-body); cursor: pointer;
+}
+.bw-chip[aria-pressed="true"] { background: var(--bw-primary-bg); color: var(--bw-primary-fg); }
+
+/* --------------------------------------------------------------------------
+   15. Sheet (mobile) / dialog (desktop) — use with native <dialog>
+   -------------------------------------------------------------------------- */
+dialog.bw-sheet {
+  position: fixed; inset: auto 0 0 0; margin: 0; width: 100%; max-width: none;
+  max-height: calc(100dvh - 56px); border: 0; padding: 0 0 env(safe-area-inset-bottom);
+  background: var(--bw-card); color: var(--bw-text);
+  border-radius: var(--bw-r-xl) var(--bw-r-xl) 0 0; box-shadow: var(--bw-shadow-lg);
+  display: none; flex-direction: column; overflow: hidden;
+}
+dialog.bw-sheet[open] { display: flex; animation: bw-up var(--bw-dur) var(--bw-ease); }
+dialog.bw-sheet::backdrop { background: var(--bw-scrim); }
+.bw-sheet__grab { width: 44px; height: 5px; border-radius: var(--bw-r-pill); background: var(--sand-400); margin: 10px auto 4px; flex: none; }
+.bw-sheet__head { display: flex; align-items: center; gap: 12px; padding: 4px 18px 8px; }
+.bw-sheet__body { flex: 1; overflow-y: auto; padding: 8px 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+@media (min-width: 1024px) {
+  dialog.bw-sheet {
+    inset: 0; margin: auto; width: min(480px, calc(100vw - 48px)); max-height: min(720px, calc(100dvh - 48px));
+    border-radius: var(--bw-r-xl); padding: 0;
+  }
+  .bw-sheet__grab { display: none; }
+}
+@keyframes bw-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* --------------------------------------------------------------------------
+   16. Chat (bottom sheet <1024, side panel ≥1024)
+   -------------------------------------------------------------------------- */
+.bw-chat { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.bw-chat__log { flex: 1; overflow-y: auto; padding: 4px 16px 12px; display: flex; flex-direction: column; gap: 10px; }
+.bw-msg--user {
+  align-self: flex-end; max-width: 82%;
+  background: var(--bw-primary-bg); color: var(--bw-primary-fg);
+  border-radius: 20px 20px 6px 20px; padding: 10px 14px; font-size: 15px;
+}
+.bw-msg--assistant {
+  align-self: flex-start; max-width: 94%;
+  background: var(--bw-surface); border-radius: 20px 20px 20px 6px;
+  padding: 14px; display: flex; flex-direction: column; gap: 10px; font-size: 15px; line-height: 1.45;
+}
+.bw-msg--assistant .bw-comparable { background: var(--bw-card); }
+.bw-confirm {             /* any gate-changing action from chat */
+  background: var(--bw-card); border-radius: var(--bw-r-md); padding: 14px;
+  display: flex; flex-direction: column; gap: 10px; box-shadow: inset 0 0 0 2px var(--clay-300);
+}
+.bw-confirm__change { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.bw-confirm__was { text-decoration: line-through; color: var(--bw-text-label); font-weight: 600; }
+.bw-confirm__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.bw-suggestions { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 14px 4px; }
+.bw-suggestions button { border: 0; min-height: 36px; padding: 0 13px; border-radius: var(--bw-r-pill); background: var(--bw-surface); color: var(--bw-text); font: 600 13px var(--bw-font-body); cursor: pointer; position: relative; }
+.bw-suggestions button::after { content: ""; position: absolute; inset: -4px 0; }
+.bw-composer { display: flex; gap: 8px; align-items: center; padding: 12px 14px calc(14px + env(safe-area-inset-bottom)); }
+.bw-composer .bw-input { border-radius: var(--bw-r-pill); min-height: 48px; padding: 0 18px; }
+.bw-composer__send { width: 48px; height: 48px; flex: none; border: 0; border-radius: 50%; background: var(--bw-primary-bg); color: var(--bw-primary-fg); display: grid; place-items: center; cursor: pointer; }
+.bw-chat-fab {           /* opens the chat sheet on mobile */
+  position: fixed; right: 16px; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 15;
+  display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 18px;
+  border: 0; border-radius: var(--bw-r-pill); background: var(--bw-primary-bg); color: var(--bw-primary-fg);
+  font: 700 15px var(--bw-font-body); box-shadow: var(--bw-shadow-lg); cursor: pointer;
+}
+@media (min-width: 1024px) { .bw-chat-fab { display: none; } }
+
+/* --------------------------------------------------------------------------
+   17. Utilities (kept small on purpose)
+   -------------------------------------------------------------------------- */
+.bw-stack { display: flex; flex-direction: column; gap: var(--gap, 12px); }
+.bw-row { display: flex; align-items: center; gap: var(--gap, 8px); flex-wrap: wrap; }
+.bw-push { margin-left: auto; }
+.bw-num { font-variant-numeric: tabular-nums; }
+
+/* --------------------------------------------------------------------------
+   18. Print
+   -------------------------------------------------------------------------- */
+@media print {
+  .bw-rail, .bw-tabbar, .bw-chat-panel, .bw-chat-fab, .bw-actionbar, .bw-composer { display: none !important; }
+  .bw-card--hero { box-shadow: none; border: 1px solid var(--sand-300); }
+  body { background: #fff; }
+}
+
+/* --------------------------------------------------------------------------
+   19. Motion system
+   Rule: motion explains a change of state. It never decorates.
+   Everything here degrades to an instant change under reduced motion.
+   -------------------------------------------------------------------------- */
+
+/* 19.1 Press + hover on every tappable thing */
+.bw-btn, .bw-chip, .bw-source, .bw-segmented button, .bw-list-item, .bw-nav-link, .bw-tabbar a, .bw-icon-btn {
+  transition: background-color var(--bw-dur-fast) var(--bw-ease), color var(--bw-dur-fast) var(--bw-ease),
+              box-shadow var(--bw-dur-fast) var(--bw-ease), transform var(--bw-dur-fast) var(--bw-ease);
+}
+.bw-chip:active, .bw-source:active, .bw-list-item:active, .bw-icon-btn:active, .bw-tabbar a:active { transform: scale(.97); }
+
+/* 19.2 Enter: cards rise into place, staggered. Set --i on each child (0,1,2…). */
+.bw-enter > * { animation: bw-rise var(--bw-dur-slow) var(--bw-ease) both; animation-delay: calc(var(--i, 0) * var(--bw-stagger)); }
+@keyframes bw-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* 19.3 Reading a request (screen 1 → 2): calm 3-dot pulse + fields arriving one by one */
+.bw-reading { display: inline-flex; gap: 5px; align-items: center; }
+.bw-reading i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: bw-pulse 1.1s var(--bw-ease-in-out) infinite; }
+.bw-reading i:nth-child(2) { animation-delay: .15s; }
+.bw-reading i:nth-child(3) { animation-delay: .3s; }
+@keyframes bw-pulse { 0%, 100% { opacity: .25; transform: scale(.8); } 50% { opacity: 1; transform: none; } }
+.bw-field[data-arriving] { animation: bw-rise var(--bw-dur-slow) var(--bw-ease) both; animation-delay: calc(var(--i, 0) * 70ms); }
+
+/* 19.4 Settle: a value just changed (client reply filled a missing field, override applied).
+   Add data-changed for ~1.2s, then remove it. */
+.bw-field[data-changed], .bw-fee__box[data-changed], .bw-badge[data-changed] { animation: bw-settle 1.2s var(--bw-ease) both; }
+@keyframes bw-settle {
+  0% { box-shadow: 0 0 0 0 var(--bw-found-dot); background-color: var(--bw-highlight-found); }
+  60% { box-shadow: 0 0 0 6px transparent; }
+  100% { background-color: transparent; }
+}
+.bw-status { transition: background-color var(--bw-dur) var(--bw-ease), color var(--bw-dur) var(--bw-ease), box-shadow var(--bw-dur) var(--bw-ease); }
+
+/* 19.5 Source flip: tap the pill, the card turns over to the quote (pin-up card flipped on the wall).
+   <div class="bw-flip" data-flipped?>
+     <div class="bw-flip__face">…value…</div>
+     <div class="bw-flip__face bw-flip__back">…source detail…</div>
+   </div>
+   Use for fee boxes and single fields on desktop. On phones use the bottom sheet instead. */
+.bw-flip { display: grid; perspective: 1200px; }
+.bw-flip__face { grid-area: 1 / 1; backface-visibility: hidden; transition: transform var(--bw-dur-slow) var(--bw-ease-in-out), opacity var(--bw-dur-slow) var(--bw-ease-in-out); }
+.bw-flip__back { transform: rotateY(180deg); }
+.bw-flip[data-flipped] .bw-flip__face:not(.bw-flip__back) { transform: rotateY(-180deg); }
+.bw-flip[data-flipped] .bw-flip__back { transform: none; }
+
+/* 19.6 Range bar: band grows, markers slide to their values */
+.bw-range__band { transform-origin: left; animation: bw-grow 420ms var(--bw-ease) both; }
+.bw-range__marker { transition: left 420ms var(--bw-ease); animation: bw-pop 260ms 300ms var(--bw-ease) both; }
+@keyframes bw-grow { from { transform: scaleX(0); } to { transform: none; } }
+@keyframes bw-pop { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* 19.7 Disclosure: details open with height (progressive; instant where unsupported) */
+:root { interpolate-size: allow-keywords; }
+.bw-details::details-content {
+  block-size: 0; overflow: hidden;
+  transition: block-size var(--bw-dur-slow) var(--bw-ease), content-visibility var(--bw-dur-slow) allow-discrete;
+}
+.bw-details[open]::details-content { block-size: auto; }
+
+/* 19.8 Sheets and dialogs: backdrop fades, sheet rises; closing reverses */
+dialog.bw-sheet { transition: transform var(--bw-dur-slow) var(--bw-ease-in-out), opacity var(--bw-dur-slow) var(--bw-ease-in-out), overlay var(--bw-dur-slow) allow-discrete, display var(--bw-dur-slow) allow-discrete; }
+dialog.bw-sheet::backdrop { transition: background-color var(--bw-dur-slow) var(--bw-ease), overlay var(--bw-dur-slow) allow-discrete, display var(--bw-dur-slow) allow-discrete; }
+@starting-style { dialog.bw-sheet[open]::backdrop { background-color: transparent; } }
+
+/* 19.9 Chat: messages rise in; the confirm card draws attention once */
+.bw-msg--user, .bw-msg--assistant { animation: bw-rise var(--bw-dur) var(--bw-ease) both; }
+.bw-confirm { animation: bw-rise var(--bw-dur-slow) var(--bw-ease) both, bw-ring 1.4s 200ms var(--bw-ease) 1; }
+@keyframes bw-ring { 0% { box-shadow: inset 0 0 0 2px var(--clay-300), 0 0 0 0 color-mix(in srgb, var(--clay-400) 50%, transparent); } 100% { box-shadow: inset 0 0 0 2px var(--clay-300), 0 0 0 10px transparent; } }
+
+/* 19.10 Approve: button confirms in place before navigating to the next item */
+.bw-btn--approve[data-done] { background: var(--sage-600); }
+.bw-btn--approve[data-done] .bw-icon { animation: bw-pop 260ms var(--bw-ease) both; }
+
+/* 19.11 Reduced motion: keep state changes, drop movement */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; transition-duration: .01ms !important; }
+  .bw-flip__face { backface-visibility: visible; }
+  .bw-flip[data-flipped] .bw-flip__face:not(.bw-flip__back) { opacity: 0; transform: none; }
+  .bw-flip__back { transform: none; opacity: 0; }
+  .bw-flip[data-flipped] .bw-flip__back { opacity: 1; }
+}
