@@ -15,15 +15,19 @@ import { Members } from "./pages/Members";
 import { ProposalPage } from "./pages/Proposal";
 import { Settings, type SettingsTab } from "./pages/Settings";
 import { SignIn } from "./pages/SignIn";
-import "./styles.css";
+import { Guided, Shell, parseGuided, type GuidedRoute } from "./guided/Guided";
+import { applyTheme } from "./guided/kit";
 
 type Route =
-  | { page: "inbox" } | { page: "review"; id: number } | { page: "proposal"; id: number; version: number }
+  | { page: "guided"; route: GuidedRoute } | { page: "inbox" } | { page: "review"; id: number } | { page: "proposal"; id: number; version: number }
   | { page: "settings"; tab: SettingsTab } | { page: "models" }
   | { page: "backtests" } | { page: "members" }
   | { page: "login" } | { page: "signup" } | { page: "demo" } | { page: "join"; token: string };
 
 function parse(hash: string): Route {
+  const g = parseGuided(hash);
+  if (g) return { page: "guided", route: g };
+  if (hash === "#/requests") return { page: "inbox" };
   const rfp = hash.match(/^#\/rfp\/(\d+)$/);
   if (rfp) return { page: "review", id: Number(rfp[1]) };
   const proposal = hash.match(/^#\/proposal\/(\d+)\/v\/(\d+)$/);
