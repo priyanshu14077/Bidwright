@@ -301,4 +301,9 @@ def extract_envelope(envelope_id: int, workers: int = 4) -> uuid.UUID:
             conn.execute(text("UPDATE intake.envelope SET status = 'failed', error = :err WHERE envelope_id = :e"),
                          dict(e=envelope_id, err=str(e)[:2000]))
         raise
+    try:  # the questions are worded by the model; without them the screen shows plain ones
+        from bidwright.gate1 import write_followup
+        write_followup(envelope_id, trace_id)
+    except Exception as e:  # noqa: BLE001
+        log.warning("follow-up questions for envelope %s not worded: %s", envelope_id, e)
     return trace_id
