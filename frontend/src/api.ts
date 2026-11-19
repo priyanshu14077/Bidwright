@@ -400,7 +400,21 @@ export type FeeCard = {
 );
 export type Channel = "whatsapp" | "email" | "notes" | "upload";
 
+// ---------------------------------------------------------------- the pricing logic register
+
+export type LogicEntry = {
+  id: string; section: string; title: string; value: string; rule: string; source: string;
+  kind: "cost" | "setting" | "market" | "rule" | "policy" | "built_in";
+  changed: { by: string; at: string; reason: string | null } | null; edit: string | null;
+};
+export type LogicRegister = {
+  engine_version: string; questions_prompt: string;
+  sections: { key: string; title: string; about: string }[]; entries: LogicEntry[];
+  request: { envelope_id: number; title: string | null; priced: boolean; currency?: string; opening?: number; used: string[] } | null;
+};
+
 export const guided = {
+  logic: (envelopeId?: number) => call<LogicRegister>(`/api/logic${envelopeId ? `?envelope_id=${envelopeId}` : ""}`),
   paste: (body: { text: string; channel: Channel; sender?: string }) =>
     call<{ envelope_id: number; created: boolean }>("/api/envelopes/text", json(body)),
   upload: (files: File[], channel: Channel) => {
