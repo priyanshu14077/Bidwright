@@ -265,6 +265,12 @@ def normalize(f: Field, c: Candidate, ref: Reference, country: str | None) -> li
             c.normalized = date.fromisoformat((v.get("normalized_text") or "")[:10]).isoformat()
         except ValueError:
             c.status = "rejected"
+    elif f.kind == "currency":
+        code = (v.get("normalized_text") or "").strip().upper()
+        if re.fullmatch(r"[A-Z]{3}", code):
+            c.normalized = code
+        else:
+            c.status = "rejected"
     elif f.kind == "enum":
         if v.get("normalized_text") in f.options:
             c.normalized = v["normalized_text"]
