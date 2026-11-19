@@ -562,19 +562,34 @@ class Engine:
 
         self.match_client(archive)
         self.plausibility(archive)
-        self.suggest_gaps(archive)
-        completeness = self.completeness()
-        lead = self.qualify(country, completeness)
         deadline = self.value("submission_deadline")
+        if deadline and len(str(deadline)) == 10:  # a date with no time: the end of that day
+            deadline = f"{deadline}T23:59:00"
+        # completeness and the recommendation come from the gate 1 assessment (bidwright.gate1)
         self.conn.execute(
+            # a pasted message is named after its file ("WhatsApp message 2026-11-19 21.26") until the request
+            # says what it is: its project name, else its use and place ("Office in Lusail")
             text("""UPDATE intake.envelope SET country = :c, location_id = :l, billing_currency = :cur,
-                    routed_studio = :s, completeness = :comp, lead_status = :lead, submission_deadline = :d,
-                    title = COALESCE(title, :title), status = 'review', updated_at = now() WHERE envelope_id = :e"""),
+                    routed_studio = :s, submission_deadline = :d,
+                    title = CASE WHEN CAST(:title AS text) IS NOT NULL AND (title IS NULL OR title ~ :auto)
+                                 THEN CAST(:title AS text) ELSE title END,
+                    status = 'review', updated_at = now() WHERE envelope_id = :e"""),
             dict(e=self.envelope_id, c=country if country in self.ref.country_rows else None,
-                 l=loc["location_id"] if loc else None, cur=currency, s=studio, comp=completeness, lead=lead,
-                 d=deadline, title=self.value("project_name")))
+                 l=loc["location_id"] if loc else None, cur=currency, s=studio,
+                 d=deadline, title=self.display_title(), auto=AUTO_TITLE))
+
+    def display_title(self) -> str | None:
+        if self.value("project_name"):
+            return self.value("project_name")
+        typology, city = self.value("typology"), self.value("city")
+        label = {"mixed_use": "Mixed-use project", "masterplan": "Masterplan", "hospitality": "Hotel"}.get(
+            typology, (typology or "").replace("_", " ").capitalize())
+        return f"{label} in {city}" if label and city else label or None
 
     def route_studio(self, country: str, archive: list[dict]) -> tuple[str | None, str]:
+        covering = [s for s in self.ref.studios if country in (s.get("markets") or [])]
+        if covering:
+            return covering[0]["code"], f"{covering[0]['name']} covers this market"
         past = Counter(p["studio_code"] for p in archive if p["country"] == country)
         if past:
             code, n = past.most_common(1)[0]
