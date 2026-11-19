@@ -7,6 +7,7 @@ with page coordinates), so nothing downstream changes.
 
 import email
 import email.policy
+import re
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -18,6 +19,8 @@ from bidwright.config import settings
 
 OFFICE_SUFFIXES = {".docx", ".doc", ".xlsx", ".xls", ".pptx", ".odt", ".ods", ".rtf"}
 UNSUPPORTED_SUFFIXES = {".dwg", ".dxf", ".rvt", ".ifc", ".skp", ".3dm", ".nwd"}
+IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+TEXT_SUFFIXES = {".txt", ".eml"}
 
 
 @dataclass
