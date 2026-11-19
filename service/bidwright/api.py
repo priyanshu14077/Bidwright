@@ -150,7 +150,7 @@ def inbox(_: Principal = READ):
                            FROM proposal.bid b JOIN proposal.version v USING (proposal_id)
                            WHERE b.envelope_id = e.envelope_id
                            ORDER BY b.created_at DESC, v.version_no DESC LIMIT 1) p ON true
-        WHERE e.title IS NULL OR e.title NOT LIKE '[eval %'
+        WHERE e.title IS NULL OR (e.title NOT LIKE '[eval %' AND e.title NOT LIKE '[gold %')  -- test material: Backtests opens it
         ORDER BY e.received_at DESC""")
 
 
@@ -609,6 +609,29 @@ def latest_evaluation(_: Principal = READ):
             "summary": r["summary"],
             "results": [{k: c["detail"][k] for k in ("proposal_id", "envelope_id", "style", "traps", "fields",
                                                      "conflicts", "lead_status")} for c in cases]}
+
+
+@app.get("/api/evaluation/intake")
+def latest_intake_evaluation(_: Principal = READ):
+    """The latest intake run on the sample requests (make eval-intake): how often gate 1's recommendation, each
+    field's status and the questions matched the expected answer, per request."""
+    from bidwright.archive.loader import REQUEST_SET
+    run = rows("SELECT * FROM eval.run WHERE dataset_version = :v AND (summary->>'requests')::int > 1 "
+               "ORDER BY run_id DESC LIMIT 1", v=REQUEST_SET)
+    if not run:
+        return None
+    r = run[0]
+    results = []
+    for c in rows("SELECT case_id, detail FROM eval.case_result WHERE run_id = :r ORDER BY case_id", r=r["run_id"]):
+        d = c["detail"]
+        fields = d.get("fields", {})
+        results.append({"case_id": c["case_id"], "kind": d.get("kind"), "channel": d.get("channel"),
+                        "recommendation": d.get("recommendation"),
+                        "fields_ok": sum(1 for f in fields.values() if f.get("status_ok")), "fields": len(fields),
+                        "missed": [k for k, f in fields.items() if not f.get("status_ok")]})
+    return {"meta": {"run_at": r["run_at"].isoformat(), "dataset": r["dataset_version"], "model": r["model"],
+                     "prompt_version": r["prompt_version"], "engine_version": r["engine_version"]},
+            "summary": r["summary"], "results": results}
 
 
 @app.get("/api/health")

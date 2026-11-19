@@ -18,7 +18,7 @@ from rapidfuzz import fuzz
 from sqlalchemy import text
 
 from bidwright.config import REPO_ROOT, settings
-from bidwright.db import engine, workspace
+from bidwright.db import engine, owner_engine, workspace
 from bidwright.engine import ENGINE_VERSION, LEGAL_SUFFIXES
 from bidwright.extraction import PROMPT_VERSION, extract_envelope
 from bidwright.intake.ingest import delete_envelope, ingest
@@ -76,7 +76,7 @@ def load_cases(conn, case_ids: list[str] | None = None) -> list[dict]:
 
 def run_case(case: dict) -> int:
     """Re-ingest the pack's original files into a fresh envelope and extract it."""
-    with engine.begin() as conn:
+    with owner_engine.begin() as conn:  # removing the previous envelope switches off an append-only trigger
         files = [(name, blob_store.get(uri)) for name, uri in conn.execute(
             text("SELECT file_name, blob_uri FROM lineage.source_document WHERE envelope_id = :e "
                  "AND parent_document_id IS NULL ORDER BY document_id"), dict(e=case["envelope_id"]))]
@@ -208,7 +208,8 @@ def backtest(args) -> None:
     with engine.connect() as conn:
         cases = load_cases(conn, args.cases)
     if not cases:
-        raise SystemExit("no gold cases in the database; run `uv run python -m bidwright.archive.loader`")
+        raise SystemExit(f"no gold cases for {settings.dataset_version} in the database; run `make gold` "
+                         "(reloads only the gold sets, not the demo's archive or settings)")
     if args.rescore:
         envelope_ids = [c["envelope_id"] for c in cases]
     else:

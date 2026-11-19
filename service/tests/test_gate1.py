@@ -199,3 +199,19 @@ def test_worded_questions_cannot_invent_figures(stranger, monkeypatch):
         with engine.connect() as conn:
             q = gate1.view(conn, e)["questions"]
     assert q["worded"] and all(i["worded"] for i in q["items"])
+
+
+def test_a_request_named_after_its_file_takes_the_project_name(stranger):
+    _, org = stranger
+    e, d = new_request(org, "RFP for Wadi Hanifa Offices, Riyadh")
+    with workspace(org), engine.begin() as conn:
+        stem = conn.execute(text("SELECT title FROM intake.envelope WHERE envelope_id = :e"), dict(e=e)).scalar()
+    assert stem.startswith("msg-")  # ingested under the file's name
+    say(org, e, d, "project_name", "Wadi Hanifa Offices")
+    assess(org, e)
+    with workspace(org), engine.begin() as conn:
+        assert conn.execute(text("SELECT title FROM intake.envelope WHERE envelope_id = :e"), dict(e=e)).scalar() == "Wadi Hanifa Offices"
+        conn.execute(text("UPDATE intake.envelope SET title = 'Marina tender' WHERE envelope_id = :e"), dict(e=e))
+    assess(org, e)  # a title someone chose is kept
+    with workspace(org), engine.connect() as conn:
+        assert conn.execute(text("SELECT title FROM intake.envelope WHERE envelope_id = :e"), dict(e=e)).scalar() == "Marina tender"

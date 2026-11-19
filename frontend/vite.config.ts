@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react";
 // Two pages: the landing page at / and the app at /app/.
 export default defineConfig({
   plugins: [react()],
+  resolve: { alias: { "@": resolve(import.meta.dirname, "src") } },  // shadcn-style imports: @/components/ui/...
   server: { port: 5173, strictPort: true, proxy: { "/api": "http://localhost:8000" } },
   build: {
     rollupOptions: {

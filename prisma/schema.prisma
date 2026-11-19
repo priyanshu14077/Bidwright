@@ -6,7 +6,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  schemas  = ["archive", "eval", "intake", "lineage", "proposal", "ref", "tenancy"]
+  schemas  = ["archive", "chat", "eval", "intake", "lineage", "proposal", "ref", "tenancy"]
 }
 
 model client {
@@ -266,15 +266,19 @@ model gold_case {
   org_id           String          @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   dataset_version  String
   case_id          String
-  proposal_id      String
+  proposal_id      String?
   style            String?
   issued_at        DateTime        @db.Timestamptz(6)
   traps            String[]        @default([])
   special_requests String[]        @default([])
   envelope_id      BigInt?
+  kind             String?
+  channel          String?
+  studio           String?
+  expected         Json            @default("{}")
   envelope         envelope?       @relation(fields: [envelope_id], references: [envelope_id], onUpdate: NoAction)
   organization     organization    @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
-  proposal         proposal        @relation(fields: [org_id, proposal_id], references: [org_id, proposal_id], onDelete: Cascade, onUpdate: NoAction)
+  proposal         proposal?       @relation(fields: [org_id, proposal_id], references: [org_id, proposal_id], onDelete: Cascade, onUpdate: NoAction)
   gold_conflict    gold_conflict[]
   gold_truth       gold_truth[]
 
@@ -302,6 +306,8 @@ model gold_truth {
   case_id         String
   field           String
   value           Json?
+  status          String?
+  hint            String?
   gold_case       gold_case    @relation(fields: [org_id, dataset_version, case_id], references: [org_id, dataset_version, case_id], onDelete: Cascade, onUpdate: NoAction)
   organization    organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -368,8 +374,12 @@ model envelope {
   error                             String?
   created_at                        DateTime          @default(now()) @db.Timestamptz(6)
   updated_at                        DateTime          @default(now()) @db.Timestamptz(6)
+  pending_action                    pending_action[]
+  thread                            thread[]
+  thread_request                    thread_request[]
   case_result                       case_result[]
   gold_case                         gold_case[]
+  assessment                        assessment?
   engine_flag                       engine_flag[]
   country_envelope_countryTocountry country?          @relation("envelope_countryTocountry", fields: [country], references: [code], onDelete: NoAction, onUpdate: NoAction)
   organization                      organization      @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
@@ -377,7 +387,10 @@ model envelope {
   studio                            studio?           @relation(fields: [org_id, routed_studio], references: [org_id, code], onDelete: NoAction, onUpdate: NoAction)
   extraction_run                    extraction_run[]
   field_conflict                    field_conflict[]
+  followup                          followup?
+  gate_decision                     gate_decision[]
   opportunity                       opportunity[]
+  evidence                          evidence[]
   field_value                       field_value[]
   source_document                   source_document[]
   bid                               bid[]
@@ -516,6 +529,7 @@ model field_value {
   created_at                                                DateTime         @default(now()) @db.Timestamptz(6)
   engine_flag                                               engine_flag[]
   field_conflict                                            field_conflict[]
+  evidence                                                  evidence[]
   field_change_field_change_new_field_value_idTofield_value field_change[]   @relation("field_change_new_field_value_idTofield_value")
   field_change_field_change_old_field_value_idTofield_value field_change[]   @relation("field_change_old_field_value_idTofield_value")
   source_document                                           source_document? @relation(fields: [document_id], references: [document_id], onDelete: NoAction, onUpdate: NoAction)
@@ -563,7 +577,9 @@ model source_document {
   language              String?
   page_count            Int?
   supported             Boolean           @default(true)
+  text_uri              String?
   extraction_run        extraction_run[]
+  evidence              evidence[]
   field_value           field_value[]
   page                  page[]
   envelope              envelope?         @relation(fields: [org_id, envelope_id], references: [org_id, envelope_id], onDelete: Cascade, onUpdate: NoAction)
@@ -730,6 +746,7 @@ model studio {
   name                            String
   city                            String
   country                         String       @db.Char(2)
+  markets                         String[]     @default([]) @db.Char(2)
   proposal                        proposal[]
   envelope                        envelope[]
   country_studio_countryTocountry country      @relation("studio_countryTocountry", fields: [country], references: [code], onDelete: NoAction, onUpdate: NoAction)
@@ -780,6 +797,7 @@ model app_user {
   password_hash String
   created_at    DateTime     @default(now()) @db.Timestamptz(6)
   last_login_at DateTime?    @db.Timestamptz(6)
+  thread        thread[]
   invitation    invitation[]
   membership    membership[]
   session       session[]
@@ -837,18 +855,26 @@ model organization {
   proposal_stage       proposal_stage[]
   reimbursable         reimbursable[]
   tc_deviation         tc_deviation[]
+  message              message[]
+  pending_action       pending_action[]
+  thread               thread[]
+  thread_request       thread_request[]
   case_result          case_result[]
   field_result         field_result[]
   gold_case            gold_case[]
   gold_conflict        gold_conflict[]
   gold_truth           gold_truth[]
   run                  run[]
+  assessment           assessment[]
   engine_flag          engine_flag[]
   envelope             envelope[]
   extraction_run       extraction_run[]
   field_conflict       field_conflict[]
+  followup             followup[]
+  gate_decision        gate_decision[]
   llm_call             llm_call[]
   opportunity          opportunity[]
+  evidence             evidence[]
   field_change         field_change[]
   field_value          field_value[]
   page                 page[]
@@ -864,6 +890,7 @@ model organization {
   construction_cost    construction_cost[]
   fee_assumption       fee_assumption[]
   field_criticality    field_criticality[]
+  intake_setting       intake_setting[]
   location             location[]
   market               market[]
   qualification_rule   qualification_rule[]
@@ -893,17 +920,18 @@ model session {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model bid {
-  proposal_id  BigInt       @id @default(autoincrement())
-  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
-  reference    String
-  envelope_id  BigInt
-  title        String
-  created_by   String
-  created_at   DateTime     @default(now()) @db.Timestamptz(6)
-  envelope     envelope     @relation(fields: [envelope_id], references: [envelope_id], onDelete: Cascade, onUpdate: NoAction)
-  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
-  event        event[]
-  version      version?
+  proposal_id   BigInt          @id @default(autoincrement())
+  org_id        String          @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  reference     String
+  envelope_id   BigInt
+  title         String
+  created_by    String
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  gate_decision gate_decision[]
+  envelope      envelope        @relation(fields: [envelope_id], references: [envelope_id], onDelete: Cascade, onUpdate: NoAction)
+  organization  organization    @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  event         event[]
+  version       version?
 
   @@unique([org_id, reference])
   @@schema("proposal")
@@ -957,7 +985,7 @@ model line {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model output {
-  export_id    BigInt       @id @default(autoincrement())
+  output_id    BigInt       @id @default(autoincrement())
   org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
   version_id   BigInt
   format       String
@@ -966,9 +994,12 @@ model output {
   template     String
   created_by   String
   created_at   DateTime     @default(now()) @db.Timestamptz(6)
+  blob_uri     String
+  size_bytes   Int
   organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
   version      version      @relation(fields: [version_id], references: [version_id], onDelete: Cascade, onUpdate: NoAction)
 
+  @@index([version_id, created_at], map: "output_by_version")
   @@schema("proposal")
 }
 
@@ -1107,5 +1138,175 @@ model clause {
   stage_clause_stageTostage       stage?       @relation("clause_stageTostage", fields: [stage], references: [code], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([org_id, kind, key])
+  @@schema("ref")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model message {
+  message_id   BigInt       @id @default(autoincrement())
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  thread_id    BigInt
+  role         String
+  content      Json
+  created_by   String?
+  created_at   DateTime     @default(now()) @db.Timestamptz(6)
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  thread       thread       @relation(fields: [thread_id], references: [thread_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([thread_id, message_id], map: "message_by_thread")
+  @@schema("chat")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model pending_action {
+  action_id    BigInt       @id @default(autoincrement())
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  thread_id    BigInt
+  envelope_id  BigInt?
+  kind         String
+  payload      Json
+  summary      String
+  status       String       @default("pending")
+  result       Json?
+  created_at   DateTime     @default(now()) @db.Timestamptz(6)
+  decided_by   String?
+  decided_at   DateTime?    @db.Timestamptz(6)
+  envelope     envelope?    @relation(fields: [envelope_id], references: [envelope_id], onDelete: Cascade, onUpdate: NoAction)
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  thread       thread       @relation(fields: [thread_id], references: [thread_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("chat")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model thread {
+  thread_id      BigInt           @id @default(autoincrement())
+  org_id         String           @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  envelope_id    BigInt?
+  created_by     String
+  created_at     DateTime         @default(now()) @db.Timestamptz(6)
+  user_id        String?          @db.Uuid
+  title          String?
+  updated_at     DateTime         @default(now()) @db.Timestamptz(6)
+  archived_at    DateTime?        @db.Timestamptz(6)
+  message        message[]
+  pending_action pending_action[]
+  envelope       envelope?        @relation(fields: [envelope_id], references: [envelope_id], onUpdate: NoAction)
+  organization   organization     @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  app_user       app_user?        @relation(fields: [user_id], references: [user_id], onUpdate: NoAction)
+  thread_request thread_request[]
+
+  @@index([org_id, user_id, updated_at(sort: Desc)], map: "thread_recent", where: raw("(archived_at IS NULL)"))
+  @@schema("chat")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model thread_request {
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  thread_id    BigInt
+  envelope_id  BigInt
+  relation     String
+  first_at     DateTime     @default(now()) @db.Timestamptz(6)
+  envelope     envelope     @relation(fields: [envelope_id], references: [envelope_id], onDelete: Cascade, onUpdate: NoAction)
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  thread       thread       @relation(fields: [thread_id], references: [thread_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([thread_id, envelope_id, relation])
+  @@index([envelope_id, thread_id], map: "thread_request_by_envelope")
+  @@schema("chat")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model assessment {
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  envelope_id  BigInt       @id
+  assessment   Json
+  computed_at  DateTime     @default(now()) @db.Timestamptz(6)
+  envelope     envelope     @relation(fields: [envelope_id], references: [envelope_id], onDelete: Cascade, onUpdate: NoAction)
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("intake")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model followup {
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  envelope_id  BigInt       @id
+  questions    Json
+  message      String
+  fields       String[]
+  model        String?
+  created_at   DateTime     @default(now()) @db.Timestamptz(6)
+  envelope     envelope     @relation(fields: [envelope_id], references: [envelope_id], onDelete: Cascade, onUpdate: NoAction)
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("intake")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model gate_decision {
+  decision_id    BigInt       @id @default(autoincrement())
+  org_id         String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  envelope_id    BigInt
+  gate           Int          @default(1) @db.SmallInt
+  decision       String
+  recommendation String?
+  reason         String?
+  note           String?
+  decided_by     String
+  decided_at     DateTime     @default(now()) @db.Timestamptz(6)
+  amount         Decimal?     @db.Decimal(16, 2)
+  engine_amount  Decimal?     @db.Decimal(16, 2)
+  currency       String?
+  proposal_id    BigInt?
+  envelope       envelope     @relation(fields: [envelope_id], references: [envelope_id], onDelete: Cascade, onUpdate: NoAction)
+  organization   organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  bid            bid?         @relation(fields: [proposal_id], references: [proposal_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([envelope_id, decided_at(sort: Desc)], map: "gate_decision_by_envelope")
+  @@schema("intake")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model evidence {
+  evidence_id     BigInt           @id @default(autoincrement())
+  org_id          String           @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  envelope_id     BigInt
+  subject         String
+  kind            String
+  document_id     BigInt?
+  field_value_id  BigInt?
+  page            Int?
+  rects           Json?
+  span            Int[]
+  quote           String?
+  ref             Json?
+  why             String
+  created_by      String
+  created_at      DateTime         @default(now()) @db.Timestamptz(6)
+  source_document source_document? @relation(fields: [document_id], references: [document_id], onDelete: Cascade, onUpdate: NoAction)
+  envelope        envelope         @relation(fields: [envelope_id], references: [envelope_id], onDelete: Cascade, onUpdate: NoAction)
+  field_value     field_value?     @relation(fields: [field_value_id], references: [field_value_id], onDelete: Cascade, onUpdate: NoAction)
+  organization    organization     @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([envelope_id, subject], map: "evidence_by_envelope")
+  @@schema("lineage")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model intake_setting {
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  key          String
+  value        Json
+  updated_by   String?
+  updated_at   DateTime     @default(now()) @db.Timestamptz(6)
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([org_id, key])
   @@schema("ref")
 }

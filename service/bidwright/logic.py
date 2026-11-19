@@ -120,12 +120,13 @@ def fmt(value, unit: str | None) -> str:
     return str(value)
 
 
-def changes(conn: Connection) -> dict[tuple[str, str], dict]:
-    out: dict[tuple[str, str], dict] = {}
+def changes(conn: Connection) -> dict[tuple[str, str], list[dict]]:
+    """Every logged change per setting, newest first."""
+    out: dict[tuple[str, str], list[dict]] = {}
     for r in conn.execute(text("SELECT setting, key, old, new, reason, changed_by, changed_at FROM ref.setting_change "
                                "ORDER BY changed_at")):
         k = (r.setting, r.key.split("/")[0] if r.setting == "construction_cost" else r.key)
-        out[k] = dict(by=r.changed_by, at=r.changed_at, reason=r.reason, old=r.old, new=r.new)
+        out.setdefault(k, []).insert(0, dict(by=r.changed_by, at=r.changed_at, reason=r.reason, old=r.old, new=r.new))
     return out
 
 
@@ -138,8 +139,10 @@ def entries(conn: Connection) -> list[dict]:
 
     def add(section: str, id_: str, title: str, value: str, rule: str, source: str, kind: str,
             change: tuple[str, str] | None = None, edit: str | None = None) -> None:
+        history = changed.get(change, []) if change else []
         out.append(dict(id=id_, section=section, title=title, value=value, rule=rule, source=source, kind=kind,
-                        changed=changed.get(change) if change else None, edit=edit))
+                        changed=history[0] if history else None, history=history[:10], edit=edit,
+                        editable=kind != "built_in"))
 
     # 1. construction cost: one line per market, then the type ratios and the built-in fallbacks
     names = dict(conn.execute(text("SELECT code, name FROM ref.country")).all())
@@ -231,20 +234,45 @@ def used_by(conn: Connection, envelope_id: int) -> dict:
         used.add("built_in.won_range")
     _, mods = fees.modifiers(p, params)
     used |= {f.name for f in mods}
-    for ln in est.lines:
-        used |= {f.name for f in ln.factors if f.name in params.values}
+    labels = dict(conn.execute(text("SELECT code, label FROM ref.service UNION ALL SELECT code, label FROM ref.stage")).all())
+    cost_keys: set[str] = set()
+    if {"architecture", "interior_design"} & set(p.services) and not p.construction_cost_usd_m2:
+        cost_keys = {f"cost.{p.country}", "built_in.escalation", "built_in.cost_fallback"}
+        if not any(params.costs.get((p.country, c, p.cost_type)) for c in (p.city or "", "")):
+            cost_keys.add(f"ratio.{p.cost_type}")
+    arch_keys: set[str] = set()
     if "architecture" in p.services:
         key = p.cost_type if p.cost_type and p.cost_type.startswith("residential") else p.typology
-        used |= {f"full_service_fee_pct.{key}", "scale_exponent"}
-    if {"architecture", "interior_design"} & set(p.services) and not p.construction_cost_usd_m2:
-        used |= {f"cost.{p.country}", "built_in.escalation", "built_in.cost_fallback"}
-        if not any(params.costs.get((p.country, c, p.cost_type)) for c in (p.city or "", "")):
-            used.add(f"ratio.{p.cost_type}")
+        arch_keys = {f"full_service_fee_pct.{key}", "scale_exponent"}
+    effects: dict[str, list[str]] = {}
+    for ln in est.lines:
+        keys = {f.name for f in ln.factors if f.name in params.values} | {f.name for f in mods} | {f"market.{p.country}"}
+        if ln.service in ("architecture", "interior_design"):
+            keys |= cost_keys
+        if ln.service == "architecture":
+            keys |= arch_keys
+        used |= keys
+        line = f"{labels.get(ln.service, ln.service)} · {labels.get(ln.stage, ln.stage)}: {est.currency} {ln.amount_local:,.0f}"
+        for k in keys:
+            effects.setdefault(k, []).append(line)
+    for f in est.factors:  # the engine's own account of the cost and adjustments
+        if f.name == "construction_cost_usd_m2":
+            for k in cost_keys:
+                effects.setdefault(k, []).insert(0, f"USD {float(f.value):,.0f}/m²: {f.source}")
+    for ln in est.lines[:1]:
+        for f in ln.factors:
+            if f.name == "architecture_full_service_pct":
+                for k in arch_keys | {f"market.{p.country}"}:
+                    effects.setdefault(k, []).insert(0, f"Architecture fee {f.value}% of cost: {f.source}")
+    if est.range:
+        effects["built_in.won_range"] = [est.range["basis"]]
     used |= {f"programme.weeks.{s}" for s in p.stages if f"programme.weeks.{s}" in params.values}
     if any(asm["field"] == "stage_package" for asm in assumptions):
         used.add("policy.stage_defaults")
+    for r in a["rules"]:
+        effects.setdefault(f"rule.{r['name']}", []).append(r.get("why") or r["message"])
     return dict(envelope_id=envelope_id, title=values.get("project_name") or env.title, priced=True,
-                currency=est.currency, opening=round(est.fee_total_local), used=sorted(used))
+                currency=est.currency, opening=round(est.fee_total_local), used=sorted(used), effects=effects)
 
 
 @router.get("/logic")

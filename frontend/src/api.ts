@@ -160,6 +160,7 @@ export const api = {
     call("/api/reference/synonyms", json(body)),
   observability: () => call<Observability>("/api/observability"),
   evaluation: () => call<Evaluation | null>("/api/evaluation/latest"),
+  intakeEvaluation: () => call<IntakeEvaluation | null>("/api/evaluation/intake"),
   pdfUrl: (documentId: number) => `/api/documents/${documentId}/pdf`,
   fees: (id: number, c: PricingChoices) => {
     const q = new URLSearchParams(Object.entries(c).filter(([, v]) => v !== undefined && v !== "" && v !== null)
@@ -400,17 +401,31 @@ export type FeeCard = {
 );
 export type Channel = "whatsapp" | "email" | "notes" | "upload";
 
+export type IntakeEvaluation = {
+  meta: { run_at: string; dataset: string; model: string; prompt_version: string; engine_version: string };
+  summary: { requests: number; recommendation_accuracy: number; status_accuracy: number; value_accuracy: number;
+    question_coverage: number; false_gaps: string; gaps_caught: string; cost_usd: number; llm_calls: number;
+    recommendation_confusion: Record<string, Record<string, number>>; status_accuracy_per_field: Record<string, number> };
+  results: { case_id: string; kind: string; channel: string; recommendation: { ok: boolean; got: string; expected: string };
+    fields_ok: number; fields: number; missed: string[] }[];
+};
+
+import type { TraceSpan } from "@/components/ui/agent-trace";
+
 // ---------------------------------------------------------------- the pricing logic register
 
 export type LogicEntry = {
   id: string; section: string; title: string; value: string; rule: string; source: string;
   kind: "cost" | "setting" | "market" | "rule" | "policy" | "built_in";
-  changed: { by: string; at: string; reason: string | null } | null; edit: string | null;
+  changed: LogicChange | null; history: LogicChange[]; edit: string | null; editable: boolean;
 };
+export type LogicChange = { by: string; at: string; reason: string | null; old: Record<string, unknown> | null;
+  new: Record<string, unknown> | null };
 export type LogicRegister = {
   engine_version: string; questions_prompt: string;
   sections: { key: string; title: string; about: string }[]; entries: LogicEntry[];
-  request: { envelope_id: number; title: string | null; priced: boolean; currency?: string; opening?: number; used: string[] } | null;
+  request: { envelope_id: number; title: string | null; priced: boolean; currency?: string; opening?: number; used: string[];
+             effects?: Record<string, string[]> } | null;
 };
 
 export const guided = {
@@ -459,12 +474,29 @@ export type RequestCard = { type: "request"; envelope_id: number; title: string 
   questions: { field: string; question: string }[]; message: string };
 export type ChatMessage = { id: number; role: "user" | "assistant" | "system"; created_at: string; text: string;
   sources?: Record<string, Evidence>; cards?: RequestCard[]; actions?: ChatAction[];
-  downloads?: { label: string; url: string }[]; status?: string };
-export type ChatThread = { thread_id: number; envelope_id: number | null; messages: ChatMessage[] };
+  downloads?: { label: string; url: string }[]; status?: string;
+  trace?: { spans: TraceSpan[]; duration: number; model: string } };
+export type ChatThread = { thread_id: number; envelope_id: number | null; title: string | null; messages: ChatMessage[] };
+export type ChatSummary = {
+  thread_id: number; title: string | null; created_at: string; updated_at: string; archived_at: string | null;
+  envelope_id: number | null; owner: string; mine: boolean; messages: number; preview: string;
+  requests: { envelope_id: number; relation: "opened_from" | "created" | "discussed" | "decided"; title: string | null }[];
+};
 
 export const chat = {
-  send: (body: { message: string; thread_id?: number; envelope_id?: number }) => call<ChatThread>("/api/chat", json(body)),
+  send: (body: { message: string; thread_id?: number; envelope_id?: number; effort?: "low" | "medium" | "high"; attached?: boolean;
+          upload_ms?: number; waited_ms?: number }) => call<ChatThread>("/api/chat", json(body)),
   thread: (id: number) => call<ChatThread>(`/api/chat/${id}`),
+  list: (p: { scope?: "mine" | "everyone"; q?: string; envelope_id?: number; archived?: boolean } = {}) => {
+    const qs = new URLSearchParams();
+    if (p.scope) qs.set("scope", p.scope);
+    if (p.q) qs.set("q", p.q);
+    if (p.envelope_id) qs.set("envelope_id", String(p.envelope_id));
+    if (p.archived) qs.set("archived", "true");
+    return call<ChatSummary[]>(`/api/chats?${qs}`);
+  },
+  change: (id: number, body: { title?: string; archived?: boolean }) =>
+    call<ChatThread>(`/api/chats/${id}`, send("PATCH", body)),
   forRequest: (envelopeId: number) => call<ChatThread | null>(`/api/envelopes/${envelopeId}/chat`),
   decide: (actionId: number, choice: "confirm" | "cancel") =>
     call<ChatThread>(`/api/chat/actions/${actionId}/${choice}`, { method: "POST" }),

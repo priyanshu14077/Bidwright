@@ -1,0 +1,104 @@
+/* PromptInput in the Pin-up tokens. The geometry (heights, spring timings) is set inline by the component;
+   this file holds colours, layout and the small animations. */
+
+.bw-pi { position: relative; display: flex; flex-direction: column; width: 100%; --spring: cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+/* tray of attachments, tucked behind the card */
+.bw-pi__tray-wrap { position: relative; z-index: 0; width: 100%; overflow: hidden; }
+.bw-pi__tray { position: absolute; bottom: -8px; left: 20px; right: 20px; height: 68px; display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 8px 4px; overflow-x: auto; background: var(--bw-surface); border: 1px solid var(--bw-divider); border-bottom: 0;
+  border-radius: var(--bw-r-lg) var(--bw-r-lg) 0 0; scrollbar-width: thin; }
+.bw-pi__thumb { position: relative; flex: none; width: 48px; height: 48px; animation: bw-pi-in .4s var(--spring) backwards; }
+.bw-pi__thumb-btn { width: 100%; height: 100%; padding: 0; overflow: hidden; border: 1px solid var(--bw-divider); border-radius: var(--bw-r-md);
+  background: var(--bw-card); cursor: pointer; transition: transform .2s var(--spring); }
+.bw-pi__thumb-btn:hover { transform: scale(1.04); }
+.bw-pi__thumb-btn:active { transform: scale(.96); }
+.bw-pi__thumb-btn img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bw-pi__file { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; height: 100%;
+  color: var(--bw-text-muted); font: 700 9px/1 var(--bw-font-body); letter-spacing: .04em; }
+.bw-pi__file svg { width: 18px; height: 18px; }
+.bw-pi__thumb-remove { position: absolute; top: -6px; right: -6px; display: flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: var(--bw-primary-bg); color: var(--bw-primary-fg);
+  cursor: pointer; opacity: 0; transform: scale(.5); transition: opacity .2s, transform .2s var(--spring); }
+.bw-pi__thumb-remove svg { width: 11px; height: 11px; }
+.bw-pi__thumb:hover .bw-pi__thumb-remove, .bw-pi__thumb-remove:focus-visible { opacity: 1; transform: scale(1); }
+@media (hover: none) { .bw-pi__thumb-remove { opacity: 1; transform: none; } }  /* touch: always reachable */
+@keyframes bw-pi-in { from { opacity: 0; transform: translateY(-12px) scale(.9); } to { opacity: 1; transform: none; } }
+
+/* the card */
+.bw-pi__card { position: relative; z-index: 1; width: 100%; border-radius: 24px; background: var(--bw-card);
+  border: 1px solid var(--bw-outline); box-shadow: var(--bw-shadow-sm); cursor: default; }
+.bw-pi__card[data-expanded] { cursor: text; }
+.bw-pi__card:focus-within { border-color: var(--bw-text); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bw-text) 10%, transparent), var(--bw-shadow-sm); }
+
+.bw-pi__text { position: absolute; top: 0; left: 0; right: 0; z-index: 1; width: 100%; height: 68px; resize: none; overflow-y: hidden;
+  padding: 14px 52px 14px 18px; border: 0; outline: none; background: transparent; color: var(--bw-text);
+  font: 400 15px/22px var(--bw-font-body); opacity: 0; transform: translateY(-4px) scale(.95); pointer-events: none; }
+.bw-pi__text[data-scrolling] { overflow-y: auto; }
+.bw-pi__text::placeholder { color: var(--bw-text-muted); font-weight: 500; }
+.bw-pi__card[data-expanded] .bw-pi__text { opacity: 1; transform: none; pointer-events: auto; }
+
+.bw-pi__fade { position: absolute; left: 16px; right: 48px; z-index: 2; height: 32px; pointer-events: none; }
+.bw-pi__fade--top { top: 0; opacity: 0; background: linear-gradient(to bottom, var(--bw-card), color-mix(in srgb, var(--bw-card) 90%, transparent), transparent); }
+.bw-pi__fade--bottom { background: linear-gradient(to top, var(--bw-card), color-mix(in srgb, var(--bw-card) 90%, transparent), transparent); }
+
+/* closed: a pill with the placeholder */
+.bw-pi__closed { position: absolute; top: 0; left: 0; right: 0; z-index: 1; height: 46px; padding: 0 52px 0 18px; border: 0;
+  background: none; text-align: left; color: var(--bw-text-muted); font: 500 15px var(--bw-font-body); cursor: text;
+  transition: opacity .4s var(--spring), transform .4s var(--spring); }
+.bw-pi__card[data-expanded] .bw-pi__closed { opacity: 0; transform: translateY(4px) scale(1.05); pointer-events: none; }
+
+/* tools along the bottom */
+.bw-pi__actions { position: absolute; left: 10px; right: 52px; bottom: 8px; z-index: 10; display: flex; align-items: center; gap: 2px;
+  opacity: 0; filter: blur(4px); transform: translateY(8px); pointer-events: none;
+  transition: opacity .3s var(--spring), filter .3s var(--spring), transform .3s var(--spring); }
+.bw-pi__card[data-expanded] .bw-pi__actions { opacity: 1; filter: none; transform: none; pointer-events: auto; }
+.bw-pi__tool { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 4px 10px; border: 0; border-radius: var(--bw-r-pill);
+  background: none; color: color-mix(in srgb, var(--bw-text) 60%, transparent); font: 600 12.5px var(--bw-font-body); cursor: pointer;
+  transition: background-color .2s, color .2s; }
+.bw-pi__tool:hover, .bw-pi__tool:focus-visible { background: var(--bw-surface); color: var(--bw-text); outline: none; }
+.bw-pi__tool:disabled { opacity: .4; pointer-events: none; }
+.bw-pi__tool svg { width: 15px; height: 15px; }
+.bw-pi__bar { transition: opacity .3s; }
+
+.bw-pi__morph { position: relative; display: inline-flex; align-items: center; justify-content: center; overflow: hidden;
+  transition: width .3s var(--spring); }
+.bw-pi__morph-measure { visibility: hidden; white-space: nowrap; padding: 0 4px; }
+.bw-pi__morph-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; white-space: nowrap;
+  animation: bw-pi-swap .3s var(--spring); }
+@keyframes bw-pi-swap { from { opacity: 0; transform: scale(.95); } to { opacity: 1; transform: none; } }
+
+/* the round button: send, add files, or busy */
+.bw-pi__action { position: absolute; right: 7px; bottom: 7px; z-index: 10; display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; background: var(--bw-primary-bg); color: var(--bw-primary-fg);
+  cursor: pointer; transition: opacity .3s, transform .15s; }
+.bw-pi__action::before { content: ""; position: absolute; inset: -5px; }  /* 44px touch target */
+.bw-pi__action:hover { opacity: .9; }
+.bw-pi__action:active { transform: scale(.96); }
+.bw-pi__action:focus-visible { outline: 3px solid color-mix(in srgb, var(--bw-link) 50%, transparent); outline-offset: 2px; }
+.bw-pi__action[data-mode="upload"] { background: var(--bw-surface); color: var(--bw-text); }
+.bw-pi__action:disabled { cursor: progress; }
+.bw-pi__icon { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0;
+  transform: scale(.5) rotate(45deg); filter: blur(1px); pointer-events: none; transition: all .3s var(--spring); }
+.bw-pi__icon[data-show] { opacity: 1; transform: none; filter: none; }
+.bw-pi__icon svg { width: 16px; height: 16px; }
+.bw-pi__busy { gap: 3px; }
+.bw-pi__busy i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; animation: bw-pulse 1.1s var(--bw-ease-in-out) infinite; }
+.bw-pi__busy i:nth-child(2) { animation-delay: .15s; }
+.bw-pi__busy i:nth-child(3) { animation-delay: .3s; }
+
+/* the image preview */
+.bw-pi-gallery { position: fixed; inset: 0; z-index: 100; }
+.bw-pi-gallery__scrim { position: absolute; inset: 0; background: color-mix(in srgb, var(--bw-bg) 70%, transparent);
+  backdrop-filter: blur(12px); transition: opacity .4s; }
+.bw-pi-gallery__image { position: fixed; overflow: hidden; background: var(--bw-surface); box-shadow: none; transition: box-shadow .4s; }
+.bw-pi-gallery__image[data-open] { box-shadow: var(--bw-shadow-lg); }
+.bw-pi-gallery__image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bw-pi-gallery__close { position: fixed; top: 16px; right: 16px; display: flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border: 0; border-radius: 50%; background: var(--bw-card); color: var(--bw-text); box-shadow: var(--bw-shadow-md);
+  cursor: pointer; transition: all .3s var(--spring); }
+.bw-pi-gallery__close svg { width: 16px; height: 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bw-pi *, .bw-pi-gallery * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

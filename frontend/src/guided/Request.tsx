@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type JSX } from "react";
+import { cameFrom, placeName } from "./trail";
 import { ArrowRight, Check, ChevronLeft, Copy, MessageCircle, Share2 } from "lucide-react";
 import {
   api, guided, type Detail, type Evidence, type FeeCard, type Gate1, type GateField,
@@ -86,11 +87,19 @@ export function RequestPage({ id, step }: { id: number; step: RequestStep }) {
   const index = { have: 2, fee: 3, proposal: 4 }[step];
   const name = { have: "What we have", fee: "Fee", proposal: "Proposal" }[step];
   const feeDone = !!fee?.decision && fee.decision.decision !== "reject";
+  // back goes where the person came from (a chat, Decide, How we price), skipping this request's own steps
+  const from = cameFrom((h) => h === `#/r/${id}` || h.startsWith(`#/r/${id}/`));
+  const back = from ?? "#/decide";
 
   return (
     <>
       <header className="bw-header bw-request-header">
-        <a className="bw-icon-btn bw-back" href="#/decide" aria-label="Back to Decide"><ChevronLeft className="bw-icon" /></a>
+        <a className="bw-icon-btn bw-back" href={back} aria-label={`Back to ${placeName(back)}`}><ChevronLeft className="bw-icon" /></a>
+        {from && (
+          <a className="bw-btn bw-btn--outline bw-btn--sm bw-desktop-only bw-back-to" href={from}>
+            <ChevronLeft className="bw-icon bw-icon--sm" />Back to {placeName(from)}
+          </a>
+        )}
         <div className="bw-header__text">
           <div className="bw-title-sm">{title}</div>
           <div className="bw-caps bw-mobile-only">Step {index} of 4 · {name}</div>

@@ -452,7 +452,18 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", default=settings.dataset_version)
     parser.add_argument("--skip-gold", action="store_true", help="do not (re)load the gold RFP packs into the inbox")
+    parser.add_argument("--gold-only", action="store_true",
+                        help="only (re)load the gold sets into the demo workspace: no archive, settings or schema reload")
     args = parser.parse_args()
+    if args.gold_only:
+        with owner_engine.connect() as conn:
+            org_id = conn.execute(text("SELECT org_id FROM tenancy.organization WHERE is_demo")).scalar()
+        if org_id is None:
+            raise SystemExit("no demo workspace yet; run `make seed` once")
+        with workspace(org_id), owner_engine.begin() as conn:
+            g, r = load_gold(conn, args.dataset), load_requests(conn)
+        print(f"gold sets reloaded in '{DEMO_ORG['name']}': {g} RFP packs from {args.dataset}, {r} requests from {REQUEST_SET}")
+        return
     with owner_engine.begin() as conn:
         load_shared(conn)
         schemas = load_schema(conn)

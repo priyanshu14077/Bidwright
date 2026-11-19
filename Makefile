@@ -5,6 +5,8 @@
 #   make fees     backtest the fee engine on the demo archive
 #   make cost-book  regenerate the synthetic starter cost book (then make seed)
 #   make draft-smoke  draft the demo's envelope 57 with the real model (a few cents)
+#   make demo-reset  clear the demo's conversations and requests, load three sample requests (asks first)
+#   make gold     reload only the gold sets (RFP packs + requests) into the demo workspace, e.g. before make eval
 #   make eval-intake  score intake on the v1-requests set (ARGS=--rescore for no model calls)
 #   make requests     regenerate the v1-requests files from their wording
 #   make template   regenerate the default proposal template (data/templates/proposal-v0.docx)
@@ -16,7 +18,7 @@ SHELL := /bin/bash
 DB    := docker compose exec -T postgres
 PSQL  := $(DB) psql -U bidwright -d bidwright
 
-.PHONY: setup env db wait roles migrate seed deps dev api web studio status psql eval eval-one fees cost-book draft-smoke template eval-intake requests check test reset stop
+.PHONY: setup env db wait roles migrate seed deps dev api web studio status psql eval eval-one fees cost-book draft-smoke template eval-intake requests gold demo-reset check test reset stop
 
 setup: env db wait roles deps migrate seed status
 
@@ -95,6 +97,14 @@ eval-one:
 
 eval:
 	cd service && uv run python -m bidwright.evaluation $(ARGS)
+
+# A clean demo before recording: clears conversations and requests (not the gold sets), adds three samples
+demo-reset:
+	cd service && uv run python -m bidwright.demo_reset $(ARGS)
+
+# The gold sets alone, without re-seeding the demo's archive, settings or schema (make eval needs the RFP packs)
+gold:
+	cd service && uv run python -m bidwright.archive.loader --gold-only
 
 # Intake on incoming requests (WhatsApp, emails, notes, packs): field status, gaps, recommendation, questions
 eval-intake:

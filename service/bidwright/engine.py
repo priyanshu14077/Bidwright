@@ -298,6 +298,10 @@ def same(f: Field, a: Candidate, b: Candidate) -> bool:
         return fuzz.token_set_ratio(str(a.normalized), str(b.normalized)) >= 88
     if f.kind == "city":
         return str(a.normalized).lower() == str(b.normalized).lower()
+    if f.kind in ("datetime", "date") and isinstance(a.normalized, str) and isinstance(b.normalized, str):
+        # the same day and clock time is one deadline: a brief that says "12:00" and an email that says "12:00
+        # Riyadh time" agree, even when the reader gave one of them a different time zone
+        return a.normalized[:16] == b.normalized[:16]
     return a.normalized == b.normalized
 
 
@@ -568,10 +572,13 @@ class Engine:
         # completeness and the recommendation come from the gate 1 assessment (bidwright.gate1)
         self.conn.execute(
             # a pasted message is named after its file ("WhatsApp message 2026-11-19 21.26") until the request
-            # says what it is: its project name, else its use and place ("Office in Lusail")
+            # says what it is: its project name, else its use and place ("Office in Lusail"). A title the app
+            # made up (a time stamp, or the name of the first file uploaded) gives way to it.
             text("""UPDATE intake.envelope SET country = :c, location_id = :l, billing_currency = :cur,
                     routed_studio = :s, submission_deadline = :d,
-                    title = CASE WHEN CAST(:title AS text) IS NOT NULL AND (title IS NULL OR title ~ :auto)
+                    title = CASE WHEN CAST(:title AS text) IS NOT NULL AND (title IS NULL OR title ~ :auto
+                                      OR title IN (SELECT regexp_replace(file_name, '\.[^.]+$', '')
+                                                   FROM lineage.source_document WHERE envelope_id = :e))
                                  THEN CAST(:title AS text) ELSE title END,
                     status = 'review', updated_at = now() WHERE envelope_id = :e"""),
             dict(e=self.envelope_id, c=country if country in self.ref.country_rows else None,

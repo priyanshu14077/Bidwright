@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { guided, type LogicEntry, type LogicRegister } from "../api";
 import { HeroCard, PinnedCard } from "./kit";
 import { errorText, money } from "./ui";
@@ -76,7 +76,8 @@ export function LogicPage({ envelopeId }: { envelopeId?: number }) {
           <PinnedCard key={s.key} title={s.title} i={i + 1}>
             <p className="bw-muted">{s.about}</p>
             <ul className="bw-register">
-              {items.map((e) => <Entry key={e.id} e={e} used={!!r && used.has(e.id)} />)}
+              {items.map((e) => <Entry key={e.id} e={e} used={!!r && used.has(e.id)} effects={r?.effects?.[e.id] ?? []}
+                                       envelopeId={r?.envelope_id} />)}
             </ul>
           </PinnedCard>
         );
@@ -86,23 +87,60 @@ export function LogicPage({ envelopeId }: { envelopeId?: number }) {
   );
 }
 
-function Entry({ e, used }: { e: LogicEntry; used: boolean }) {
+function Entry({ e, used, effects, envelopeId }: { e: LogicEntry; used: boolean; effects: string[]; envelopeId?: number }) {
+  const when = (at: string) => new Date(at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   return (
-    <li className="bw-register__item" id={e.id} data-used={used || undefined}>
-      <div className="bw-register__head">
-        <span className="bw-register__title">{e.title}</span>
-        <span className="bw-register__value">{e.value}</span>
-      </div>
-      {e.rule && <p className="bw-register__rule">{e.rule}</p>}
-      <div className="bw-row bw-register__meta">
-        <span className="bw-badge" data-kind={e.kind}>{KIND[e.kind]}</span>
-        {used && <span className="bw-badge" data-status="found">Used by this fee</span>}
-        <span className="bw-muted">{e.source}</span>
-        {e.changed && (
-          <span className="bw-muted">· changed {new Date(e.changed.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} by {e.changed.by}
-            {e.changed.reason ? `: ${e.changed.reason}` : ""}</span>
-        )}
-      </div>
+    <li id={e.id}>
+      <details className="bw-register__item" data-used={used || undefined}>
+        <summary className="bw-register__head">
+          <span className="bw-register__title">{e.title}</span>
+          <span className="bw-register__value">{e.value}</span>
+          <ChevronDown className="bw-icon bw-icon--sm bw-register__chev" aria-hidden />
+          <span className="bw-row bw-register__meta">
+            <span className="bw-badge" data-kind={e.kind}>{KIND[e.kind]}</span>
+            {used && <span className="bw-badge" data-status="found">Used by this fee</span>}
+            {e.changed && <span className="bw-muted">Changed {when(e.changed.at)}</span>}
+          </span>
+        </summary>
+        <div className="bw-register__body">
+          {e.rule && <p className="bw-body">{e.rule}</p>}
+          <dl className="bw-doc__facts">
+            <dt>Value</dt><dd>{e.value}</dd>
+            <dt>Source</dt><dd>{e.source}</dd>
+            <dt>Who can change it</dt>
+            <dd>{e.editable ? "An owner, under Set up. Every change is logged with who and why." : "Built into the engine; changing it is a new engine version."}</dd>
+          </dl>
+          {used && effects.length > 0 && (
+            <div className="bw-stack" style={{ "--gap": "4px" } as React.CSSProperties}>
+              <span className="bw-caps">On this fee</span>
+              <ul className="bw-doc__list">{effects.map((x, k) => <li key={k}>{x}</li>)}</ul>
+            </div>
+          )}
+          <div className="bw-stack" style={{ "--gap": "4px" } as React.CSSProperties}>
+            <span className="bw-caps">History</span>
+            {e.history.length ? (
+              <ul className="bw-doc__list">
+                {e.history.map((h, k) => (
+                  <li key={k}>{when(h.at)} · {h.by}: {change(h.old, h.new)}{h.reason ? ` (“${h.reason}”)` : ""}</li>
+                ))}
+              </ul>
+            ) : <p className="bw-muted">{e.editable ? "Unchanged since the practice was set up." : "Part of fee engine; versioned with the code."}</p>}
+          </div>
+          <div className="bw-row">
+            {e.edit && e.editable && <a className="bw-btn bw-btn--outline bw-btn--sm" href={e.edit}>Change it under Set up</a>}
+            {used && envelopeId && <a className="bw-btn bw-btn--outline bw-btn--sm" href={`#/r/${envelopeId}/fee`}>See it on the fee card</a>}
+          </div>
+        </div>
+      </details>
     </li>
   );
+}
+
+function change(old: Record<string, unknown> | null, now: Record<string, unknown> | null): string {
+  const show = (o: Record<string, unknown> | null) => o ? Object.entries(o).filter(([k]) => !["org_id", "updated_at", "updated_by"].includes(k))
+    .map(([k, v]) => `${k.replace(/_/g, " ")} ${v}`).join(", ") : "";
+  if (!old) return `set ${show(now)}`;
+  const keys = Object.keys(now ?? {});
+  const was = Object.fromEntries(keys.map((k) => [k, old[k]]));
+  return `${show(was)} → ${show(now)}`;
 }

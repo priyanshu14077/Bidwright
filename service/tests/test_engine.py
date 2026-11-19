@@ -95,3 +95,17 @@ def test_relative_deadlines_are_worked_out_from_the_day_they_were_sent(said, sen
     from bidwright.engine import relative_date
     got = relative_date(said, date.fromisoformat(sent))
     assert (got.isoformat() if got else None) == due
+
+
+def test_the_same_deadline_with_and_without_a_time_zone_is_not_a_conflict():
+    from bidwright.engine import same
+    f = fields()["submission_deadline"]
+    email = cand(1, "submission_deadline", "Monday 14 December 2026, 12:00 Riyadh time")
+    brief = cand(2, "submission_deadline", "12:00 on Monday 14 December 2026")
+    email.normalized, brief.normalized = "2026-12-14T12:00:00+03:00", "2026-12-14T12:00:00+00:00"
+    assert same(f, email, brief)
+    later = cand(3, "submission_deadline", "Tuesday 15 December 2026, 12:00")
+    later.normalized = "2026-12-15T12:00:00+03:00"
+    assert not same(f, email, later)
+    _, conflict = consolidate(f, [email, brief], {1: "RFP.eml", 2: "Brief.pdf"})
+    assert conflict is None

@@ -1,0 +1,129 @@
+/* AgentTrace, in the Pin-up tokens. The layout answers to the card's own width (container queries), so it reads
+   the same in a chat bubble on a phone as on a wide page. Accent (model and agent steps) is the ink colour;
+   errors use the clay-strong colour; everything else is the text colour at reduced strength. */
+
+.bw-trace {
+  --pad: 0.75rem;
+  --gutter: 96px;
+  --meta: 3.75rem;
+  --accent: var(--bw-primary-bg);
+  --err: var(--bw-est-strong);
+  --ink-10: color-mix(in srgb, var(--bw-text) 10%, transparent);
+  container: trace / inline-size;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bw-card);
+  color: var(--bw-text);
+  border: 1px solid var(--bw-divider);
+  border-radius: var(--bw-r-lg);
+  box-shadow: var(--bw-shadow-sm);
+  font-family: var(--bw-font-body);
+}
+
+/* header */
+.bw-trace__header { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--bw-divider); }
+.bw-trace__pulse { width: 6px; height: 6px; flex: none; border-radius: 50%;
+  background: color-mix(in srgb, var(--bw-text-muted) 45%, transparent); transition: background-color .3s; }
+.bw-trace[data-run="running"] .bw-trace__pulse { background: var(--accent); }
+.bw-trace__run { font: 500 13px/1 var(--bw-font-mono); }
+.bw-trace__model { display: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; line-height: 1; color: var(--bw-text-muted); }
+.bw-trace__state { margin-left: auto; flex: none; padding: 2px 8px; border: 1px solid var(--bw-divider);
+  border-radius: var(--bw-r-pill); font: 11px/16px var(--bw-font-mono); color: var(--bw-text-muted); }
+
+/* the track box: ruler, gridlines, playhead and scrub surface all line up with the bars */
+.bw-trace__body { position: relative; }
+.bw-trace__track { position: absolute; left: calc(var(--gutter) + var(--pad)); right: calc(var(--meta) + var(--pad)); }
+.bw-trace__ruler { position: relative; height: 28px; border-bottom: 1px solid var(--bw-divider); cursor: ew-resize;
+  touch-action: none; user-select: none; display: none; }
+.bw-trace__ruler .bw-trace__track { inset-block: 0; }
+.bw-trace__tick { position: absolute; top: 8px; transform: translateX(-50%); font: 10px/1 var(--bw-font-mono);
+  color: var(--bw-text-muted); font-variant-numeric: tabular-nums; }
+.bw-trace__rows { position: relative; padding: 4px 0; }
+.bw-trace__grid { inset-block: 0; display: none; }
+.bw-trace__grid span { position: absolute; inset-block: 0; width: 1px; background: color-mix(in srgb, var(--bw-divider) 60%, transparent); }
+.bw-trace__list { position: relative; list-style: none; margin: 0; padding: 0; }
+.bw-trace__playhead-box { inset-block: 0; pointer-events: none; }
+.bw-trace__playhead { position: relative; width: 100%; height: 100%; }
+.bw-trace__playhead-line { position: absolute; inset-block: 0; width: 1px; background: color-mix(in srgb, var(--accent) 70%, transparent); }
+.bw-trace__playhead-cap { position: absolute; top: 0; width: 6px; height: 6px; transform: translateX(-2.5px) rotate(45deg); background: var(--accent); }
+.bw-trace__scrub { inset-block: 0; cursor: ew-resize; touch-action: none; user-select: none; }
+
+/* one step */
+.bw-trace__row { position: relative; display: flex; align-items: center; height: var(--row); padding: 0 var(--pad);
+  transition: background-color .15s; }
+.bw-trace__row[data-selected="true"] { background: color-mix(in srgb, var(--bw-surface) 40%, transparent); }
+.bw-trace__row[data-state="running"] { background: color-mix(in srgb, var(--bw-surface) 60%, transparent); }
+.bw-trace__guides { position: absolute; inset-block: 0; left: var(--pad); pointer-events: none; }
+.bw-trace__guides span { position: absolute; inset-block: 0; width: 1px; background: var(--bw-divider); }
+
+.bw-trace__label { position: relative; z-index: 1; display: flex; align-items: center; gap: 6px; width: var(--gutter);
+  flex: none; padding: 4px 8px 4px 4px; border: 0; border-radius: var(--bw-r-sm); background: none; color: inherit;
+  text-align: left; cursor: pointer; font: inherit; }
+.bw-trace__label:hover { background: var(--bw-surface); }
+.bw-trace__label:focus-visible { outline: 3px solid color-mix(in srgb, var(--bw-link) 50%, transparent); outline-offset: 0; }
+.bw-trace__icon { width: 14px; height: 14px; flex: none; color: var(--bw-text-muted); transition: color .2s; }
+.bw-trace__row[data-state="queued"] .bw-trace__icon { color: color-mix(in srgb, var(--bw-text-muted) 60%, transparent); }
+.bw-trace__row[data-accent][data-state="done"] .bw-trace__icon,
+.bw-trace__row[data-accent][data-state="running"] .bw-trace__icon { color: var(--accent); }
+.bw-trace__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px/1.3 var(--bw-font-mono);
+  color: var(--bw-text); transition: color .2s; }
+.bw-trace__row[data-state="queued"] .bw-trace__name { color: var(--bw-text-muted); }  /* hue, not opacity, for contrast */
+.bw-trace__retry { flex: none; padding: 0 4px; border: 1px solid var(--bw-divider); border-radius: var(--bw-r-sm);
+  font: 10px/16px var(--bw-font-mono); color: var(--bw-text-muted); }
+
+.bw-trace__lane { position: relative; height: 100%; flex: 1; }
+.bw-trace__bar { position: absolute; top: 50%; height: 8px; min-width: 3px; transform: translateY(-50%); overflow: hidden;
+  border-radius: var(--bw-r-pill); }
+.bw-trace__ghost { position: absolute; inset: 0; background: var(--ink-10); }
+.bw-trace__fill { position: absolute; inset: 0; transform-origin: left; background: color-mix(in srgb, var(--bw-text) 50%, transparent); }
+.bw-trace__row[data-status="cached"] .bw-trace__fill { background: color-mix(in srgb, var(--bw-text) 25%, transparent); }
+.bw-trace__row[data-accent] .bw-trace__fill { background: var(--accent); }
+.bw-trace__row[data-status="error"] .bw-trace__fill { background: var(--err); }
+
+.bw-trace__result { display: flex; align-items: center; justify-content: flex-end; gap: 6px; width: var(--meta); flex: none;
+  padding-left: 8px; transition: opacity .2s; }
+.bw-trace__row[data-state="queued"] .bw-trace__result { opacity: 0; }
+.bw-trace__err-icon { width: 14px; height: 14px; flex: none; color: var(--err); }
+.bw-trace__cache-icon { width: 12px; height: 12px; flex: none; color: var(--bw-text-muted); }
+.bw-trace__meta { display: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 11px var(--bw-font-mono); color: var(--bw-text-muted); font-variant-numeric: tabular-nums; }
+.bw-trace__dur { flex: none; font: 11px var(--bw-font-mono); color: color-mix(in srgb, var(--bw-text) 70%, transparent);
+  font-variant-numeric: tabular-nums; }
+.bw-trace__row[data-status="error"] .bw-trace__dur { color: var(--err); }
+
+/* transport */
+.bw-trace__transport { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-top: 1px solid var(--bw-divider); }
+.bw-trace__play { position: relative; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px;
+  flex: none; border: 0; border-radius: 50%; background: var(--bw-primary-bg); color: var(--bw-primary-fg); cursor: pointer;
+  box-shadow: var(--bw-shadow-sm); transition: transform .15s, box-shadow .15s; }
+.bw-trace__play::before { content: ""; position: absolute; inset: -4px; }  /* 44px touch target */
+.bw-trace__play:hover { box-shadow: var(--bw-shadow-md); }
+.bw-trace__play:active { transform: scale(.98); }
+.bw-trace__play:focus-visible, .bw-trace__rail:focus-visible { outline: 3px solid color-mix(in srgb, var(--bw-link) 50%, transparent); }
+.bw-trace__play svg { width: 14px; height: 14px; fill: currentColor; }
+.bw-trace__play-icon { transform: translateX(1px); }
+.bw-trace__rail { position: relative; height: 36px; flex: 1; cursor: ew-resize; touch-action: none; user-select: none;
+  border-radius: var(--bw-r-sm); }
+.bw-trace__rail-track { position: absolute; inset-inline: 6px; top: 50%; height: 4px; transform: translateY(-50%); overflow: hidden;
+  border-radius: var(--bw-r-pill); background: var(--ink-10); }
+.bw-trace__rail-fill { width: 100%; height: 100%; transform-origin: left; background: var(--accent); }
+.bw-trace__rail-thumb-box { position: absolute; inset-block: 0; inset-inline: 6px; pointer-events: none; }
+.bw-trace__rail-thumb-box > div { position: relative; width: 100%; height: 100%; }
+.bw-trace__rail-thumb { position: absolute; top: 50%; width: 12px; height: 12px; transform: translate(-50%, -50%); border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bw-card); box-shadow: var(--bw-shadow-sm); }
+.bw-trace__clock { width: 7rem; flex: none; text-align: right; font: 11px var(--bw-font-mono); color: var(--bw-text-muted);
+  font-variant-numeric: tabular-nums; }
+
+/* the card's own width decides how much it shows */
+@container trace (min-width: 20rem) {   /* xs */
+  .bw-trace__body { --gutter: 132px; --meta: 5rem; }
+}
+@container trace (min-width: 24rem) {   /* sm */
+  .bw-trace__model { display: inline; }
+  .bw-trace__ruler, .bw-trace__grid { display: block; }
+}
+@container trace (min-width: 28rem) {   /* md */
+  .bw-trace__body { --gutter: var(--label-w); --meta: 9rem; }
+  .bw-trace__meta { display: inline; }
+}

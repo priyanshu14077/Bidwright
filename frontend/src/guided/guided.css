@@ -86,10 +86,7 @@
 .bw-table__total td { font-weight: 700; border-bottom: 0; }
 
 /* ---------------------------------------------------------------- chat */
-.bw-chat-home { padding: 14px 6px 6px; }
-@media (min-width: 1024px) { .bw-chat-home { padding: 18px 10px 10px; } }
-.bw-chat-home .bw-chat__log { max-height: none; min-height: 160px; height: calc(100dvh - 520px); }
-@media (min-width: 1024px) { .bw-chat-home .bw-chat__log { height: calc(100dvh - 400px); min-height: 280px; } }
+.bw-chat__log[data-empty] { display: none; }  /* nothing said yet: just the box and the ways in */
 .bw-goto { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 6px 4px;
   border-top: 1px solid var(--bw-divider); margin-top: 8px; }
 .bw-goto .bw-caps { margin-right: 4px; }
@@ -111,9 +108,7 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
 .bw-chat__card { background: var(--bw-card); gap: 10px; padding: 14px; }
 .bw-chat__questions { margin: 0; padding-left: 20px; font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
 .bw-chat__sources { gap: 6px; }
-.bw-composer { align-items: flex-end; padding: 10px 6px 6px; }
-.bw-composer__input { resize: none; border-radius: 24px; min-height: 48px; max-height: 160px; padding: 13px 18px; field-sizing: content; }
-.bw-composer__send:disabled { background: var(--bw-disabled-bg); color: var(--bw-disabled-fg); cursor: not-allowed; }
+.bw-composer { display: flex; justify-content: center; padding: 10px 6px 6px; }
 .bw-suggestions { padding: 2px 6px 0; align-items: center; }
 .bw-suggestions__link { font-size: 13px; color: var(--bw-text-muted); padding: 0 6px; }
 .bw-confirm[data-status="confirmed"] { box-shadow: inset 0 0 0 2px var(--bw-found-dot); animation: none; }
@@ -139,12 +134,221 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
 .bw-search { display: flex; align-items: center; gap: 8px; }
 .bw-search .bw-input { flex: 1; }
 .bw-register { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.bw-register__item { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-top: 1px solid var(--bw-divider);
-  scroll-margin-top: 24px; }
-.bw-register__item:first-child { border-top: 0; }
+.bw-register > li { border-top: 1px solid var(--bw-divider); scroll-margin-top: 24px; }
+.bw-register > li:first-child { border-top: 0; }
 .bw-register__item[data-used] { box-shadow: inset 3px 0 0 var(--bw-found-dot); padding-left: 12px; }
-.bw-register__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-.bw-register__title { font-weight: 700; flex: 1 1 220px; min-width: 0; }
-.bw-register__value { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.bw-register__rule { margin: 0; font-size: 14px; color: var(--bw-text-muted); }
-.bw-register__meta { font-size: 13px; gap: 6px; }
+.bw-register__head { display: grid; grid-template-columns: minmax(0, 1fr) auto 20px; gap: 4px 12px; align-items: baseline;
+  padding: 12px 0; min-height: var(--bw-tap); cursor: pointer; list-style: none; border-radius: var(--bw-r-md); }
+.bw-register__head::-webkit-details-marker { display: none; }
+.bw-register__head:hover .bw-register__title { text-decoration: underline; text-underline-offset: 3px; }
+.bw-register__head:focus-visible { outline: 2px solid var(--bw-focus, var(--bw-link)); outline-offset: 2px; }
+.bw-register__title { font-weight: 700; min-width: 0; }
+.bw-register__value { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; text-align: right; max-width: 22ch; }
+.bw-register__chev { align-self: center; transition: transform var(--bw-dur-fast, .15s) var(--bw-ease, ease); }
+.bw-register__item[open] .bw-register__chev { transform: rotate(180deg); }
+.bw-register__meta { grid-column: 1 / -1; font-size: 13px; gap: 6px; }
+.bw-register__body { display: flex; flex-direction: column; gap: 12px; padding: 0 0 16px; }
+.bw-register__body .bw-doc__facts { margin: 0; }
+@media (max-width: 1023px) {
+  .bw-register__head { grid-template-columns: minmax(0, 1fr) 20px; }
+  .bw-register__value { grid-column: 1; grid-row: 2; text-align: left; max-width: none; }
+  .bw-register__chev { grid-column: 2; grid-row: 1; }
+}
+
+/* ---------------------------------------------------------------- the menu folds to its icons (desktop) */
+.bw-rail__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 0 22px 12px; }
+.bw-rail .bw-rail__top .bw-brand { padding: 0; }
+.bw-rail__toggle { flex: none; }
+@media (min-width: 1024px) {
+  .bw-rail { transition: width var(--bw-dur) var(--bw-ease), padding var(--bw-dur) var(--bw-ease); }
+  .bw-app[data-rail="collapsed"] .bw-rail { width: 84px; padding-inline: 14px; }
+  .bw-app[data-rail="collapsed"] .bw-rail__top { flex-direction: column; padding-left: 0; gap: 14px; }
+  .bw-app[data-rail="collapsed"] .bw-nav-link { justify-content: center; padding: 0; }
+  .bw-app[data-rail="collapsed"] .bw-nav-link__text,
+  .bw-app[data-rail="collapsed"] .bw-office { display: none; }
+  .bw-app[data-rail="collapsed"] .bw-main { padding-left: 24px; }
+}
+
+/* ---------------------------------------------------------------- chat: thinking, and "how I got this" */
+.bw-thinking { align-self: flex-start; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 14px;
+  border-radius: var(--bw-r-lg); background: var(--bw-card); box-shadow: inset 0 0 0 1px var(--bw-divider); font-size: 14px; }
+.bw-thinking__icon { color: var(--bw-est-strong); }
+.bw-thinking__label { font-weight: 600; }
+.bw-thinking .bw-reading { color: var(--bw-text-muted); }
+.bw-thinking .bw-reading i { width: 5px; height: 5px; }
+.bw-thinking__clock { font: 12px var(--bw-font-mono); color: var(--bw-text-muted); font-variant-numeric: tabular-nums; }
+.bw-thinking__hint { flex-basis: 100%; font-size: 13px; }
+
+.bw-how { display: flex; flex-direction: column; gap: 8px; }
+.bw-how__toggle { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 4px 10px;
+  border: 1px solid var(--bw-divider); border-radius: var(--bw-r-pill); background: var(--bw-card); color: var(--bw-text);
+  font: 600 12.5px var(--bw-font-body); cursor: pointer; }
+.bw-how__toggle:hover { border-color: var(--bw-outline); }
+.bw-how__facts { font-weight: 400; color: var(--bw-text-muted); font-variant-numeric: tabular-nums; }
+.bw-how__chev { transition: transform var(--bw-dur-fast) var(--bw-ease); }
+.bw-how[data-open] .bw-how__chev { transform: rotate(180deg); }
+.bw-how__body { display: flex; flex-direction: column; gap: 6px; animation: bw-rise var(--bw-dur) var(--bw-ease) both; }
+.bw-how__note { font-size: 12.5px; margin: 0; }
+@media (max-width: 1023px) { .bw-how__toggle { min-height: var(--bw-tap); } }
+
+/* ---------------------------------------------------------------- desktop: only the content scrolls
+   The page is a fixed frame (menu + content); the window itself must never scroll. Anything absolutely
+   positioned inside the content (screen-reader labels, popovers) is anchored to the content area, not the
+   page, so it cannot stretch the page past the bottom of the screen. */
+@media (min-width: 1024px) {
+  html:has(.bw-app), body:has(.bw-app) { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  .bw-main { position: relative; overscroll-behavior: contain; }
+}
+.bw-composer { position: relative; }
+
+/* ---------------------------------------------------------------- chat history */
+.bw-ask-head { align-items: flex-start; gap: 12px; }
+.bw-chats { display: flex; flex-direction: column; gap: 6px; }
+.bw-chats__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.bw-chats__item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-top: 1px solid var(--bw-divider); }
+.bw-chats__item:first-child { border-top: 0; }
+.bw-chats__icon { flex: none; margin-top: 3px; color: var(--bw-text-muted); }
+.bw-chats__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.bw-chats__title { font-weight: 700; color: var(--bw-text); text-decoration: none; overflow-wrap: anywhere; }
+.bw-chats__title:hover { text-decoration: underline; text-underline-offset: 3px; }
+.bw-chats__title::after { content: ""; position: absolute; inset: 0; }  /* the whole row opens it */
+.bw-chats__item { position: relative; }
+.bw-chats__preview { margin: 0; font-size: 14px; color: var(--bw-text-muted); display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden; }
+.bw-chats__meta { font-size: 13px; color: var(--bw-text-muted); gap: 6px; }
+.bw-chats__req { position: relative; z-index: 1; text-decoration: none; color: inherit; max-width: 100%; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.bw-chats__actions { position: relative; z-index: 1; display: flex; gap: 4px; flex: none; }
+.bw-chats__rename { position: relative; z-index: 1; min-height: 40px; }
+@media (max-width: 1023px) { .bw-ask-head { flex-direction: column; align-items: stretch; } }
+
+/* ---------------------------------------------------------------- next steps under the conversation */
+.bw-suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 6px 2px; }
+.bw-step { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 14px; border: 0;
+  border-radius: var(--bw-r-pill); background: var(--bw-surface); color: var(--bw-text); font: 600 13.5px var(--bw-font-body);
+  text-decoration: none; cursor: pointer; transition: background-color var(--bw-dur-fast) var(--bw-ease); }
+.bw-step:hover { background: color-mix(in srgb, var(--bw-surface) 70%, var(--bw-outline)); }
+.bw-step:disabled { opacity: .5; cursor: default; }
+.bw-step[data-tone="flag"] { background: var(--bw-est-bg); color: var(--bw-est-fg); }
+.bw-step--go { background: none; box-shadow: inset 0 0 0 1px var(--bw-outline); }
+.bw-step--go:hover { background: var(--bw-card); }
+@media (max-width: 1023px) { .bw-step { min-height: var(--bw-tap); } }
+
+/* ---------------------------------------------------------------- Ask: two phases, no card
+   start: the heading, the box and its ways in, centred on the screen.
+   chat:  the whole screen is the conversation; a slim bar on top, the box pinned at the bottom. */
+.bw-ask { display: flex; flex-direction: column; width: 100%; height: calc(100dvh - 240px); min-height: 380px; }
+@media (min-width: 1024px) { .bw-ask { height: calc(100dvh - 60px); } }
+.bw-ask .bw-chat { width: 100%; max-width: 860px; margin-inline: auto; flex: 1; min-height: 0; }
+
+.bw-ask[data-phase="start"] { justify-content: center; align-items: center; gap: 22px; padding-bottom: 6vh; }
+.bw-ask[data-phase="start"] .bw-chat { flex: none; }
+.bw-ask__intro { width: 100%; max-width: 860px; display: flex; flex-direction: column; gap: 8px; text-align: center;
+  animation: bw-rise var(--bw-dur-slow) var(--bw-ease) both; }
+.bw-ask__intro .bw-display { font-size: clamp(30px, 4.6vw, 52px); }
+.bw-ask[data-phase="start"] .bw-composer { padding: 0; }
+.bw-ask[data-phase="start"] .bw-suggestions { justify-content: center; padding: 14px 0 0; }
+
+.bw-ask[data-phase="chat"] { gap: 10px; }
+.bw-ask__bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex: none;
+  padding-bottom: 10px; border-bottom: 1px solid var(--bw-divider); animation: bw-rise var(--bw-dur) var(--bw-ease) both; }
+.bw-ask__title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bw-ask[data-phase="chat"] .bw-chat__log { flex: 1; min-height: 0; height: auto; max-height: none; padding: 12px 4px;
+  animation: bw-ask-open var(--bw-dur-slow) var(--bw-ease) both; }
+.bw-ask[data-phase="chat"] .bw-composer { flex: none; padding: 6px 0 0; }
+.bw-ask[data-phase="chat"] .bw-suggestions { flex: none; padding: 4px 0 2px; }
+@keyframes bw-ask-open { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@media (max-width: 1023px) { .bw-ask__bar .bw-btn { padding-inline: 12px; } .bw-ask__bar .bw-btn svg { display: none; } }
+
+/* ---------------------------------------------------------------- who said it: a disc beside each turn */
+.bw-turn { display: flex; align-items: flex-start; gap: 10px; max-width: 100%; }
+.bw-turn--user { align-self: flex-end; justify-content: flex-end; }
+.bw-turn--ai { align-self: flex-start; }
+.bw-turn > .bw-msg--user, .bw-turn > .bw-msg--assistant { min-width: 0; }
+.bw-turn--ai > .bw-msg--assistant { flex: 1; }
+.bw-turn--ai > .bw-thinking { align-self: center; }
+.bw-avatar { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+  margin-top: 2px; border-radius: 50%; background: var(--bw-surface); color: var(--bw-text);
+  box-shadow: inset 0 0 0 1px var(--bw-outline); font: 700 12px/1 var(--bw-font-body); letter-spacing: .02em; }
+.bw-avatar--ai { background: var(--bw-primary-bg); color: var(--bw-primary-fg); box-shadow: none; }
+.bw-avatar--ai svg { width: 16px; height: 16px; }
+@media (max-width: 1023px) { .bw-avatar { width: 28px; height: 28px; font-size: 11px; } .bw-turn { gap: 8px; } }
+
+/* ---------------------------------------------------------------- the dossier beside the conversation */
+.bw-split { flex: 1; min-height: 0; }
+.bw-ask .bw-split .bw-chat { max-width: none; height: 100%; padding-right: 14px; }
+.bw-split__handle { position: relative; width: 9px; flex: none; cursor: col-resize; outline: none; }
+.bw-split__handle::before { content: ""; position: absolute; inset: 0 4px; background: var(--bw-divider); transition: background-color .15s; }
+.bw-split__handle:hover::before, .bw-split__handle[data-resize-handle-state="drag"]::before,
+.bw-split__handle:focus-visible::before { background: var(--bw-outline); }
+.bw-split__aside { animation: bw-dossier-in var(--bw-dur-slow) var(--bw-ease) both; }
+@keyframes bw-dossier-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+
+.bw-dossier { display: flex; flex-direction: column; height: 100%; min-height: 0; margin-left: 6px;
+  background: var(--bw-card); border: 1px solid var(--bw-divider); border-radius: var(--bw-r-lg); overflow: hidden; }
+.bw-dossier__head { display: flex; align-items: center; gap: 14px; padding: 16px 16px 14px; border-bottom: 1px solid var(--bw-divider); }
+.bw-dossier__title { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; flex: 1; min-width: 0; }
+.bw-dossier__title strong { font-size: 15px; }
+.bw-dossier__body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 16px 16px; display: flex; flex-direction: column; }
+.bw-dossier__section { display: flex; flex-direction: column; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--bw-divider); }
+.bw-dossier__section:last-child { border-bottom: 0; }
+.bw-dossier__foot { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 12px 16px 16px;
+  border-top: 1px solid var(--bw-divider); background: var(--bw-card); }
+.bw-dossier__fee { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bw-dossier__fee div { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.bw-dossier__fee strong { font-size: 17px; font-variant-numeric: tabular-nums; }
+.bw-dossier__note { font-size: 12.5px; margin: 0; }
+.bw-dossier-open { align-self: flex-end; margin: 0 0 6px; }
+
+.bw-ring { position: relative; flex: none; width: 52px; height: 52px; display: inline-flex; align-items: center; justify-content: center;
+  font: 700 12.5px var(--bw-font-body); font-variant-numeric: tabular-nums; }
+.bw-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.bw-ring circle { fill: none; stroke-width: 5; }
+.bw-ring__track { stroke: var(--bw-surface); }
+.bw-ring__fill { stroke: var(--bw-found-dot); stroke-linecap: round; transition: stroke-dashoffset .8s var(--bw-ease); }
+
+.bw-specs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.bw-spec { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; }
+.bw-spec + .bw-spec { border-top: 1px dashed var(--bw-divider); }
+.bw-spec__icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-top: 1px;
+  border-radius: 50%; font: 700 12px var(--bw-font-body); }
+.bw-spec__icon svg { width: 13px; height: 13px; }
+.bw-spec[data-state="found"] .bw-spec__icon { background: var(--bw-found-bg); color: var(--bw-found-fg); }
+.bw-spec[data-state="estimated"] .bw-spec__icon { background: var(--bw-est-bg); color: var(--bw-est-fg); }
+.bw-spec[data-state="missing"] .bw-spec__icon { border: 1.5px dashed var(--bw-miss-ring); }
+.bw-spec[data-state="flag"] .bw-spec__icon { background: var(--bw-est-bg); color: var(--bw-est-strong); }
+.bw-spec[data-state="flag"] .bw-spec__label { font-weight: 500; }
+.bw-spec__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.bw-spec__row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 10px; }
+.bw-spec__label { font-size: 13.5px; color: var(--bw-text-muted); }
+.bw-spec[data-state="flag"] .bw-spec__label { color: var(--bw-text); font-size: 13.5px; }
+.bw-spec__value { font-weight: 700; font-size: 14px; text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.bw-spec__source { align-self: flex-start; max-width: 100%; padding: 2px 8px; border: 0; border-radius: var(--bw-r-pill);
+  background: var(--bw-surface); color: var(--bw-text-muted); font: 500 11.5px var(--bw-font-body); cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bw-spec__source:hover { color: var(--bw-text); }
+.bw-spec__options { display: flex; flex-wrap: wrap; gap: 6px; }
+.bw-spec__options button { min-height: 30px; padding: 2px 12px; border: 1px solid var(--bw-outline); border-radius: var(--bw-r-pill);
+  background: none; color: var(--bw-text); font: 600 12.5px var(--bw-font-body); cursor: pointer; }
+.bw-spec__options button:hover { background: var(--bw-surface); }
+.bw-spec__answer { display: flex; gap: 6px; }
+.bw-spec__answer .bw-input { min-height: 34px; padding: 4px 12px; font-size: 13px; flex: 1; min-width: 0; }
+
+.bw-dossier__comps summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 600; font-size: 13.5px; }
+.bw-comps { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.bw-comps li { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: var(--bw-r-md); background: var(--bw-surface); }
+
+/* a source chip in the dossier finds its pill in the conversation */
+.bw-source[data-flash] { animation: bw-flash 1.6s var(--bw-ease); }
+@keyframes bw-flash { 0%, 60% { box-shadow: 0 0 0 3px var(--bw-found-dot); } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .bw-split__aside, .bw-source[data-flash] { animation: none; } }
+
+/* Ask and its dossier use the whole width beside the menu (no reading-width cap on the page itself) */
+@media (min-width: 1024px) { .bw-main__inner--wide:has(.bw-ask) { max-width: none; } }
+.bw-dossier__comps summary { list-style: none; }
+
+/* dossier closed (or none): the conversation sits centred in the full width, balanced on both sides */
+.bw-ask[data-phase="chat"]:not([data-dossier="open"]) .bw-chat { max-width: 920px; margin-inline: auto; }
+.bw-ask[data-phase="chat"]:not([data-dossier="open"]) .bw-ask__bar { max-width: none; }
+.bw-dossier-toggle[aria-pressed="true"] { background: var(--bw-surface); }
+.bw-dossier-toggle[aria-pressed="false"] { box-shadow: inset 0 0 0 1px var(--bw-outline); background: none; }
