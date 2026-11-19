@@ -18,7 +18,7 @@ SHELL := /bin/bash
 DB    := docker compose exec -T postgres
 PSQL  := $(DB) psql -U bidwright -d bidwright
 
-.PHONY: setup env db wait roles migrate seed deps dev api web studio status psql eval eval-one fees cost-book draft-smoke template eval-intake requests check test reset stop
+.PHONY: setup env db wait roles migrate seed deps dev api web studio status psql eval eval-one fees cost-book draft-smoke template eval-intake requests gold demo-reset check test reset stop
 
 setup: env db wait roles deps migrate seed status
 
