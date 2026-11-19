@@ -1008,16 +1008,6 @@
    0.8
   ],
   [
-   "fitout_area_m2",
-   true,
-   0.6
-  ],
-  [
-   "landscape_area_m2",
-   true,
-   0.6
-  ],
-  [
    "submission_deadline",
    false,
    0.5
