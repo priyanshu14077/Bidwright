@@ -1018,27 +1018,22 @@
    0.3
   ],
   [
-   "units",
+   "client_status",
    false,
    0.3
   ],
   [
-   "keys",
+   "billing_currency",
    false,
-   0.3
+   0.5
+  ],
+  [
+   "quality_tier",
+   false,
+   0.5
   ]
  ],
  "qualification_rules": [
-  {
-   "name": "deadline_too_close",
-   "expression": {
-    "field": "submission_deadline",
-    "op": "days_until_lt",
-    "value": 5
-   },
-   "effect": "recommend_no_bid",
-   "message": "Submission deadline is less than 5 days away"
-  },
   {
    "name": "market_not_served",
    "expression": {
@@ -1077,6 +1072,35 @@
    },
    "effect": "flag",
    "message": "Client asks for uncapped liability; the practice standard is 100% of fee"
+  },
+  {
+   "name": "repeat_client",
+   "expression": {
+    "field": "client_status",
+    "op": "eq",
+    "value": "repeat"
+   },
+   "effect": "flag",
+   "message": "Repeat client: earlier proposals for them are in the archive"
+  },
+  {
+   "name": "tight_deadline",
+   "expression": {
+    "field": "submission_deadline",
+    "op": "working_days_lt",
+    "value": 8
+   },
+   "effect": "flag",
+   "message": "The deadline is within 7 working days"
+  },
+  {
+   "name": "cross_entity",
+   "expression": {
+    "field": "routed_studio",
+    "op": "cross_entity"
+   },
+   "effect": "flag",
+   "message": "The project is outside the studio's own country"
   }
  ],
  "fee_method": [
