@@ -149,6 +149,7 @@ def inbox(_: Principal = READ):
                            FROM proposal.bid b JOIN proposal.version v USING (proposal_id)
                            WHERE b.envelope_id = e.envelope_id
                            ORDER BY b.created_at DESC, v.version_no DESC LIMIT 1) p ON true
+        WHERE e.title IS NULL OR e.title NOT LIKE '[eval %'
         ORDER BY e.received_at DESC""")
 
 
