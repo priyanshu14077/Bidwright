@@ -1,3 +1,7 @@
+import "./styles.css";
+import "./bw-ui.css";
+import "./guided/guided.css";
+import "./guided/legacy.css";
 import { StrictMode, useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { SIGNED_OUT, api, auth, type Me, type Reference } from "./api";
