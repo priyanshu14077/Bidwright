@@ -109,6 +109,7 @@
   /* type */
   --bw-font-display: var(--font-caprasimo, "Caprasimo"), Georgia, serif;
   --bw-font-body: var(--font-figtree, "Figtree"), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --bw-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   /* space (4px base) */
   --bw-s1: 4px;
