@@ -166,14 +166,26 @@ def cite(pdf: bytes, lines_by_id: dict[str, dict], mention: dict) -> tuple[int |
     return page, rects, verbatim
 
 
+def text_span(body: str, lines_by_id: dict[str, dict], mention: dict) -> list[int] | None:
+    """Where the quote sits in a text source, as [start, end) character offsets, searched from the first cited line."""
+    starts = [lines_by_id[i]["start"] for i in mention["line_ids"] if lines_by_id.get(i, {}).get("start") is not None]
+    quote = mention["quote"].strip()
+    if not starts or not quote:
+        return None
+    at = body.find(quote, min(starts))
+    if at < 0:
+        at = body.lower().find(quote.lower(), min(starts))
+    return [at, at + len(quote)] if at >= 0 else None
+
+
 def squash(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip().lower()
 
 
 def extract_document(envelope_id: int, document_id: int, trace_id: uuid.UUID) -> int:
     with engine.begin() as conn:
-        doc = conn.execute(text("SELECT file_name, render_uri FROM lineage.source_document WHERE document_id = :d"),
-                           dict(d=document_id)).one()
+        doc = conn.execute(text("""SELECT file_name, render_uri, text_uri, channel, received_at
+                                   FROM lineage.source_document WHERE document_id = :d"""), dict(d=document_id)).one()
         lines = document_lines(conn, document_id)
         system = system_prompt(conn)
         run_id = conn.execute(
@@ -195,11 +207,13 @@ def extract_document(envelope_id: int, document_id: int, trace_id: uuid.UUID) ->
                               "WHERE run_id = :r"), dict(r=run_id, err=str(e)[:2000]))
         raise
     pdf = blob_store.get(doc.render_uri)
+    body = blob_store.get(doc.text_uri).decode() if doc.text_uri else None
     with engine.begin() as conn:
         conn.execute(text("UPDATE lineage.source_document SET doc_class = :c WHERE document_id = :d AND doc_class IS NULL"),
                      dict(c=result.data["doc_class"], d=document_id))
         for m in result.data["mentions"]:
             page, rects, verbatim = cite(pdf, lines_by_id, m)
+            span = text_span(body, lines_by_id, m) if body is not None else None
             conn.execute(
                 text("""INSERT INTO lineage.field_value (envelope_id, run_id, field, value, document_id, page, quote,
                         bbox, confidence, origin, kind, status)
