@@ -7,6 +7,7 @@ cannot act on, or change, any record.
 """
 
 import contextvars
+import logging
 import json
 import re
 import uuid
@@ -17,11 +18,14 @@ from sqlalchemy import Connection, text
 from bidwright import llm
 from bidwright.config import settings
 from bidwright.db import engine
-from bidwright.intake import reading
+from bidwright.intake import ocr, reading
 from bidwright.schema import SCHEMA_VERSION, fields
 from bidwright.storage import blob_store
 
-PROMPT_VERSION = "extract-v2"  # v2: practice name and description come from the workspace
+log = logging.getLogger(__name__)
+PROMPT_VERSION = "extract-v3"  # v3: informal requests (messages, notes, screenshots), arrival context, revisions
+CHANNEL_NAMES = {"whatsapp": "WhatsApp", "email": "email", "notes": "notes written by the practice's staff",
+                 "upload": "upload", "sharepoint": "SharePoint"}
 DOC_CLASSES = ["main_rfp", "design_brief", "area_schedule", "client_terms", "email", "drawings", "other"]
 UNITS = ["m2", "sqft", "ha", "acre", "none"]
 
@@ -201,6 +205,40 @@ def extract_document(envelope_id: int, document_id: int, trace_id: uuid.UUID) ->
         conn.execute(text("UPDATE intake.extraction_run SET status = 'succeeded', finished_at = now() WHERE run_id = :r"),
                      dict(r=run_id))
     return run_id
+
+
+def read_image(envelope_id: int, document_id: int, trace_id: uuid.UUID) -> None:
+    """Transcribe an image (screenshot, photo) once; from then on it is a text source like a pasted message."""
+    with engine.begin() as conn:
+        doc = conn.execute(text("SELECT file_name, blob_uri FROM lineage.source_document WHERE document_id = :d"),
+                           dict(d=document_id)).one()
+        run_id = conn.execute(
+            text("""INSERT INTO intake.extraction_run (envelope_id, document_id, kind, model, prompt_version,
+                    schema_version, dataset_version, trace_id) VALUES (:e, :d, 'read', :m, :pv, :sv, :dv, :t)
+                    RETURNING run_id"""),
+            dict(e=envelope_id, d=document_id, m=settings.model_extract, pv=ocr.PROMPT_VERSION, sv=SCHEMA_VERSION,
+                 dv=settings.dataset_version, t=str(trace_id))).scalar_one()
+    try:
+        body = ocr.image_reader.read(doc.file_name, blob_store.get(doc.blob_uri), run_id=run_id, trace_id=trace_id)
+    except Exception as e:
+        with engine.begin() as conn:
+            conn.execute(text("UPDATE intake.extraction_run SET status = 'failed', error = :err, finished_at = now() "
+                              "WHERE run_id = :r"), dict(r=run_id, err=str(e)[:2000]))
+        raise
+    pages = reading.text_pages(body)
+    stem = doc.file_name.rsplit(".", 1)[0]
+    with engine.begin() as conn:
+        conn.execute(text("""UPDATE lineage.source_document SET text_uri = :t, render_uri = :r, page_count = :n
+                             WHERE document_id = :d"""),
+                     dict(d=document_id, n=len(pages), t=blob_store.put(body.encode(), stem + ".text.txt")[1],
+                          r=blob_store.put(reading.text_to_pdf(doc.file_name, body), stem + ".render.pdf")[1]))
+        conn.execute(text("INSERT INTO lineage.page (document_id, page_no, width, height, lines) "
+                          "VALUES (:d, :n, :w, :h, CAST(:lines AS jsonb))"),
+                     [dict(d=document_id, n=p.page_no, w=p.width, h=p.height,
+                           lines=json.dumps([{"id": ln.line_id, "text": ln.text, "bbox": ln.bbox, "start": ln.start}
+                                             for ln in p.lines])) for p in pages])
+        conn.execute(text("UPDATE intake.extraction_run SET status = 'succeeded', finished_at = now() WHERE run_id = :r"),
+                     dict(r=run_id))
 
 
 def extract_envelope(envelope_id: int, workers: int = 4) -> uuid.UUID:
