@@ -54,6 +54,7 @@ class Candidate:
     normalized: object = None
     status: str = "proposed"
     notes: list[str] = field(default_factory=list)
+    replaced: bool = False  # a later message revises this value
 
 
 @dataclass
@@ -244,7 +245,7 @@ def group(f: Field, cands: list[Candidate]) -> list[list[Candidate]]:
 
 def consolidate(f: Field, cands: list[Candidate], doc_names: dict[int, str]) -> tuple[list[Candidate], dict | None]:
     """Mark the winning candidate(s) proposed and the rest superseded. Returns (chosen, conflict)."""
-    live = [c for c in cands if c.status != "rejected"]
+    live = [c for c in cands if c.status != "rejected" and not c.replaced]
     groups = group(f, live)
     chosen = []
     for g in groups:
