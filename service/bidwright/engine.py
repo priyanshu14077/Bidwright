@@ -133,9 +133,62 @@ def digits(s: str) -> str:
     return re.sub(r"\D", "", s or "")
 
 
+SHORTHAND = {"k": 1e3, "m": 1e6, "mn": 1e6, "million": 1e6, "lakh": 1e5, "lac": 1e5, "crore": 1e7}
+
+
 def number_in_text(number: float, *texts: str) -> bool:
+    """Whether the number is written in the text: as digits, or in shorthand ("45k", "1.1 million", "6.5 lakh")."""
     n = f"{number:f}".rstrip("0").rstrip(".")
-    return digits(n) in "".join(digits(t) for t in texts)
+    if digits(n) in "".join(digits(t) for t in texts):
+        return True
+    for t in texts:
+        for value, unit in re.findall(r"(\d+(?:[.,]\d+)?)\s*(k|mn|m|million|lakh|lac|crore)\b", (t or "").lower()):
+            if abs(float(value.replace(",", ".")) * SHORTHAND[unit] - number) <= 0.005 * number:
+                return True
+    return False
+
+
+def number_written(value_text: str) -> float | None:
+    """The one number written in a short value ("4-acre", "1.2 ha", "11,84,030 sq ft", "45k"), or None if
+    there is not exactly one."""
+    found = re.findall(r"(?<![a-z\d.,])\d[\d,]*(?:\.\d+)?\s*(?:k|mn|m|million|lakh|lac|crore)?\b", value_text.lower())
+    if len(found) != 1:
+        return None
+    m = re.fullmatch(r"([\d,]+(?:\.\d+)?)\s*(k|mn|m|million|lakh|lac|crore)?", found[0].strip())
+    if not m:
+        return None
+    n = float(m.group(1).replace(",", ""))
+    return n * SHORTHAND[m.group(2)] if m.group(2) else n
+
+
+AUTO_TITLE = r"^(WhatsApp message|Email|Notes|Pasted text|Reply)( from .*)? \d{4}-\d{2}-\d{2} \d{2}\.\d{2}$"
+WEEKDAYS = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
+WHATSAPP_STAMP = re.compile(r"\[(\d{1,2})/(\d{1,2})/(\d{2,4}),")
+
+
+def relative_date(said: str, anchor: date) -> date | None:
+    """A deadline written relative to when it was sent ("Thursday next week", "by Fri", "end of month"), worked
+    out from the day it was sent. None for anything with an explicit date ("Monday 23rd", "4 Dec")."""
+    s = said.lower()
+    if re.search(r"\d", s):
+        return None
+    next_monday = anchor + timedelta(days=7 - anchor.weekday())
+    if "end of next week" in s:
+        return next_monday + timedelta(days=4)
+    if "end of the week" in s or "end of this week" in s or "end of week" in s:
+        return anchor + timedelta(days=(4 - anchor.weekday()) % 7)
+    if "end of month" in s or "end of the month" in s:
+        first_next = (anchor.replace(day=28) + timedelta(days=4)).replace(day=1)
+        return first_next - timedelta(days=1)
+    if "tomorrow" in s:
+        return anchor + timedelta(days=1)
+    m = re.search(r"\b(mon|tue|wed|thu|fri|sat|sun)[a-z]*\b", s)
+    if not m:
+        return None
+    wd = WEEKDAYS[m.group(1)]
+    if "next week" in s or re.search(r"\bnext\s+(mon|tue|wed|thu|fri|sat|sun)", s):
+        return next_monday + timedelta(days=wd)
+    return anchor + timedelta(days=(wd - anchor.weekday()) % 7 or 7)
 
 
 def normalize(f: Field, c: Candidate, ref: Reference, country: str | None) -> list[Flag]:
@@ -145,10 +198,15 @@ def normalize(f: Field, c: Candidate, ref: Reference, country: str | None) -> li
         if v.get("number") is None or v.get("unit") not in TO_M2:
             c.status = "rejected"
             return [Flag("area_unreadable", "warn", f"Could not read an area from '{v['value_text']}'", f.name, c.field_value_id)]
-        if not number_in_text(v["number"], v["value_text"], c.value.get("quote", "")):
+        number = v["number"]
+        if not number_in_text(number, v["value_text"], c.value.get("quote", "")):
             flags.append(Flag("number_not_in_source", "warn", f"{v['number']} does not appear in the cited text",
                               f.name, c.field_value_id))
-        c.normalized = round(v["number"] * TO_M2[v["unit"]], 1)
+            written = number_written(v["value_text"])
+            if written is not None:  # the model converted or misread it: use what is written ("4-acre" -> 4)
+                c.notes.append(f"read {written:g} from '{v['value_text']}', not {number:g}")
+                number = written
+        c.normalized = round(number * TO_M2[v["unit"]], 1)
         if v["unit"] != "m2":
             c.notes.append(f"converted from {v['value_text']}")
     elif f.kind == "integer":
