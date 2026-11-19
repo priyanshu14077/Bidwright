@@ -80,21 +80,30 @@ def ingest(conn: Connection, files: list[tuple[str, bytes]], channel: str, sende
             ids_by_name[name] = known
             continue
         supported = reading.is_supported(name)
-        pdf = reading.render_pdf(name, data) if supported else None
+        suffix = Path(name).suffix.lower()
+        text_uri = None
+        if suffix in reading.TEXT_SUFFIXES:
+            body = reading.document_text(name, data)
+            text_uri = blob_store.put(body.encode(), Path(name).stem + ".text.txt")[1]
+            pages = reading.text_pages(body)
+            pdf = reading.text_to_pdf(name, body)
+        else:
+            pdf = reading.render_pdf(name, data) if supported else None
+            pages = reading.read_layout(pdf) if pdf else []
         render_uri = blob_store.put(pdf, Path(name).stem + ".render.pdf")[1] if pdf else None
-        pages = reading.read_layout(pdf) if pdf else []
+        is_image = suffix in reading.IMAGE_SUFFIXES
         doc_id = conn.execute(
             text("""INSERT INTO lineage.source_document
                     (envelope_id, parent_document_id, channel, file_name, mime_type, size_bytes, sha256, blob_uri,
-                     render_uri, sender, received_at, doc_class, page_count, supported)
-                    VALUES (:env, :parent, :channel, :name, :mime, :size, :sha, :uri, :render, :sender,
+                     render_uri, text_uri, sender, received_at, doc_class, page_count, supported)
+                    VALUES (:env, :parent, :channel, :name, :mime, :size, :sha, :uri, :render, :text_uri, :sender,
                             COALESCE(:received_at, now()), :doc_class, :pages, :supported)
                     RETURNING document_id"""),
             dict(env=envelope_id, parent=ids_by_name.get(parent) if parent else None, channel=channel, name=name,
-                 mime=MIME.get(Path(name).suffix.lower()), size=len(data), sha=sha, uri=uri, render=render_uri,
+                 mime=MIME.get(suffix), size=len(data), sha=sha, uri=uri, render=render_uri, text_uri=text_uri,
                  sender=sender, received_at=received_at, pages=len(pages) or None,
-                 doc_class="email" if name.lower().endswith(".eml") else ("unsupported" if not supported else None),
-                 supported=supported and pdf is not None),
+                 doc_class="email" if suffix == ".eml" else ("unsupported" if not supported else None),
+                 supported=supported and (pdf is not None or is_image)),
         ).scalar_one()
         ids_by_name[name] = doc_id
         if pages:
