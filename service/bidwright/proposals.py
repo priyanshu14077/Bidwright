@@ -104,7 +104,7 @@ def section_content(code: str, record: dict, est: fees.FeeEstimate, params: fees
             "location": ", ".join(x for x in (record.get("city"), params.country_names.get(est.inputs.country)) if x),
             "reference": reference, "client_reference": record.get("rfp_reference"),
             "date": date.today().isoformat(), "validity_days": int(params.num("terms.validity_days", 90)),
-            "currency": est.currency}, "record"
+            "payment_days": int(params.num("terms.payment_days", 30)), "currency": est.currency}, "record"
     if code == "deliverables":
         return None, est.deliverables, "engine"
     if code == "programme":
@@ -198,7 +198,15 @@ def load_version(conn: Connection, proposal_id: int, version_no: int) -> dict:
         "fee_lines": q("SELECT * FROM proposal.line WHERE version_id = :v ORDER BY line_no"),
         "sections": sections,
         "events": q("SELECT * FROM proposal.event WHERE version_id = :v ORDER BY event_id"),
+        "outputs": outputs(conn, v["version_id"]),
     }
+
+
+def outputs(conn: Connection, version_id: int) -> list[dict]:
+    """The files exported from a version, newest first."""
+    return [dict(r._mapping) for r in conn.execute(text(
+        """SELECT output_id, format, file_name, size_bytes, template, created_by, created_at FROM proposal.output
+           WHERE version_id = :v ORDER BY created_at DESC, format"""), dict(v=version_id))]
 
 
 def lock_draft(conn: Connection, proposal_id: int, version_no: int, revision: int):
