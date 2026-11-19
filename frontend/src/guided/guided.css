@@ -139,12 +139,23 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
 .bw-search { display: flex; align-items: center; gap: 8px; }
 .bw-search .bw-input { flex: 1; }
 .bw-register { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.bw-register__item { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-top: 1px solid var(--bw-divider);
-  scroll-margin-top: 24px; }
-.bw-register__item:first-child { border-top: 0; }
+.bw-register > li { border-top: 1px solid var(--bw-divider); scroll-margin-top: 24px; }
+.bw-register > li:first-child { border-top: 0; }
 .bw-register__item[data-used] { box-shadow: inset 3px 0 0 var(--bw-found-dot); padding-left: 12px; }
-.bw-register__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-.bw-register__title { font-weight: 700; flex: 1 1 220px; min-width: 0; }
-.bw-register__value { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.bw-register__rule { margin: 0; font-size: 14px; color: var(--bw-text-muted); }
-.bw-register__meta { font-size: 13px; gap: 6px; }
+.bw-register__head { display: grid; grid-template-columns: minmax(0, 1fr) auto 20px; gap: 4px 12px; align-items: baseline;
+  padding: 12px 0; min-height: var(--bw-tap); cursor: pointer; list-style: none; border-radius: var(--bw-r-md); }
+.bw-register__head::-webkit-details-marker { display: none; }
+.bw-register__head:hover .bw-register__title { text-decoration: underline; text-underline-offset: 3px; }
+.bw-register__head:focus-visible { outline: 2px solid var(--bw-focus, var(--bw-link)); outline-offset: 2px; }
+.bw-register__title { font-weight: 700; min-width: 0; }
+.bw-register__value { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; text-align: right; max-width: 22ch; }
+.bw-register__chev { align-self: center; transition: transform var(--bw-dur-fast, .15s) var(--bw-ease, ease); }
+.bw-register__item[open] .bw-register__chev { transform: rotate(180deg); }
+.bw-register__meta { grid-column: 1 / -1; font-size: 13px; gap: 6px; }
+.bw-register__body { display: flex; flex-direction: column; gap: 12px; padding: 0 0 16px; }
+.bw-register__body .bw-doc__facts { margin: 0; }
+@media (max-width: 1023px) {
+  .bw-register__head { grid-template-columns: minmax(0, 1fr) 20px; }
+  .bw-register__value { grid-column: 1; grid-row: 2; text-align: left; max-width: none; }
+  .bw-register__chev { grid-column: 2; grid-row: 1; }
+}
