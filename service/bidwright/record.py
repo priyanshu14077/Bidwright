@@ -57,6 +57,7 @@ def build(conn: Connection, envelope_id: int) -> dict:
             "group": f.group if f else "Enrichment",
             "kind": f.kind if f else "engine",
             "is_list": bool(f and f.is_list),
+            "options": list(f.options) if f else [],
             "value": value,
             "suggestion": suggestion["normalized"]["value"] if suggestion and value in (None, []) else None,
             "suggestion_evidence": (suggestion["value"] or {}).get("evidence") if suggestion and value in (None, []) else None,
