@@ -1,4 +1,5 @@
-"""Generate the default proposal template, data/templates/proposal-v0.docx.
+"""Generate the two default templates: the full proposal (data/templates/proposal-v0.docx) and the short fee
+letter (data/templates/fee-letter-v0.docx), for quick asks by WhatsApp or email.
 
 The layout follows the sample archive's proposals: a cover block, nine numbered
 sections, a running header and a page-numbered footer. It is an ordinary Word
@@ -27,6 +28,7 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
 OUT = Path(__file__).parent / "proposal-v0.docx"
+LETTER = Path(__file__).parent / "fee-letter-v0.docx"
 INK, GREY = RGBColor(0x1E, 0x22, 0x26), RGBColor(0x59, 0x61, 0x6A)
 
 
@@ -90,18 +92,7 @@ def table(doc: Document, head: list[str], loop: str, cells: list[str], total: li
 
 def build() -> Document:
     doc = Document()
-    styles(doc)
-    sec = doc.sections[0]
-    sec.page_width, sec.page_height = Cm(21), Cm(29.7)
-    sec.left_margin = sec.right_margin = Cm(2)
-    sec.top_margin, sec.bottom_margin = Cm(2.2), Cm(2)
-    head = sec.header.paragraphs[0]
-    head.text = "{{ firm }}  ·  {{ reference }}"
-    head.runs[0].font.size, head.runs[0].font.color.rgb = Pt(8), GREY
-    foot = sec.footer.paragraphs[0]
-    foot.text = "{{ reference }} version {{ version }}  ·  {{ date }}  ·  Page "
-    foot.runs[0].font.size, foot.runs[0].font.color.rgb = Pt(8), GREY
-    page_field(foot)
+    page_setup(doc)
 
     firm = doc.add_paragraph()
     firm.add_run("{{ firm }}").bold = True
