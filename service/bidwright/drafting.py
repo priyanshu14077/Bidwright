@@ -53,7 +53,7 @@ class Sources:
     record: dict
     services: list[str]
     stages: list[str]
-    documents: dict[str, dict]           # "doc281" -> {file_name, lines: {line_id: text}, rendered}
+    documents: dict[str, dict]           # "doc281" -> {document_id, file_name, lines: {id: text}, boxes, rendered}
     past: list[dict]                     # {reference, title, client, sections: {code: body}}
     scope_text: dict[tuple[str, str], str]
     exclusions: list[str]
@@ -98,7 +98,9 @@ def gather(conn: Connection, version) -> Sources:
                                                   WHERE envelope_id = :e ORDER BY document_id"""), dict(e=envelope_id)):
         lines = document_lines(conn, doc_id)
         if lines:
-            documents[f"doc{doc_id}"] = dict(file_name=file_name, lines={ln["id"]: ln["text"] for ln in lines},
+            documents[f"doc{doc_id}"] = dict(document_id=doc_id, file_name=file_name,
+                                             lines={ln["id"]: ln["text"] for ln in lines},
+                                             boxes={ln["id"]: (ln["page"], ln["bbox"]) for ln in lines},
                                              rendered=render_for_model(lines))
     past = []
     for item in comparables(conn, envelope_id, limit=3)["items"]:
@@ -284,7 +286,9 @@ def resolve(sources: Sources, cited: list[str]) -> list[dict]:
         else:
             d, line = c.split("/", 1)
             doc = sources.documents.get(d, {})
-            out.append(dict(id=c, kind="rfp", document=doc.get("file_name"), quote=doc.get("lines", {}).get(line)))
+            page, bbox = doc.get("boxes", {}).get(line, (None, None))
+            out.append(dict(id=c, kind="rfp", document=doc.get("file_name"), document_id=doc.get("document_id"),
+                            page=page, rects=[bbox] if bbox else None, quote=doc.get("lines", {}).get(line)))
     return out
 
 

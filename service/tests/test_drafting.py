@@ -153,7 +153,8 @@ def test_draft_fills_the_pending_sections_and_unblocks_approval(proposal, monkey
     assert "Bay Square Offices" in sections["understanding"]["body"]
     assert "| Gross floor area (GFA) | 27,000 m² |" in sections["understanding"]["body"]
     assert sections["terms"]["data"]["amendments"][0]["label"] == "Copyright"
-    assert sections["terms"]["citations"][0]["sources"][0]["document"] == "Client_Terms.pdf"
+    cited = sections["terms"]["citations"][0]["sources"][0]
+    assert cited["document"] == "Client_Terms.pdf" and cited["page"] == 1 and cited["rects"] == [[60, 80, 500, 95]]
     assert len(calls) == 1 and calls[0].documents[doc]["lines"]["p1:2"].startswith("Copyright")
     assert out["draft"]["notes"] == GOOD["notes"] and out["events"][-1]["action"] == "draft"
 
