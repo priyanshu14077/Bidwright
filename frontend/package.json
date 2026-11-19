@@ -12,7 +12,8 @@
     "lucide-react": "0.468.0",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "react-resizable-panels": "2.1.7"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
