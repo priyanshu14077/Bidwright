@@ -66,7 +66,8 @@ class Result:
 
 
 def cost(model: str, usage: Any) -> float | None:
-    price = PRICES.get(model)
+    # Responses can name a dated snapshot (claude-haiku-4-5-20251001); price it as its base model.
+    price = PRICES.get(model) or next((p for name, p in PRICES.items() if model.startswith(name + "-")), None)
     if not price:
         return None
     return round((usage.input_tokens * price[0] + usage.output_tokens * price[1]
