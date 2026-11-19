@@ -44,8 +44,12 @@ def expand(files: list[tuple[str, bytes]]) -> list[tuple[str, bytes, str | None]
 
 
 def ingest(conn: Connection, files: list[tuple[str, bytes]], channel: str, sender: str | None = None,
-           title: str | None = None, received_at: datetime | None = None) -> tuple[int, bool]:
-    """Store a pack. Returns (envelope_id, created)."""
+           title: str | None = None, received_at: datetime | None = None,
+           envelope_id: int | None = None) -> tuple[int, bool]:
+    """Store a pack, or with envelope_id add files (a client's reply) to a request. Returns (envelope_id, created).
+
+    Messages, notes and emails are laid out from their text, so every line is an exact slice of it with its
+    character offset. Images are stored now and read (transcribed) when the request is extracted."""
     items = expand(files)
     stored = [(name, data, parent, *blob_store.put(data, name)) for name, data, parent in items]
     shas = [s[3] for s in stored]
@@ -53,7 +57,10 @@ def ingest(conn: Connection, files: list[tuple[str, bytes]], channel: str, sende
     existing = conn.execute(
         text("SELECT envelope_id FROM lineage.source_document WHERE sha256 = ANY(:shas) AND envelope_id IS NOT NULL "
              "ORDER BY document_id LIMIT 1"), dict(shas=shas)).scalar()
-    created = existing is None
+    if envelope_id is not None:
+        created, existing = False, envelope_id
+    else:
+        created = existing is None
     if created:
         if title is None:
             title = email_title(items) or Path(files[0][0]).stem
