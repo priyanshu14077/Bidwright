@@ -61,6 +61,61 @@ async def upload(background: BackgroundTasks, files: list[UploadFile] = File(...
     return {"envelope_id": envelope_id, "created": created}
 
 
+TEXT_SOURCES = {"whatsapp": "WhatsApp message", "email": "Email", "notes": "Notes", "upload": "Pasted text"}
+
+
+class PastedText(BaseModel):
+    text: str = PField(min_length=1, max_length=200_000)
+    channel: Literal["whatsapp", "email", "notes", "upload"] = "upload"
+    sender: str | None = PField(None, max_length=200)
+    received_at: datetime | None = None
+
+
+def text_source(body: PastedText) -> tuple[datetime, str, bytes]:
+    at = body.received_at or datetime.now(timezone.utc)
+    who = f" from {re.sub(r'[^\w .+-]', '', body.sender)[:60]}" if body.sender else ""
+    return at, f"{TEXT_SOURCES[body.channel]}{who} {at:%Y-%m-%d %H.%M}.txt", body.text.replace("\r\n", "\n").encode()
+
+
+@app.post("/api/envelopes/text")
+def paste(body: PastedText, background: BackgroundTasks, who: Principal = INTAKE):
+    """A request pasted or forwarded as text: a WhatsApp message or thread, an email, call notes."""
+    at, name, data = text_source(body)
+    with engine.begin() as conn:
+        envelope_id, created = ingest(conn, [(name, data)], body.channel, sender=body.sender,
+                                      title=name.removesuffix(".txt"), received_at=at)
+        if created:
+            conn.execute(text("UPDATE intake.envelope SET status = 'extracting' WHERE envelope_id = :e"),
+                         dict(e=envelope_id))
+    if created:
+        background.add_task(in_workspace, who.org_id, extract_envelope, envelope_id)
+    return {"envelope_id": envelope_id, "created": created}
+
+
+@app.post("/api/envelopes/{envelope_id}/text")
+def add_text(envelope_id: int, body: PastedText, background: BackgroundTasks, who: Principal = INTAKE):
+    """The client's reply (or any later message) added to a request; the request is read again with it."""
+    at, name, data = text_source(body)
+    with engine.begin() as conn:
+        if not conn.execute(text("SELECT 1 FROM intake.envelope WHERE envelope_id = :e"), dict(e=envelope_id)).first():
+            raise HTTPException(404, "no such request")
+        ingest(conn, [(name, data)], body.channel, sender=body.sender, received_at=at, envelope_id=envelope_id)
+        conn.execute(text("UPDATE intake.envelope SET status = 'extracting' WHERE envelope_id = :e"), dict(e=envelope_id))
+    background.add_task(in_workspace, who.org_id, extract_envelope, envelope_id)
+    return {"envelope_id": envelope_id, "status": "extracting"}
+
+
+@app.get("/api/documents/{document_id}/text")
+def document_text(document_id: int, _: Principal = READ):
+    """A text source (message, notes, email, transcribed screenshot) as text, for showing quotes in place."""
+    with engine.connect() as conn:
+        uri = conn.execute(text("SELECT text_uri FROM lineage.source_document WHERE document_id = :d"),
+                           dict(d=document_id)).first()
+    if not uri or not uri.text_uri:
+        raise HTTPException(404, "this document has no text form")
+    return Response(blob_store.get(uri.text_uri), media_type="text/plain; charset=utf-8")
+
+
 @app.post("/api/envelopes/{envelope_id}/extract")
 def rerun(envelope_id: int, background: BackgroundTasks, who: Principal = INTAKE):
     background.add_task(in_workspace, who.org_id, extract_envelope, envelope_id)
