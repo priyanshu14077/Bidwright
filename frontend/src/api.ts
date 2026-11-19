@@ -185,6 +185,8 @@ export const proposals = {
   approve: (p: number, n: number, revision: number, reason?: string) =>
     call<Version>(`${v(p, n)}/approve`, json({ revision, reason })),
   newVersion: (p: number, reason?: string) => call<Version>(`/api/proposals/${p}/versions`, json({ reason })),
+  exportFiles: (p: number, n: number) => call<{ outputs: Output[]; reused: boolean }>(`${v(p, n)}/export`, { method: "POST" }),
+  downloadUrl: (outputId: number) => `/api/outputs/${outputId}`,
   draft: (p: number, n: number, body: { revision: number; sections?: string[]; reason?: string }) =>
     call<Version & { draft: DraftReport }>(`${v(p, n)}/draft`, json(body)),
 };
@@ -255,8 +257,10 @@ export type Version = {
   currency: string; fx_per_usd: number; engine_total_local: number; fee_total_local: number; revision: number;
   created_by: string; created_at: string; approved_by: string | null; approved_at: string | null;
   reference: string; title: string; envelope_id: number; stale: boolean; reimbursables_total_local: number;
-  fee_lines: FeeLine[]; sections: Section[]; events: ProposalEvent[];
+  fee_lines: FeeLine[]; sections: Section[]; events: ProposalEvent[]; outputs: Output[];
 };
+export type Output = { output_id: number; format: "docx" | "pdf"; file_name: string; size_bytes: number; template: string;
+  created_by: string; created_at: string };
 export type ProposalRow = { proposal_id: number; reference: string; title: string; envelope_id: number; created_at: string;
   created_by: string; latest_version: number; status: VersionStatus; currency: string; fee_total_local: number };
 export type Proposal = { proposal_id: number; reference: string; title: string; envelope_id: number; created_by: string;
