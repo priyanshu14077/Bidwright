@@ -419,6 +419,8 @@ class Engine:
         self.apply_human(human)
         self.enrich(country)
         self.write_flags()
+        from bidwright import gate1  # the assessment reads what this run wrote
+        gate1.assess(conn, e)
 
     # ---------------------------------------------------------------- helpers
 
