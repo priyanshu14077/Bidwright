@@ -111,7 +111,8 @@ def ingest(conn: Connection, files: list[tuple[str, bytes]], channel: str, sende
                 text("INSERT INTO lineage.page (document_id, page_no, width, height, lines) "
                      "VALUES (:d, :n, :w, :h, CAST(:lines AS jsonb))"),
                 [dict(d=doc_id, n=p.page_no, w=p.width, h=p.height,
-                      lines=json.dumps([{"id": ln.line_id, "text": ln.text, "bbox": ln.bbox} for ln in p.lines]))
+                      lines=json.dumps([{"id": ln.line_id, "text": ln.text, "bbox": ln.bbox}
+                                        | ({"start": ln.start} if ln.start is not None else {}) for ln in p.lines]))
                  for p in pages],
             )
     conn.execute(text("UPDATE intake.envelope SET updated_at = now(), "
