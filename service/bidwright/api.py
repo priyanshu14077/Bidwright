@@ -8,16 +8,17 @@ the caller's workspace; row-level security does the rest.
 
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field as PField
 from sqlalchemy import text
 
-from bidwright import drafting, export, fees, proposals, record
+from bidwright import chat, drafting, export, feecard, fees, gate1, proposals, record
 from bidwright.auth import require, router as auth_router
-from bidwright.config import REPO_ROOT, settings
+from bidwright.config import settings
 from bidwright.db import engine, in_workspace
 from bidwright.engine import comparables, run_engine
 from bidwright.extraction import extract_envelope
