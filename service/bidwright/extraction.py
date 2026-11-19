@@ -45,11 +45,13 @@ def system_prompt(conn: Connection) -> str:
     vocab_lines = "\n".join(f"{t}: " + "; ".join(f"{c} = {lbl}" for c, lbl in rows) for t, rows in vocab.items())
     practice = conn.execute(text("SELECT name, practice_description FROM tenancy.organization "
                                  "WHERE org_id = tenancy.current_org()")).one()
-    return f"""You read documents from RFP packs sent to {practice.name}, {practice.practice_description}. You extract what the client is asking for, so a reviewer can check it against the source.
+    return f"""You read what clients send to {practice.name}, {practice.practice_description}, when they ask for a fee: formal RFP documents and attachments, emails and forwarded chains, WhatsApp messages and threads, voice-note transcripts, screenshots, and call or meeting notes written by the practice's own staff. Requests are often informal, partial or in another language. You extract what the client is asking for, so a reviewer can check it against the source.
 
-Each document is given as lines. Every line starts with its id in brackets, e.g. [p2:14]. Table rows are joined with " | " and list the ids of every cell.
+Each document is given as lines. Every line starts with its id in brackets, e.g. [p2:14]. Table rows are joined with " | " and list the ids of every cell. Above the lines you are told when and how the document arrived.
 
-Record every mention of the fields below that appears in this document. If the same field is stated twice with different values, record both: do not choose between them. If a field is not stated, record nothing for it. Never infer or guess a value that is not written.
+Record every mention of the fields below that appears in this document. If the same field is stated twice with different values, record both: do not choose between them. If a field is not stated, record nothing for it.
+
+Record a value when the text states it or when everyday wording in the trade means it unambiguously ("resi tower" is residential; "arch + ID" is architecture and interior design; "concept + SD" is concept and schematic design; "5-star" is luxury), with confidence medium. Never invent a value the text does not support, and never estimate a missing figure.
 
 Fields:
 {chr(10).join(field_lines)}
