@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Inbox, ListChecks, Settings, Upload } from "lucide-react";
 import { ChatPanel } from "./Chat";
 import { api, type Envelope } from "../api";
 import { useCan } from "../session";
@@ -36,7 +36,8 @@ function useRequests() {
   return { items, waiting, err };
 }
 
-/** The first screen: ask anything, or paste what a client sent. What is waiting sits underneath. */
+/** The first screen is the conversation: ask anything, or paste what a client sent. Below it, the ways into the
+ * rest of the app, so a person can move on from wherever the conversation has got to. */
 export function Ask() {
   const { waiting } = useRequests();
   return (
@@ -45,16 +46,18 @@ export function Ask() {
         <h1 className="bw-display">Ask anything or paste a request</h1>
         <p className="bw-lead">Paste a WhatsApp message, an email or your call notes and I'll tell you what's missing. Ask why a fee is what it is, or what needs a decision.</p>
       </div>
-      <section className="bw-card bw-card--hero bw-chat-home" aria-label="Chat"><ChatPanel autoFocus /></section>
-      {waiting.length > 0 && (
-        <section className="bw-stack bw-enter" aria-label="Waiting on you">
-          <div className="bw-row">
-            <h2 className="bw-caps">Decide on {waiting.length} request{waiting.length === 1 ? "" : "s"}</h2>
-            <a className="bw-push bw-muted" href="#/decide">See all</a>
-          </div>
-          {waiting.slice(0, 3).map((e) => <Row key={e.envelope_id} e={e} />)}
-        </section>
-      )}
+      <section className="bw-card bw-card--hero bw-chat-home" aria-label="Chat">
+        <ChatPanel autoFocus />
+        <nav className="bw-goto" aria-label="Go to">
+          <span className="bw-caps">Go to</span>
+          <a className="bw-btn bw-btn--soft bw-btn--sm" href="#/decide">
+            <Inbox className="bw-icon bw-icon--sm" />Decide{waiting.length > 0 && <span className="bw-badge">{waiting.length}</span>}
+          </a>
+          <a className="bw-btn bw-btn--soft bw-btn--sm" href="#/requests"><ListChecks className="bw-icon bw-icon--sm" />Requests</a>
+          <a className="bw-btn bw-btn--soft bw-btn--sm" href="#/new"><Upload className="bw-icon bw-icon--sm" />Add files</a>
+          <a className="bw-btn bw-btn--soft bw-btn--sm" href="#/settings"><Settings className="bw-icon bw-icon--sm" />Set up</a>
+        </nav>
+      </section>
     </>
   );
 }

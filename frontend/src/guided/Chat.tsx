@@ -67,7 +67,6 @@ export function ChatPanel({ envelopeId, onChanged, autoFocus }: { envelopeId?: n
           <button key={s} type="button" disabled={!!pending}
                   onClick={() => (s.startsWith("Paste") ? document.getElementById(`chat-${envelopeId ?? "home"}`)?.focus() : send(s))}>{s}</button>
         ))}
-        {!envelopeId && <a className="bw-suggestions__link" href="#/new">Add files instead</a>}
       </div>
       <form className="bw-composer" onSubmit={(e) => { e.preventDefault(); send(draft); }}>
         <label className="bw-sr-only" htmlFor={`chat-${envelopeId ?? "home"}`}>Message</label>
