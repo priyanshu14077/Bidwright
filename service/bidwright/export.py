@@ -129,8 +129,8 @@ def _payment_days(conn: Connection) -> int:
     return int(conn.execute(text("SELECT value FROM ref.fee_assumption WHERE key = 'terms.payment_days'")).scalar() or 30)
 
 
-def template_id(data: bytes) -> str:
-    return f"default:{hashlib.sha256(data).hexdigest()[:12]}"
+def template_id(data: bytes, kind: str = "full") -> str:
+    return f"{kind}:{hashlib.sha256(data).hexdigest()[:12]}"
 
 
 def render(conn: Connection, v: dict, template: bytes) -> bytes:
@@ -141,17 +141,20 @@ def render(conn: Connection, v: dict, template: bytes) -> bytes:
     return out.getvalue()
 
 
-def file_stem(v: dict) -> str:
+def file_stem(v: dict, kind: str = "full") -> str:
     project = re.sub(r"[^A-Za-z0-9]+", "-", v["title"]).strip("-")[:50]
-    return f"{v['reference']}_v{v['version_no']}_{project}"
+    return f"{v['reference']}_v{v['version_no']}_{project}" + ("_fee-letter" if kind == "letter" else "")
 
 
 # ---------------------------------------------------------------- endpoints
 
 @router.post("/proposals/{proposal_id}/versions/{version_no}/export")
-def export(proposal_id: int, version_no: int, who: Principal = APPROVE):
-    template = DEFAULT_TEMPLATE.read_bytes()
-    tid = template_id(template)
+def export(proposal_id: int, version_no: int, who: Principal = APPROVE, template_kind: str = "full"):
+    """template_kind: full (the full proposal) or letter (the short fee letter)."""
+    if template_kind not in TEMPLATES:
+        raise HTTPException(422, f"template must be one of {', '.join(TEMPLATES)}")
+    template = TEMPLATES[template_kind].read_bytes()
+    tid = template_id(template, template_kind)
     with engine.connect() as conn:
         v = proposals.load_version(conn, proposal_id, version_no)
         if v["status"] == "draft":
