@@ -256,28 +256,7 @@ class Confirm(BaseModel):
 @app.post("/api/envelopes/{envelope_id}/confirm")
 def confirm(envelope_id: int, body: Confirm, who: Principal = REVIEW):
     with engine.begin() as conn:
-        open_conflicts = conn.execute(text("SELECT count(*) FROM intake.field_conflict WHERE envelope_id = :e "
-                                           "AND status = 'open'"), dict(e=envelope_id)).scalar()
-        if open_conflicts:
-            raise HTTPException(409, f"{open_conflicts} open conflict(s) must be resolved before confirming")
-        rec = record.build(conn, envelope_id)
-        snapshot = {k: v["value"] for k, v in rec.items() if not k.startswith("_")}
-        env = conn.execute(text("SELECT lead_status, completeness, country, billing_currency, routed_studio "
-                                "FROM intake.envelope WHERE envelope_id = :e"), dict(e=envelope_id)).one()
-        snapshot |= {"lead_status": env.lead_status, "completeness": float(env.completeness or 0)}
-        version = (conn.execute(text("SELECT max(version) FROM intake.opportunity WHERE envelope_id = :e"),
-                                dict(e=envelope_id)).scalar() or 0) + 1
-        conn.execute(text("INSERT INTO intake.opportunity (envelope_id, version, record, schema_version, confirmed_by) "
-                          "VALUES (:e, :v, CAST(:r AS jsonb), :sv, :u)"),
-                     dict(e=envelope_id, v=version, r=json.dumps(snapshot, default=str), sv=SCHEMA_VERSION, u=who.email))
-        ids = conn.execute(text("""UPDATE lineage.field_value SET status = 'confirmed' WHERE envelope_id = :e
-                                   AND status = 'proposed' RETURNING field_value_id"""), dict(e=envelope_id)).scalars().all()
-        conn.execute(text("""INSERT INTO lineage.field_change (field, new_value, action, reason, changed_by)
-                             VALUES ('*', CAST(:v AS jsonb), 'confirm', :r, :u)"""),
-                     dict(v=json.dumps({"envelope_id": envelope_id, "version": version, "values_locked": len(ids)}),
-                          r=body.reason, u=who.email))
-        conn.execute(text("UPDATE intake.envelope SET status = 'confirmed', updated_at = now() WHERE envelope_id = :e"),
-                     dict(e=envelope_id))
+        version = record.confirm(conn, envelope_id, who.email, body.reason)
     return {"envelope_id": envelope_id, "version": version}
 
 
