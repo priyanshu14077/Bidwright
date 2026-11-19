@@ -241,10 +241,15 @@ def normalize(f: Field, c: Candidate, ref: Reference, country: str | None) -> li
             flags.append(Flag("unknown_country", "warn", f"'{v['value_text']}' is not a market in the reference data",
                               f.name, c.field_value_id))
     elif f.kind == "city":
-        c.normalized = v["value_text"].strip().rstrip(".")
-        loc = ref.location(c.normalized, country)
+        # the model gives "City, CC" in English: a district resolves to its city, the code to its country
+        name, _, code = (v.get("normalized_text") or "").rpartition(",")
+        name = (name or v.get("normalized_text") or v["value_text"]).strip().rstrip(".")
+        c.normalized = name
+        c.value["country_hint"] = code.strip().upper() or None
+        loc = ref.location(name, country) or ref.location(v["value_text"].strip(), country)
         if loc:
             c.normalized = loc["city"]
+            c.value["country_hint"] = loc["country"]
     elif f.kind == "datetime":
         try:
             dt = datetime.fromisoformat(v.get("normalized_text") or "")
