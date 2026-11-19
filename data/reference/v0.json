@@ -1535,5 +1535,67 @@
     "position": "Professional indemnity insurance maintained at {firm}'s standard level"
    }
   ]
+ },
+ "intake_policy": {
+  "stage_defaults": {
+   "feasibility_estimate": [
+    "concept"
+   ],
+   "proposal": [
+    "concept",
+    "schematic_design"
+   ]
+  },
+  "service_default": [
+   "architecture"
+  ],
+  "min_comparables": 2,
+  "question_order": [
+   "gfa_m2",
+   "site_area_m2",
+   "stage_package",
+   "services",
+   "typology",
+   "city",
+   "country",
+   "submission_deadline",
+   "billing_currency",
+   "client_name"
+  ],
+  "max_questions": 5,
+  "decline_reasons": [
+   "Not one of our markets",
+   "Too small for us",
+   "No capacity",
+   "Unpaid feasibility",
+   "Deadline too short",
+   "Other"
+  ]
+ },
+ "studio_markets": {
+  "DXB": [
+   "AE",
+   "SA",
+   "QA",
+   "KW",
+   "BH",
+   "OM",
+   "EG",
+   "JO"
+  ],
+  "SIN": [
+   "SG",
+   "IN",
+   "AU"
+  ],
+  "SGN": [
+   "VN"
+  ],
+  "BCN": [
+   "ES"
+  ],
+  "CAN": [
+   "CN"
+  ]
  }
 }
