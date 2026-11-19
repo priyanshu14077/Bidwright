@@ -160,6 +160,7 @@ export const api = {
     call("/api/reference/synonyms", json(body)),
   observability: () => call<Observability>("/api/observability"),
   evaluation: () => call<Evaluation | null>("/api/evaluation/latest"),
+  intakeEvaluation: () => call<IntakeEvaluation | null>("/api/evaluation/intake"),
   pdfUrl: (documentId: number) => `/api/documents/${documentId}/pdf`,
   fees: (id: number, c: PricingChoices) => {
     const q = new URLSearchParams(Object.entries(c).filter(([, v]) => v !== undefined && v !== "" && v !== null)
@@ -399,6 +400,17 @@ export type FeeCard = {
       comparables: { currency: string; items: Comparable[] }; title: string | null }
 );
 export type Channel = "whatsapp" | "email" | "notes" | "upload";
+
+export type IntakeEvaluation = {
+  meta: { run_at: string; dataset: string; model: string; prompt_version: string; engine_version: string };
+  summary: { requests: number; recommendation_accuracy: number; status_accuracy: number; value_accuracy: number;
+    question_coverage: number; false_gaps: string; gaps_caught: string; cost_usd: number; llm_calls: number;
+    recommendation_confusion: Record<string, Record<string, number>>; status_accuracy_per_field: Record<string, number> };
+  results: { case_id: string; kind: string; channel: string; recommendation: { ok: boolean; got: string; expected: string };
+    fields_ok: number; fields: number; missed: string[] }[];
+};
+
+import type { TraceSpan } from "@/components/ui/agent-trace";
 
 // ---------------------------------------------------------------- the pricing logic register
 
