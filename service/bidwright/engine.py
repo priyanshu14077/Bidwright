@@ -83,7 +83,8 @@ class Reference:
                 self.countries[key.lower()] = code
         self.locations = [dict(r._mapping) for r in conn.execute(
             text("SELECT location_id, country, city, tier, aliases FROM ref.location"))]
-        self.studios = [dict(r._mapping) for r in conn.execute(text("SELECT code, name, city, country FROM ref.studio"))]
+        self.studios = [dict(r._mapping) for r in conn.execute(
+            text("SELECT code, name, city, country, markets FROM ref.studio ORDER BY code"))]
         self.criticality = {f: float(w) for f, crit, w in conn.execute(
             text("SELECT field, pricing_critical, weight FROM ref.field_criticality")) if crit}
         self.rules = [dict(r._mapping) for r in conn.execute(
