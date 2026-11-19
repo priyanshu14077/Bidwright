@@ -33,7 +33,7 @@ from bidwright.storage import blob_store
 
 REFERENCE_FILE = REPO_ROOT / "data" / "reference" / "v0.json"
 COST_BOOK_FILE = REPO_ROOT / "data" / "reference" / "cost-book-v0.json"
-SETTINGS_TABLES = ("ref.fee_assumption", "ref.typology_cost_ratio", "ref.market", "ref.construction_cost")
+SETTINGS_TABLES = ("ref.fee_assumption", "ref.typology_cost_ratio", "ref.market", "ref.construction_cost", "ref.clause")
 
 # The synthetic JSON's list of services uses "interior"; ref.service uses "interior_design".
 SERVICE_ALIASES = {"interior": "interior_design"}
@@ -137,8 +137,8 @@ def seed_workspace(conn: Connection, path: Path = REFERENCE_FILE, reset_pricing:
 
 def seed_settings(conn: Connection, path: Path = REFERENCE_FILE, cost_book: Path = COST_BOOK_FILE,
                  reset: bool = False) -> None:
-    """The fee method, cost ratios, markets and construction costs. Adds what the workspace lacks and keeps
-    what it has edited; reset=True replaces everything (the demo workspace)."""
+    """The fee method, cost ratios, markets, construction costs and the standard text library. Adds what the
+    workspace lacks and keeps what it has edited; reset=True replaces everything (the demo workspace)."""
     ref, book = json.loads(path.read_text()), json.loads(cost_book.read_text())
     if reset:
         for table in SETTINGS_TABLES:
@@ -159,6 +159,18 @@ def seed_settings(conn: Connection, path: Path = REFERENCE_FILE, cost_book: Path
          "updated_by) VALUES (:country, :city, :cost_type, :usd_m2, :year, :basis, :source, :note, :by)",
          [dict(c, year=book["base_year"], by=f"cost-book-{book['version']}") for c in book["costs"]]),
     ]
+    lib = ref["library"]
+    clauses = [dict(kind="scope", key=f"{c['service']}.{c['stage']}", service=c["service"], stage=c["stage"], seq=i,
+                    label=None, body=c["text"]) for i, c in enumerate(lib["scope"])]
+    clauses += [dict(kind="exclusion", key=f"e{i + 1}", service=None, stage=None, seq=i, label=None, body=t)
+                for i, t in enumerate(lib["exclusions"])]
+    clauses += [dict(kind="terms", key=k, service=None, stage=None, seq=i, label=None, body=t)
+                for i, (k, t) in enumerate(lib["terms"].items())]
+    clauses += [dict(kind="position", key=p["clause"], service=None, stage=None, seq=i, label=p["label"],
+                     body=p["position"]) for i, p in enumerate(lib["positions"])]
+    inserts.append(("INSERT INTO ref.clause (kind, key, service, stage, seq, label, body, updated_by) "
+                    "VALUES (:kind, :key, :service, :stage, :seq, :label, :body, :by)",
+                    [dict(c, by=source) for c in clauses]))
     for sql, rows in inserts:
         conn.execute(text(sql + " ON CONFLICT DO NOTHING"), rows)
 
