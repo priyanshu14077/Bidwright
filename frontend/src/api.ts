@@ -405,12 +405,15 @@ export type Channel = "whatsapp" | "email" | "notes" | "upload";
 export type LogicEntry = {
   id: string; section: string; title: string; value: string; rule: string; source: string;
   kind: "cost" | "setting" | "market" | "rule" | "policy" | "built_in";
-  changed: { by: string; at: string; reason: string | null } | null; edit: string | null;
+  changed: LogicChange | null; history: LogicChange[]; edit: string | null; editable: boolean;
 };
+export type LogicChange = { by: string; at: string; reason: string | null; old: Record<string, unknown> | null;
+  new: Record<string, unknown> | null };
 export type LogicRegister = {
   engine_version: string; questions_prompt: string;
   sections: { key: string; title: string; about: string }[]; entries: LogicEntry[];
-  request: { envelope_id: number; title: string | null; priced: boolean; currency?: string; opening?: number; used: string[] } | null;
+  request: { envelope_id: number; title: string | null; priced: boolean; currency?: string; opening?: number; used: string[];
+             effects?: Record<string, string[]> } | null;
 };
 
 export const guided = {
