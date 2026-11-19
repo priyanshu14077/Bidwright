@@ -1,0 +1,131 @@
+/* Layout and small additions for the guided screens, on top of bw-ui.css v2. Only --bw-* tokens and
+   bw-* classes; no colours, fonts or shadows of its own. */
+
+.bw-desktop-only { display: none !important; }
+@media (min-width: 1024px) {
+  .bw-mobile-only { display: none !important; }
+  .bw-desktop-only { display: revert !important; }
+  .bw-btn.bw-desktop-only, .bw-source.bw-desktop-only { display: inline-flex !important; }
+  .bw-card.bw-desktop-only { display: flex !important; }
+}
+
+.bw-grow { flex: 1; }
+.bw-nowrap { flex-wrap: nowrap; }
+.bw-files { list-style: none; margin: 0; padding: 0; }
+.bw-linkish { border: 0; background: none; padding: 0 4px; color: var(--bw-link); text-decoration: underline;
+  text-underline-offset: 3px; font: inherit; cursor: pointer; }
+.bw-brand { color: var(--bw-text); text-decoration: none; }
+.bw-office__select { min-height: 40px; padding: 6px 12px; font-weight: 600; font-size: 14px; }
+@media (max-width: 1023px) { .bw-main { padding-bottom: 88px; } }
+
+/* ---------------------------------------------------------------- request header */
+.bw-request-header { flex-wrap: wrap; }
+.bw-request-header .bw-header__text { display: flex; flex-direction: column; gap: 2px; }
+.bw-steps a { color: inherit; text-decoration: none; }
+@media (min-width: 1024px) {
+  .bw-request-header .bw-title-sm { font-size: 26px; }
+  .bw-steps { margin-left: auto; }
+}
+
+/* ---------------------------------------------------------------- What we have
+   Phone: one column in the order hero → ask → answer → estimated → found.
+   Desktop: left = ask, answer, estimated, found; right = the message as it arrived and the hero. */
+.bw-g1 { display: flex; flex-direction: column; gap: var(--bw-s4); }
+.bw-g1__col { display: contents; }
+.bw-g1__hero { order: 0; }
+.bw-g1__ask { order: 1; }
+.bw-g1__reply { order: 2; }
+.bw-g1__est { order: 3; }
+.bw-g1__found { order: 4; }
+.bw-g1__message { order: 5; }
+@media (min-width: 1024px) {
+  .bw-g1 { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .bw-g1__col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+  .bw-g1__right { position: sticky; top: 0; }
+  .bw-g1__message .bw-quote { max-height: 260px; overflow-y: auto; }
+}
+
+/* ---------------------------------------------------------------- flip: both faces share one cell */
+.bw-flip { min-width: 0; grid-template-columns: minmax(0, 1fr); }
+.bw-flip__face { min-width: 0; }
+.bw-flip__back .bw-field__body { background: var(--bw-card); border-radius: var(--bw-r-md); padding: 10px 12px; }
+.bw-fee__facts { margin: 6px 0; padding-left: 18px; font-size: 13px; display: flex; flex-direction: column; gap: 2px; }
+.bw-fee__back { height: 100%; }
+.bw-fee__num { white-space: nowrap; overflow-wrap: normal; font-size: clamp(20px, 6.2vw, 30px); }
+.bw-fee__num--range { font-size: clamp(18px, 5.4vw, 26px); }
+@media (min-width: 1024px) { .bw-fee__num { font-size: 40px; } .bw-fee__num--range { font-size: 32px; } }
+
+/* ---------------------------------------------------------------- fee card: card and the director's column */
+.bw-fee-layout { display: flex; flex-direction: column; gap: var(--bw-s4); }
+@media (min-width: 1024px) {
+  .bw-fee-layout { flex-direction: row; align-items: flex-start; gap: 20px; }
+  .bw-fee-layout > .bw-stack { flex: 1; min-width: 0; }
+  .bw-fee-layout > .bw-actionbar { position: sticky; top: 0; }
+}
+.bw-approved { gap: 6px; }
+
+/* ---------------------------------------------------------------- the proposal, as a page */
+.bw-doc { display: flex; flex-direction: column; gap: 18px; }
+.bw-doc__cover { display: flex; flex-direction: column; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--bw-divider); }
+.bw-doc__facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 6px 0 0; font-size: 14px; }
+.bw-doc__facts dt { color: var(--bw-text-muted); }
+.bw-doc__facts dd { margin: 0; }
+.bw-doc__section { display: flex; flex-direction: column; gap: 8px; }
+.bw-doc .bw-doc__h { font: 700 16px/1.3 var(--bw-font-body); letter-spacing: 0; margin: 0; }
+.bw-doc__list { margin: 0; padding-left: 20px; font-size: 14.5px; display: flex; flex-direction: column; gap: 4px; }
+.bw-doc .md { font-size: 14.5px; }
+.bw-doc .md p { margin: 0 0 10px; }
+.bw-doc .md h3 { font: 700 14.5px var(--bw-font-body); letter-spacing: 0; margin: 12px 0 6px; }
+@media (min-width: 1024px) { .bw-doc.bw-card--hero { padding: 40px 48px 48px; } }
+
+.bw-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.bw-table th { text-align: left; font: 700 11px var(--bw-font-body); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--bw-text-label); padding: 6px 8px 6px 0; border-bottom: 1px solid var(--bw-divider); }
+.bw-table td { padding: 8px 8px 8px 0; border-bottom: 1px solid var(--bw-divider); vertical-align: top; }
+.bw-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bw-table__total td { font-weight: 700; border-bottom: 0; }
+
+/* ---------------------------------------------------------------- chat */
+.bw-chat-home { padding: 14px 6px 6px; }
+@media (min-width: 1024px) { .bw-chat-home { padding: 18px 10px 10px; } }
+.bw-chat-home .bw-chat__log { max-height: 52dvh; min-height: 160px; }
+dialog.bw-sheet .bw-chat__log { max-height: 56dvh; min-height: 200px; }
+dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
+.bw-chat__hint { padding: 8px 4px; }
+.bw-chat__err { padding: 0 16px; }
+.bw-chat .md p, .bw-chat .md ul { margin: 0 0 8px; }
+.bw-chat .md p:last-child, .bw-chat .md ul:last-child { margin-bottom: 0; }
+.bw-chat .md h3 { font: 700 15px var(--bw-font-body); letter-spacing: 0; }
+.bw-chat .md-table { font-size: 13px; border-collapse: collapse; }
+.bw-chat .md-table th, .bw-chat .md-table td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--bw-divider); text-align: left; }
+.bw-msg--user { white-space: pre-wrap; overflow-wrap: anywhere; }
+.bw-msg--system { align-self: center; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px;
+  font-size: 13px; color: var(--bw-text-muted); text-align: center; max-width: 94%; }
+.bw-msg--system[data-status="confirmed"] svg { color: var(--bw-found-fg); }
+.bw-msg--system .bw-chat__card { text-align: left; width: 100%; }
+.bw-chat__card { background: var(--bw-card); gap: 10px; padding: 14px; }
+.bw-chat__questions { margin: 0; padding-left: 20px; font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
+.bw-chat__sources { gap: 6px; }
+.bw-composer { align-items: flex-end; padding: 10px 6px 6px; }
+.bw-composer__input { resize: none; border-radius: 24px; min-height: 48px; max-height: 160px; padding: 13px 18px; field-sizing: content; }
+.bw-composer__send:disabled { background: var(--bw-disabled-bg); color: var(--bw-disabled-fg); cursor: not-allowed; }
+.bw-suggestions { padding: 2px 6px 0; align-items: center; }
+.bw-suggestions__link { font-size: 13px; color: var(--bw-text-muted); padding: 0 6px; }
+.bw-confirm[data-status="confirmed"] { box-shadow: inset 0 0 0 2px var(--bw-found-dot); animation: none; }
+.bw-confirm[data-status="cancelled"], .bw-confirm[data-status="failed"] { box-shadow: none; opacity: .7; animation: none; }
+
+/* every tappable thing is at least 44px on a phone, small buttons included */
+@media (max-width: 1023px) { .bw-btn--sm { min-height: var(--bw-tap); } }
+
+/* What we have: the cards sit inside column wrappers (display: contents on a phone), so they rise themselves */
+.bw-g1.bw-enter > .bw-g1__col { animation: none; }
+.bw-g1.bw-enter > .bw-g1__col > * {
+  animation: bw-rise var(--bw-dur-slow) var(--bw-ease) both; animation-delay: calc(var(--i, 0) * var(--bw-stagger));
+}
+
+/* a field's text and its pill stay inside the card: values wrap, long quotes end in an ellipsis */
+.bw-field { min-width: 0; }
+.bw-field__body { min-width: 0; }
+.bw-field__value { overflow-wrap: anywhere; }
+.bw-source { max-width: 100%; min-width: 0; }
+.bw-source__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
