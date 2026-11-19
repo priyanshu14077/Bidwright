@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, type Audit, type Detail, type Mapping, type RecordField, type Reference, type Source } from "../api";
+import {
+  ApiError, api, proposals, type Audit, type Detail, type FeeEstimate, type Mapping, type PricingChoices, type ProposalRow,
+  type RecordField, type Reference, type Source,
+} from "../api";
+import { PricingForm } from "../components/Edit";
 import { PdfViewer, type Highlight } from "../components/PdfViewer";
 import {
-  DOC_CLASS, LEAD, ORIGIN, codeLabel, countryName, daysLeft, formatDate, formatDateTime, formatValue, money,
+  DOC_CLASS, LEAD, ORIGIN, VERSION_STATUS, codeLabel, countryName, daysLeft, errorText, formatDate, formatDateTime,
+  formatValue, money, shortMoney,
 } from "../format";
 import { useCan } from "../session";
 
-type Tab = "record" | "sections" | "references" | "audit";
+type Tab = "record" | "sections" | "references" | "proposals" | "audit";
 const GROUP_ORDER = ["Client", "Location", "Project", "Areas", "Scope", "Dates", "Commercial", "Enrichment"];
 
 export function Review({ id, reference, onBack }: { id: number; reference: Reference | null; onBack: () => void }) {
@@ -46,7 +51,7 @@ export function Review({ id, reference, onBack }: { id: number; reference: Refer
 
   return (
     <div className="review">
-      <TitleBlock detail={detail} openConflicts={openConflicts} onBack={onBack} onChanged={load} />
+      <TitleBlock detail={detail} openConflicts={openConflicts} onBack={onBack} onChanged={load} onPrice={() => setTab("proposals")} />
       <div className="split">
         <section className="sheets" aria-label="Source documents">
           <ol className="register">
@@ -71,7 +76,7 @@ export function Review({ id, reference, onBack }: { id: number; reference: Refer
         <section className="panel">
           <nav className="tabs" role="tablist">
             {([["record", "Record"], ["sections", "Proposal sections"], ["references", "Reference projects"],
-               ["audit", "Audit trail"]] as const).map(([k, label]) => (
+               ["proposals", "Proposals"], ["audit", "Audit trail"]] as const).map(([k, label]) => (
               <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>
                 {label}
               </button>
@@ -85,6 +90,7 @@ export function Review({ id, reference, onBack }: { id: number; reference: Refer
             )}
             {tab === "sections" && <Sections id={id} version={env.status + openConflicts} />}
             {tab === "references" && <References detail={detail} />}
+            {tab === "proposals" && <Proposals detail={detail} />}
             {tab === "audit" && <AuditTrail id={id} stamp={JSON.stringify(record).length} />}
           </div>
         </section>
@@ -93,8 +99,8 @@ export function Review({ id, reference, onBack }: { id: number; reference: Refer
   );
 }
 
-function TitleBlock({ detail, openConflicts, onBack, onChanged }:
-  { detail: Detail; openConflicts: number; onBack: () => void; onChanged: () => void }) {
+function TitleBlock({ detail, openConflicts, onBack, onChanged, onPrice }:
+  { detail: Detail; openConflicts: number; onBack: () => void; onChanged: () => void; onPrice: () => void }) {
   const { envelope: env, record } = detail;
   const [confirming, setConfirming] = useState(false);
   const [reason, setReason] = useState("Checked every value against its source");
@@ -137,7 +143,10 @@ function TitleBlock({ detail, openConflicts, onBack, onChanged }:
       </div>
       <div className="tb-cell tb-actions">
         {confirmed ? (
-          <span className="stamp">Confirmed</span>
+          <>
+            <span className="stamp">Confirmed</span>
+            <button className="primary" onClick={onPrice}>Proposals</button>
+          </>
         ) : !can("review") ? (
           <span className="tb-sub">Your role can read this record but not change it.</span>
         ) : confirming ? (
@@ -474,4 +483,82 @@ function AuditTrail({ id, stamp }: { id: number; stamp: number }) {
       )}
     </div>
   );
+}
+
+function Proposals({ detail }: { detail: Detail }) {
+  const env = detail.envelope;
+  const can = useCan();
+  const [list, setList] = useState<ProposalRow[] | null>(null);
+  const [choices, setChoices] = useState<PricingChoices>({});
+  const [preview, setPreview] = useState<FeeEstimate | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const confirmed = env.status === "confirmed";
+
+  useEffect(() => { proposals.list(env.envelope_id).then(setList, () => setList([])); }, [env.envelope_id]);
+  useEffect(() => {
+    if (!confirmed) return;
+    const t = setTimeout(() => api.fees(env.envelope_id, choices).then(
+      (p) => { setPreview(p); setProblem(null); },
+      (e) => { setPreview(null); setProblem(missingText(e)); }), 250);
+    return () => clearTimeout(t);
+  }, [confirmed, env.envelope_id, choices]);
+
+  const create = async () => {
+    setCreating(true);
+    try {
+      const v = await proposals.create(env.envelope_id, choices);
+      location.hash = `#/proposal/${v.proposal_id}/v/${v.version_no}`;
+    } catch (e) { setProblem(missingText(e)); setCreating(false); }
+  };
+
+  return (
+    <div className="proposals-tab">
+      {list && list.length > 0 && (
+        <section className="group">
+          <h2>Proposals for this request</h2>
+          <table><thead><tr><th>Reference</th><th>Latest version</th><th className="num">Fee</th><th>Created</th></tr></thead>
+            <tbody>{list.map((p) => (
+              <tr key={p.proposal_id}>
+                <td><a href={`#/proposal/${p.proposal_id}/v/${p.latest_version}`}><strong>{p.reference}</strong></a></td>
+                <td>v{p.latest_version} <span className={`stamp-sm status-${p.status}`}>{VERSION_STATUS[p.status]}</span></td>
+                <td className="num">{money(p.fee_total_local, p.currency)}</td>
+                <td>{p.created_by}<br /><span className="dim">{formatDate(p.created_at)}</span></td>
+              </tr>))}</tbody></table>
+        </section>
+      )}
+      <section className="group">
+        <h2>Price this request</h2>
+        {!confirmed ? <p className="empty">Confirm the record first. Proposals are priced from a confirmed version, never from values still in review.</p> : <>
+          <p className="lede">The fee engine prices the confirmed record (version {env.confirmed_version}). Leave a choice empty
+            to let the engine decide; whatever it assumes is listed.</p>
+          <PricingForm value={choices} onChange={setChoices} />
+          {problem && <p className="error">{problem}</p>}
+          {preview && (
+            <div className="preview">
+              <p className="tb-figure">{money(preview.fee_total_local, preview.currency)}
+                <span className="dim"> professional fee, plus {money(preview.reimbursables_total_local, preview.currency)} reimbursables</span></p>
+              {preview.range && <p>Won bids priced this way: {shortMoney(preview.range.low_local, preview.currency)} to {shortMoney(preview.range.high_local, preview.currency)}. <span className="dim">{preview.range.basis}</span></p>}
+              <table><thead><tr><th>Service</th><th>Stage</th><th className="num">Fee</th></tr></thead>
+                <tbody>{preview.lines.map((l) => <tr key={`${l.service}-${l.stage}`}><td>{codeLabel(l.service)}</td><td>{codeLabel(l.stage)}</td>
+                  <td className="num">{money(l.amount_local, "")}</td></tr>)}</tbody></table>
+              {preview.inputs.assumed.length > 0 && <p className="dim">Assumed: {preview.inputs.assumed.join("; ")}</p>}
+              {preview.warnings.map((w) => <p key={w} className="sev-warn">{w}</p>)}
+            </div>
+          )}
+          {can("review") && <button className="primary" disabled={!preview || creating} onClick={create}>
+            {creating ? "Creating…" : "Create proposal"}</button>}
+        </>}
+      </section>
+    </div>
+  );
+}
+
+/** A pricing refusal says which inputs are missing; name them. */
+function missingText(e: unknown): string {
+  if (e instanceof ApiError && typeof e.detail === "object" && e.detail !== null && "missing" in e.detail
+      && Array.isArray(e.detail.missing) && e.detail.missing.length) {
+    return `Cannot price yet. Missing: ${e.detail.missing.map((m: unknown) => codeLabel(String(m))).join(", ")}. Fix them on the Record tab and confirm again.`;
+  }
+  return errorText(e);
 }
