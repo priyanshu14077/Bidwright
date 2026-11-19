@@ -542,10 +542,13 @@ class Engine:
             self.flags.append(Flag("unknown_location_tier", "warn", f"No location tier for {city}", "city"))
 
         currency = studio = None
-        if country:
+        asked = self.value("fee_currency")
+        if country or asked:
             in_country = [p for p in archive if p["country"] == country]
             national = self.ref.country_rows.get(country, {}).get("currency")
-            if in_country:
+            if asked:
+                currency, basis = asked, f"the client asked for fees in {asked}"
+            elif in_country:
                 cur, n = Counter(p["currency"] for p in in_country).most_common(1)[0]
                 currency = cur
                 basis = f"{n} of {len(in_country)} past proposals in this country were billed in {cur}"
