@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { ChevronRight, Inbox, ListChecks, Settings, Upload } from "lucide-react";
+import { ChevronRight, History, PanelRightClose, PanelRightOpen, Plus } from "lucide-react";
 import { ChatPanel } from "./Chat";
-import { api, type Envelope } from "../api";
+import { renameCurrent } from "./trail";
+import { api, type ChatThread, type Envelope } from "../api";
 import { useCan } from "../session";
 import { errorText, money } from "./ui";
 
@@ -38,27 +39,54 @@ function useRequests() {
 
 /** The first screen is the conversation: ask anything, or paste what a client sent. Below it, the ways into the
  * rest of the app, so a person can move on from wherever the conversation has got to. */
-export function Ask() {
+export function Ask({ threadId }: { threadId?: number }) {
   const { waiting } = useRequests();
+  const [title, setTitle] = useState<string | null>(null);
+  useEffect(() => { setTitle(null); }, [threadId]);
+  // a new conversation gets its own address once it has one, so a refresh or a link returns to it
+  const onThread = (t: ChatThread) => {
+    setTitle(t.title);
+    if (!threadId) { renameCurrent(`#/chat/${t.thread_id}`); location.replace(`#/chat/${t.thread_id}`); }
+  };
+  // two phases: before the first message, the box and its ways in sit in the middle of the screen; from the
+  // first message, the whole screen is the conversation, with the box pinned at the bottom
+  const [started, setStarted] = useState(!!threadId);
+  // the request dossier beside the chat: there once the chat is about a request; open unless closed (remembered)
+  const [hasDossier, setHasDossier] = useState(false);
+  const [dossierOpen, setDossierOpen] = useState(() => {
+    try { return localStorage.getItem("bw-dossier-open") !== "no"; } catch { return true; }
+  });
+  const toggleDossier = () => {
+    const next = !dossierOpen;
+    setDossierOpen(next);
+    try { localStorage.setItem("bw-dossier-open", next ? "yes" : "no"); } catch { /* not remembered */ }
+  };
   return (
-    <>
-      <div className="bw-stack" style={{ "--gap": "6px" } as React.CSSProperties}>
-        <h1 className="bw-display">Ask anything or paste a request</h1>
-        <p className="bw-lead">Paste a WhatsApp message, an email or your call notes and I'll tell you what's missing. Ask why a fee is what it is, or what needs a decision.</p>
-      </div>
-      <section className="bw-card bw-card--hero bw-chat-home" aria-label="Chat">
-        <ChatPanel autoFocus />
-        <nav className="bw-goto" aria-label="Go to">
-          <span className="bw-caps">Go to</span>
-          <a className="bw-btn bw-btn--soft bw-btn--sm" href="#/decide">
-            <Inbox className="bw-icon bw-icon--sm" />Decide{waiting.length > 0 && <span className="bw-badge">{waiting.length}</span>}
-          </a>
-          <a className="bw-btn bw-btn--soft bw-btn--sm" href="#/requests"><ListChecks className="bw-icon bw-icon--sm" />Requests</a>
-          <a className="bw-btn bw-btn--soft bw-btn--sm" href="#/new"><Upload className="bw-icon bw-icon--sm" />Add files</a>
-          <a className="bw-btn bw-btn--soft bw-btn--sm" href="#/settings"><Settings className="bw-icon bw-icon--sm" />Set up</a>
-        </nav>
-      </section>
-    </>
+    <div className="bw-ask" data-phase={started ? "chat" : "start"} data-dossier={hasDossier && dossierOpen ? "open" : undefined}>
+      {started ? (
+        <header className="bw-ask__bar">
+          <h1 className="bw-title-sm bw-ask__title">{title ?? (threadId ? "Conversation" : "New conversation")}</h1>
+          <div className="bw-row bw-nowrap">
+            <a className="bw-btn bw-btn--outline bw-btn--sm" href="#/chats"><History className="bw-icon bw-icon--sm" />Past chats</a>
+            <a className="bw-btn bw-btn--outline bw-btn--sm" href="#/"><Plus className="bw-icon bw-icon--sm" />New chat</a>
+            {hasDossier && (
+              <button type="button" className="bw-icon-btn bw-desktop-only bw-dossier-toggle" onClick={toggleDossier}
+                      aria-pressed={dossierOpen} aria-label={dossierOpen ? "Hide the request dossier" : "Show the request dossier"}
+                      title={dossierOpen ? "Hide the request dossier" : "Show the request dossier"}>
+                {dossierOpen ? <PanelRightClose className="bw-icon" /> : <PanelRightOpen className="bw-icon" />}
+              </button>
+            )}
+          </div>
+        </header>
+      ) : (
+        <div className="bw-ask__intro">
+          <h1 className="bw-display">Ask anything or paste a request</h1>
+          <p className="bw-lead">Paste what the client sent or add their files, and I'll say what's missing. Ask why a fee is what it is, or what needs a decision.</p>
+        </div>
+      )}
+      <ChatPanel key={threadId ?? "new"} threadId={threadId} onThread={onThread} autoFocus waiting={waiting.length}
+                 onStarted={(x) => setStarted((was) => was || x)} withDossier dossierOpen={dossierOpen} onDossier={setHasDossier} />
+    </div>
   );
 }
 
