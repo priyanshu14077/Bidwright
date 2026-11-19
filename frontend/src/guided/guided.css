@@ -134,3 +134,17 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
 .bw-field__value { overflow-wrap: anywhere; }
 .bw-source { max-width: 100%; min-width: 0; }
 .bw-source__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* ---------------------------------------------------------------- pricing logic register */
+.bw-search { display: flex; align-items: center; gap: 8px; }
+.bw-search .bw-input { flex: 1; }
+.bw-register { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.bw-register__item { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-top: 1px solid var(--bw-divider);
+  scroll-margin-top: 24px; }
+.bw-register__item:first-child { border-top: 0; }
+.bw-register__item[data-used] { box-shadow: inset 3px 0 0 var(--bw-found-dot); padding-left: 12px; }
+.bw-register__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.bw-register__title { font-weight: 700; flex: 1 1 220px; min-width: 0; }
+.bw-register__value { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.bw-register__rule { margin: 0; font-size: 14px; color: var(--bw-text-muted); }
+.bw-register__meta { font-size: 13px; gap: 6px; }
