@@ -1,4 +1,5 @@
-"""Generate the default proposal template, data/templates/proposal-v0.docx.
+"""Generate the two default templates: the full proposal (data/templates/proposal-v0.docx) and the short fee
+letter (data/templates/fee-letter-v0.docx), for quick asks by WhatsApp or email.
 
 The layout follows the sample archive's proposals: a cover block, nine numbered
 sections, a running header and a page-numbered footer. It is an ordinary Word
@@ -27,6 +28,7 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
 OUT = Path(__file__).parent / "proposal-v0.docx"
+LETTER = Path(__file__).parent / "fee-letter-v0.docx"
 INK, GREY = RGBColor(0x1E, 0x22, 0x26), RGBColor(0x59, 0x61, 0x6A)
 
 
@@ -90,18 +92,7 @@ def table(doc: Document, head: list[str], loop: str, cells: list[str], total: li
 
 def build() -> Document:
     doc = Document()
-    styles(doc)
-    sec = doc.sections[0]
-    sec.page_width, sec.page_height = Cm(21), Cm(29.7)
-    sec.left_margin = sec.right_margin = Cm(2)
-    sec.top_margin, sec.bottom_margin = Cm(2.2), Cm(2)
-    head = sec.header.paragraphs[0]
-    head.text = "{{ firm }}  ·  {{ reference }}"
-    head.runs[0].font.size, head.runs[0].font.color.rgb = Pt(8), GREY
-    foot = sec.footer.paragraphs[0]
-    foot.text = "{{ reference }} version {{ version }}  ·  {{ date }}  ·  Page "
-    foot.runs[0].font.size, foot.runs[0].font.color.rgb = Pt(8), GREY
-    page_field(foot)
+    page_setup(doc)
 
     firm = doc.add_paragraph()
     firm.add_run("{{ firm }}").bold = True
@@ -146,6 +137,52 @@ def build() -> Document:
     return doc
 
 
+def page_setup(doc: Document) -> None:
+    styles(doc)
+    sec = doc.sections[0]
+    sec.page_width, sec.page_height = Cm(21), Cm(29.7)
+    sec.left_margin = sec.right_margin = Cm(2)
+    sec.top_margin, sec.bottom_margin = Cm(2.2), Cm(2)
+    head = sec.header.paragraphs[0]
+    head.text = "{{ firm }}  ·  {{ reference }}"
+    head.runs[0].font.size, head.runs[0].font.color.rgb = Pt(8), GREY
+    foot = sec.footer.paragraphs[0]
+    foot.text = "{{ reference }} version {{ version }}  ·  {{ date }}  ·  Page "
+    foot.runs[0].font.size, foot.runs[0].font.color.rgb = Pt(8), GREY
+    page_field(foot)
+
+
+def build_letter() -> Document:
+    """One to two pages: who it is for, the fee by service and stage, how it is paid, and on what basis."""
+    doc = Document()
+    page_setup(doc)
+    firm = doc.add_paragraph()
+    firm.add_run("{{ firm }}").bold = True
+    doc.add_paragraph("{{ studio }}").runs[0].font.color.rgb = GREY
+    for line in ("{{ date }}", "{{ client }}", "{% if client_reference %}Your reference: {{ client_reference }}{% endif %}"):
+        doc.add_paragraph(line).paragraph_format.space_after = Pt(2)
+    doc.add_paragraph("Fee proposal: {{ project }}, {{ location }}", style="Heading 1")
+    doc.add_paragraph("Thank you for your request. We are pleased to set out our fee for {{ project }} below. "
+                      "Our reference is {{ reference }}.")
+    doc.add_paragraph("Fee", style="Heading 2")
+    doc.add_paragraph("All fees are in {{ currency }} and exclude VAT or other applicable taxes.")
+    table(doc, ["Service", "Stage", "Fee ({{ currency }})"], "fees", ["{{ r.service }}", "{{ r.stage }}", "{{ r.amount }}"],
+          total=["", "Total professional fee", "{{ fee_total }}"], widths=[6, 6, 5])
+    doc.add_paragraph("Payment", style="Heading 2")
+    table(doc, ["No.", "Milestone", "Share", "Amount ({{ currency }})"], "payment",
+          ["{{ r.seq }}", "{{ r.milestone }}", "{{ r.pct }}%", "{{ r.amount }}"], widths=[1.5, 9, 2.5, 4])
+    doc.add_paragraph("Basis", style="Heading 2")
+    for line in ("This fee is valid for {{ validity_days }} days from the date of this letter.",
+                 "Invoices are payable within {{ payment_days }} days of issue.",
+                 "Reimbursable expenses, exclusions and our standard terms are as set out in our full proposal, "
+                 "which we are happy to send on request."):
+        doc.add_paragraph(line, style="List Bullet")
+    doc.add_paragraph()
+    doc.add_paragraph("For and on behalf of {{ firm }}")
+    return doc
+
+
 if __name__ == "__main__":
     build().save(OUT)
-    print(f"wrote {OUT.name}")
+    build_letter().save(LETTER)
+    print(f"wrote {OUT.name} and {LETTER.name}")

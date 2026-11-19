@@ -30,6 +30,7 @@ export type RecordField = {
   group: string;
   kind: string;
   is_list: boolean;
+  options: string[];
   value: unknown;
   suggestion: unknown;
   suggestion_evidence: Record<string, unknown> | null;
@@ -66,6 +67,9 @@ export type Envelope = {
   proposal_status?: VersionStatus | null;
   proposal_total?: number | null;
   proposal_currency?: string | null;
+  gate1_decision?: "qualify" | "ask" | "decline" | null;
+  gate2_decision?: "approve" | "override" | "reject" | null;
+  open_questions?: number | null;
 };
 
 export type Doc = { document_id: number; file_name: string; doc_class: string | null; page_count: number | null;
@@ -335,4 +339,119 @@ export type Evaluation = {
   results: { proposal_id: string; envelope_id: number; style: string; traps: string[];
     fields: Record<string, { truth: unknown; got: unknown; ok: boolean }>;
     conflicts: { planted: string[]; found: string[]; detected: string[]; false: string[] }; lead_status: string }[];
+};
+
+
+// ---------------------------------------------------------------- guided flow: gate 1 and the fee card
+
+export type EvidenceKind = "text" | "reply" | "comparable" | "rule" | "setting" | "engine";
+export type Evidence = {
+  id: number | null; kind: EvidenceKind; why: string; subject?: string; quote?: string | null;
+  document_id?: number | null; field_value_id?: number | null; file_name?: string | null; channel?: string | null;
+  received_at?: string | null;
+  has_text?: boolean; has_pdf?: boolean; page?: number | null; span?: number[] | null;
+  ref?: { comparables?: string[]; low?: number; high?: number; confidence?: string } | null;
+};
+export type Confidence = "low" | "medium" | "high";
+export type Estimate = { value: unknown; low?: number; high?: number; confidence: Confidence; comparables: string[];
+  method: string; kind?: string; referenced?: boolean };
+export type FieldStatus = "found" | "ambiguous" | "estimated" | "missing";
+export type GateField = { name: string; label: string; status: FieldStatus; value: unknown; display: string;
+  range_display?: string | null; weight: number; pricing_critical: boolean; evidence: Evidence[];
+  estimate: Estimate | null; note: string | null };
+export type GateRule = { name: string; outcome: "no-go" | "clarify" | "flag"; message: string; why: string;
+  evidence: Evidence[] };
+export type Recommendation = "go" | "clarify" | "no-go";
+export type Gate1 = {
+  envelope_id: number; computed_at: string; recommendation: Recommendation;
+  completeness: { score: number; found: number; total: number };
+  fields: GateField[]; rules: GateRule[]; flags: GateRule[];
+  questions: { items: { field: string; question: string; worded: boolean }[]; message: string; worded: boolean };
+  reference_project: { reference: string; title: string; via: string; said: string } | null;
+  routed_studio: string | null;
+  decision: { decision: "qualify" | "ask" | "decline"; recommendation: string; reason: string | null; note: string | null;
+    decided_by: string; decided_at: string } | null;
+  decline_reasons: string[];
+};
+export type Assumption = { field: string; label: string; status: FieldStatus; display: string;
+  range_display: string | null; estimate: Estimate | null; note: string | null; evidence: Evidence[];
+  swing?: { down: number; up: number } };
+export type FeeDecision = { decision: "approve" | "override" | "reject"; amount: number | null;
+  engine_amount: number | null; currency: string | null; reason: string | null; note: string | null;
+  decided_by: string; decided_at: string; proposal_id: number | null };
+export type FeeCard = {
+  envelope_id: number; recommendation: Recommendation; assumptions: Assumption[]; rules: GateRule[]; flags: GateRule[];
+  decision: FeeDecision | null;
+  proposal: { proposal_id: number; reference: string; version_no: number; status: VersionStatus;
+    fee_total_local: number; outputs: Output[] } | null;
+} & (
+  | { status: "missing"; missing: { field: string; label: string }[] }
+  | { status: "error"; message: string }
+  | { status: "priced"; currency: string; opening: number; opening_usd: number;
+      won: { low: number; high: number; basis: string; cases: string[] } | null;
+      band: { low: number; high: number }; swings: { field: string; label: string; down: number; up: number }[];
+      stage_options: { stage: string; label: string; adds: number }[];
+      stages: { stage: string; label: string; amount: number }[]; scope: string; stage_line: string;
+      lines: { service: string; stage: string; amount: number; basis_qty: number; basis_unit: string;
+        factors: { name: string; value: number | string; source: string }[] }[];
+      why: { label: string; value: number | string; source: string }[]; warnings: string[];
+      checks: { level: "check" | "info"; text: string; evidence: Evidence[] }[];
+      comparables: { currency: string; items: Comparable[] }; title: string | null }
+);
+export type Channel = "whatsapp" | "email" | "notes" | "upload";
+
+export const guided = {
+  paste: (body: { text: string; channel: Channel; sender?: string }) =>
+    call<{ envelope_id: number; created: boolean }>("/api/envelopes/text", json(body)),
+  upload: (files: File[], channel: Channel) => {
+    const form = new FormData();
+    files.forEach((f) => form.append("files", f));
+    form.append("channel", channel);
+    return call<{ envelope_id: number; created: boolean }>("/api/envelopes", { method: "POST", body: form });
+  },
+  reply: (id: number, body: { text: string; channel: Channel }) => call(`/api/envelopes/${id}/text`, json(body)),
+  gate1: (id: number) => call<Gate1>(`/api/envelopes/${id}/gate1`),
+  decide: (id: number, body: { decision: "qualify" | "ask" | "decline"; reason?: string; note?: string }) =>
+    call<Gate1>(`/api/envelopes/${id}/gate1/decision`, json(body)),
+  reword: (id: number) => call<Gate1>(`/api/envelopes/${id}/gate1/questions`, { method: "POST" }),
+  fee: (id: number) => call<FeeCard>(`/api/envelopes/${id}/fee`),
+  decideFee: (id: number, body: { decision: "approve" | "override" | "reject"; amount?: number; reason?: string }) =>
+    call<FeeCard>(`/api/envelopes/${id}/fee/decision`, json(body)),
+  proposal: (id: number) => call<ProposalStep>(`/api/envelopes/${id}/proposal`),
+  draftProposal: (id: number) => call<ProposalStep>(`/api/envelopes/${id}/proposal/draft`, { method: "POST" }),
+  exportProposal: (id: number, template: TemplateKey) =>
+    call<ProposalStep>(`/api/envelopes/${id}/proposal/export`, json({ template })),
+  documentText: async (documentId: number) => {
+    const res = await fetch(`/api/documents/${documentId}/text`);
+    if (!res.ok) throw new ApiError(res.status, res.statusText);
+    return res.text();
+  },
+  resolve: (id: number, field: string, fieldValueId: number, reason: string) =>
+    call(`/api/envelopes/${id}/fields/${field}`, json({ action: "resolve_conflict", field_value_id: fieldValueId, reason })),
+};
+
+export type TemplateKey = "full" | "letter";
+export type ProposalStep = {
+  proposal: (Version & { outputs_by_template: Record<TemplateKey, Output[]>; pending: string[] }) | null;
+  templates: { key: TemplateKey; name: string }[];
+};
+
+// ---------------------------------------------------------------- chat
+
+export type ChatAction = { action_id: number; kind: string; envelope_id: number; summary: string;
+  status: "pending" | "confirmed" | "cancelled" | "failed"; before?: string; after?: string; reason?: string };
+export type RequestCard = { type: "request"; envelope_id: number; title: string | null; recommendation: Recommendation;
+  headline: string; why: string | null; counts: Record<string, number>;
+  questions: { field: string; question: string }[]; message: string };
+export type ChatMessage = { id: number; role: "user" | "assistant" | "system"; created_at: string; text: string;
+  sources?: Record<string, Evidence>; cards?: RequestCard[]; actions?: ChatAction[];
+  downloads?: { label: string; url: string }[]; status?: string };
+export type ChatThread = { thread_id: number; envelope_id: number | null; messages: ChatMessage[] };
+
+export const chat = {
+  send: (body: { message: string; thread_id?: number; envelope_id?: number }) => call<ChatThread>("/api/chat", json(body)),
+  thread: (id: number) => call<ChatThread>(`/api/chat/${id}`),
+  forRequest: (envelopeId: number) => call<ChatThread | null>(`/api/envelopes/${envelopeId}/chat`),
+  decide: (actionId: number, choice: "confirm" | "cancel") =>
+    call<ChatThread>(`/api/chat/actions/${actionId}/${choice}`, { method: "POST" }),
 };

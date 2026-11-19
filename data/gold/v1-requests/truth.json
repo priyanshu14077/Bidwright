@@ -1,0 +1,457 @@
+{
+  "dataset_version": "v1-requests",
+  "note": "Requests in the shape the practice actually receives them: WhatsApp lines and threads, voice notes, screenshots, emails with partial or wrong attachments, feasibility asks, call notes, repeat-client and revised requests, mixed-language and cross-entity asks, and three full packs reissued from v0-synthetic. Fictional. Each field is [status, value, hint]: status is found, ambiguous, missing or referenced (taken from a named past project; found or estimated are both right). The value is the correct one even when the request states it badly.",
+  "policy": {
+    "note": "The qualification policy the expected results were written against. The test in service/tests/test_request_set.py re-derives every expected recommendation from it.",
+    "weights": {"typology": 1.0, "services": 1.0, "stage_package": 1.0, "country": 1.0, "city": 0.8, "gfa_m2": 1.0,
+                "site_area_m2": 0.8, "submission_deadline": 0.5, "client_name": 0.3, "client_status": 0.3,
+                "billing_currency": 0.5, "quality_tier": 0.5},
+    "completeness_min": 0.75,
+    "pricing_fields": ["typology", "services", "stage_package", "country", "city", "gfa_m2", "site_area_m2"],
+    "deadline_min_working_days": 3,
+    "studio_currency": {"DXB": "AED", "BCN": "EUR", "SIN": "SGD", "SGN": "USD", "CAN": "CNY"},
+    "rules": {"market_not_served": "no-go", "no_matching_service": "no-go", "deadline_too_close": "no-go",
+              "low_completeness": "clarify", "ambiguous_pricing_field": "clarify", "feasibility_only": "clarify",
+              "currency_unconfirmed": "clarify"}
+  },
+  "cases": {
+    "W01": {
+      "kind": "whatsapp_one_liner", "channel": "whatsapp", "studio": "DXB", "received_at": "2026-11-16T10:42:13+04:00",
+      "demo": "step 1; reply.txt is the client's answer used in step 2",
+      "files": [{"name": "WhatsApp Chat - Karim.txt", "text": "W01/chat.txt"}],
+      "followups": [{"name": "WhatsApp reply - Karim.txt", "text": "W01/reply.txt"}],
+      "fields": {
+        "client_name": ["found", "Marina Crest"], "client_status": ["found", "repeat"],
+        "country": ["found", "AE"], "city": ["found", "Dubai", "JVC"], "typology": ["found", "residential"],
+        "services": ["found", ["architecture"]], "stage_package": ["found", ["concept"]],
+        "gfa_m2": ["missing", null, "~30 floors"], "site_area_m2": ["missing", null],
+        "quality_tier": ["missing", null], "billing_currency": ["missing", null],
+        "submission_deadline": ["found", "2026-11-26", "Thursday next week"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "clarify", "rules": ["low_completeness"], "flags": ["repeat_client"],
+                   "questions_cover": ["site_area_m2", "gfa_m2"]}
+    },
+    "W02": {
+      "kind": "whatsapp_one_liner", "channel": "whatsapp", "studio": "SIN", "received_at": "2026-11-18T16:05:31+08:00",
+      "files": [{"name": "WhatsApp Chat - Daniel Tan.txt", "text": "W02/chat.txt"}],
+      "fields": {
+        "client_name": ["missing", null], "client_status": ["missing", null],
+        "country": ["found", "SG"], "city": ["found", "Singapore"], "typology": ["found", "residential"],
+        "services": ["found", ["architecture", "interior_design"]], "stage_package": ["missing", null],
+        "gfa_m2": ["missing", null, "12 storeys, 180 units"], "site_area_m2": ["found", 12000, "roughly 1.2 ha"],
+        "quality_tier": ["missing", null], "billing_currency": ["missing", null],
+        "submission_deadline": ["found", "2026-12-04"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "clarify", "rules": ["low_completeness"], "flags": [],
+                   "questions_cover": ["stage_package", "gfa_m2", "client_name"]}
+    },
+    "W03": {
+      "kind": "whatsapp_one_liner", "channel": "whatsapp", "studio": "DXB", "received_at": "2026-11-18T11:20:04+04:00",
+      "files": [{"name": "WhatsApp Chat - +254 722 418 903.txt", "text": "W03/chat.txt"}],
+      "fields": {
+        "client_name": ["missing", null], "client_status": ["missing", null],
+        "country": ["found", "KE"], "city": ["found", "Nairobi"], "typology": ["found", "hospitality"],
+        "services": ["found", ["architecture"]],
+        "stage_package": ["found", ["concept", "schematic_design", "design_development"]],
+        "gfa_m2": ["missing", null, "60 keys"], "site_area_m2": ["missing", null],
+        "quality_tier": ["ambiguous", "low", "budget conscious"], "billing_currency": ["missing", null],
+        "submission_deadline": ["missing", null]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "no-go", "rules": ["market_not_served", "low_completeness"], "flags": [],
+                   "questions_cover": []}
+    },
+    "W04": {
+      "kind": "whatsapp_thread", "channel": "whatsapp", "studio": "DXB", "received_at": "2026-11-17T08:54:15+04:00",
+      "files": [{"name": "WhatsApp Chat - Layla.txt", "text": "W04/chat.txt"}],
+      "fields": {
+        "client_name": ["found", "Saadiyat Shores Hospitality LLC"], "client_status": ["found", "new"],
+        "country": ["found", "AE"], "city": ["found", "Abu Dhabi", "Saadiyat"], "typology": ["found", "hospitality"],
+        "services": ["found", ["architecture", "interior_design", "landscape"]],
+        "stage_package": ["found", ["concept", "schematic_design"]],
+        "gfa_m2": ["found", 42000, "BUA"], "site_area_m2": ["found", 31000, "3.1 ha"],
+        "quality_tier": ["found", "luxury", "5-star"], "billing_currency": ["found", "AED"],
+        "submission_deadline": ["found", "2026-12-03"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "go", "rules": [], "flags": [], "questions_cover": []}
+    },
+    "W05": {
+      "kind": "whatsapp_thread", "channel": "whatsapp", "studio": "DXB", "received_at": "2026-11-19T13:13:02+04:00",
+      "files": [{"name": "WhatsApp Chat - Faisal.txt", "text": "W05/chat.txt"}],
+      "fields": {
+        "client_name": ["found", "Al Safa Properties"], "client_status": ["found", "new"],
+        "country": ["found", "AE"], "city": ["found", "Dubai", "Business Bay"], "typology": ["found", "office"],
+        "services": ["found", ["architecture"]], "stage_package": ["found", ["concept", "schematic_design"]],
+        "gfa_m2": ["ambiguous", 45000, "I think 45k, will confirm"], "site_area_m2": ["found", 2800],
+        "quality_tier": ["missing", null], "billing_currency": ["missing", null],
+        "submission_deadline": ["ambiguous", "2026-11-30", "end of month"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "clarify", "rules": ["low_completeness", "ambiguous_pricing_field"], "flags": [],
+                   "questions_cover": ["gfa_m2", "submission_deadline"]}
+    },
+    "W06": {
+      "kind": "whatsapp_voice_note", "channel": "whatsapp", "studio": "SGN", "received_at": "2026-11-18T09:31:00+07:00",
+      "files": [{"name": "Voice note - Minh.txt", "text": "W06/voice-note.txt"}],
+      "fields": {
+        "client_name": ["found", "Thao Dien Land"], "client_status": ["found", "new"],
+        "country": ["found", "VN"], "city": ["found", "Ho Chi Minh City"], "typology": ["found", "residential"],
+        "services": ["found", ["architecture"]], "stage_package": ["found", ["concept", "schematic_design"]],
+        "gfa_m2": ["missing", null, "around thirty storeys"], "site_area_m2": ["found", 4000],
+        "quality_tier": ["found", "high", "high-end"], "billing_currency": ["found", "USD"],
+        "submission_deadline": ["found", "2026-11-27", "Friday next week"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "go", "rules": [], "flags": [], "questions_cover": ["gfa_m2"]}
+    },
+    "W07": {
+      "kind": "whatsapp_screenshot", "channel": "whatsapp", "studio": "SIN", "received_at": "2026-11-19T10:03:40+08:00",
+      "files": [{"name": "Screenshot 2026-11-19 at 10.04.png", "render": "whatsapp_screenshot", "text": "W07/chat.txt"}],
+      "fields": {
+        "client_name": ["found", "Westbridge Group"], "client_status": ["found", "new"],
+        "country": ["found", "AU"], "city": ["found", "Sydney", "Parramatta"], "typology": ["found", "mixed_use"],
+        "services": ["found", ["architecture"]], "stage_package": ["found", ["concept"]],
+        "gfa_m2": ["found", 58000], "site_area_m2": ["found", 6500],
+        "quality_tier": ["missing", null], "billing_currency": ["missing", null],
+        "submission_deadline": ["found", "2026-12-11"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "clarify", "rules": ["currency_unconfirmed"], "flags": ["cross_entity"],
+                   "questions_cover": ["billing_currency"]}
+    },
+    "E01": {
+      "kind": "email_forwarded_chain", "channel": "email", "studio": "DXB", "received_at": "2026-11-16T08:30:00+04:00",
+      "files": [{"name": "Fwd RFP Al Waha Residences.eml", "render": "email", "text": "E01/forward.txt",
+                 "from": "Rania Saleh <rania@northbeam.example>", "to": "rfp@northbeam.example",
+                 "subject": "Fwd: RFP: Al Waha Residences, Al Malqa"}],
+      "fields": {
+        "client_name": ["found", "Al Waha Real Estate"], "client_status": ["found", "new"],
+        "country": ["found", "SA"], "city": ["found", "Riyadh"], "typology": ["found", "residential"],
+        "services": ["found", ["architecture", "interior_design"]],
+        "stage_package": ["found", ["concept", "schematic_design", "design_development"]],
+        "gfa_m2": ["found", 36500, "BUA"], "site_area_m2": ["found", 5200],
+        "quality_tier": ["missing", null], "billing_currency": ["found", "SAR"],
+        "submission_deadline": ["found", "2026-12-07"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "go", "rules": [], "flags": ["cross_entity"], "questions_cover": []}
+    },
+    "E02": {
+      "kind": "email_partial_attachment", "channel": "email", "studio": "DXB", "received_at": "2026-11-19T11:00:00+04:00",
+      "files": [{"name": "Marsa Wharf Offices - area schedule.eml", "render": "email", "text": "E02/body.txt",
+                 "from": "Hamad Al-Kuwari <hamad@marsawharf.example>", "to": "rfp@northbeam.example",
+                 "subject": "Marsa Wharf Offices, Doha: area schedule",
+                 "attachments": [{"name": "Marsa_Wharf_Area_Schedule.pdf", "text": "E02/area_schedule.txt"}]}],
+      "fields": {
+        "client_name": ["found", "Marsa Wharf Developments"], "client_status": ["found", "new"],
+        "country": ["found", "QA"], "city": ["found", "Doha"], "typology": ["found", "office"],
+        "services": ["found", ["architecture"]], "stage_package": ["missing", null, "to be confirmed"],
+        "gfa_m2": ["found", 22400], "site_area_m2": ["found", 4100],
+        "quality_tier": ["missing", null], "billing_currency": ["missing", null],
+        "submission_deadline": ["missing", null, "to be confirmed"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "clarify", "rules": ["low_completeness", "currency_unconfirmed"], "flags": [],
+                   "questions_cover": ["stage_package", "submission_deadline", "billing_currency"]}
+    },
+    "E03": {
+      "kind": "email_wrong_attachment", "channel": "email", "studio": "SGN", "received_at": "2026-11-17T14:00:00+07:00",
+      "files": [{"name": "RFP Lumiere Hotel - see attached brief.eml", "render": "email", "text": "E03/body.txt",
+                 "from": "Hoang Van Duc <duc.hoang@lumiere-hospitality.example>", "to": "saigon@northbeam.example",
+                 "subject": "RFP: Lumière Hotel, Da Nang (see attached brief)",
+                 "attachments": [{"name": "Lumiere_Hotel_Brief.pdf", "text": "E03/brief_wrong.txt"}]}],
+      "fields": {
+        "client_name": ["found", "Lumière Hospitality"], "client_status": ["found", "new"],
+        "country": ["found", "VN"], "city": ["ambiguous", "Da Nang", "the attachment is for Hanoi"],
+        "typology": ["ambiguous", "hospitality", "the attachment is an office fit-out"],
+        "services": ["ambiguous", ["architecture", "landscape"], "the attachment asks for interior design"],
+        "stage_package": ["found", ["concept", "schematic_design"]],
+        "gfa_m2": ["missing", null, "only the wrong attachment gives an area, of another building"],
+        "site_area_m2": ["missing", null],
+        "quality_tier": ["missing", null], "billing_currency": ["missing", null],
+        "submission_deadline": ["found", "2026-12-10"]},
+      "appointment_intent": true,
+      "conflicts": ["city", "typology"],
+      "expected": {"recommendation": "clarify", "rules": ["low_completeness", "ambiguous_pricing_field"], "flags": [],
+                   "questions_cover": ["gfa_m2", "site_area_m2"]}
+    },
+    "F01": {
+      "kind": "feasibility", "channel": "email", "studio": "SIN", "received_at": "2026-11-17T09:12:00+08:00",
+      "demo": "step 3",
+      "files": [{"name": "Rough number - Pune plot.eml", "render": "email", "text": "F01/body.txt",
+                 "from": "Rohan Mehta <rohan.mehta@kalyani-infra.example>", "to": "singapore@northbeam.example",
+                 "subject": "Rough number: Pune plot"}],
+      "fields": {
+        "client_name": ["found", "Kalyani Infra"], "client_status": ["found", "new"],
+        "country": ["found", "IN"], "city": ["found", "Pune", "Hinjewadi"], "typology": ["found", "mixed_use"],
+        "services": ["found", ["architecture"]], "stage_package": ["found", ["feasibility", "concept"]],
+        "gfa_m2": ["missing", null], "site_area_m2": ["found", 16187, "4 acres"],
+        "quality_tier": ["missing", null], "billing_currency": ["found", "USD"],
+        "submission_deadline": ["missing", null]},
+      "appointment_intent": false,
+      "expected": {"recommendation": "clarify", "rules": ["feasibility_only"], "flags": ["cross_entity"],
+                   "questions_cover": ["gfa_m2", "submission_deadline"]}
+    },
+    "F02": {
+      "kind": "feasibility", "channel": "whatsapp", "studio": "DXB", "received_at": "2026-11-19T19:44:37+04:00",
+      "files": [{"name": "WhatsApp Chat - +971 50 662 1874.txt", "text": "F02/chat.txt"}],
+      "fields": {
+        "client_name": ["missing", null], "client_status": ["missing", null],
+        "country": ["found", "AE"], "city": ["found", "Al Ain"], "typology": ["found", "residential", "villas"],
+        "services": ["missing", null], "stage_package": ["found", ["feasibility"]],
+        "gfa_m2": ["missing", null, "maybe 20 villas"], "site_area_m2": ["found", 20000, "about 2 hectares"],
+        "quality_tier": ["missing", null], "billing_currency": ["missing", null],
+        "submission_deadline": ["missing", null]},
+      "appointment_intent": false,
+      "expected": {"recommendation": "clarify", "rules": ["low_completeness", "feasibility_only"], "flags": [],
+                   "questions_cover": ["services", "client_name", "gfa_m2"]}
+    },
+    "F03": {
+      "kind": "feasibility", "channel": "email", "studio": "SIN", "received_at": "2026-11-18T15:20:00+08:00",
+      "files": [{"name": "Fee estimate - Surfers Paradise hotel.eml", "render": "email", "text": "F03/body.txt",
+                 "from": "Sophie Walker <s.walker@pacificcrest.example>", "to": "singapore@northbeam.example",
+                 "subject": "Fee estimate request: Surfers Paradise hotel site"}],
+      "fields": {
+        "client_name": ["found", "Pacific Crest Hotels"], "client_status": ["found", "new"],
+        "country": ["found", "AU"], "city": ["found", "Gold Coast", "Surfers Paradise"],
+        "typology": ["found", "hospitality"], "services": ["found", ["architecture"]],
+        "stage_package": ["found", ["concept"]], "gfa_m2": ["missing", null, "200 keys"],
+        "site_area_m2": ["found", 3200], "quality_tier": ["missing", null], "billing_currency": ["found", "AUD"],
+        "submission_deadline": ["found", "2026-12-01"]},
+      "appointment_intent": false,
+      "expected": {"recommendation": "clarify", "rules": ["feasibility_only"], "flags": ["cross_entity"],
+                   "questions_cover": ["gfa_m2"]}
+    },
+    "N01": {
+      "kind": "call_notes", "channel": "notes", "studio": "SIN", "received_at": "2026-11-18T17:00:00+08:00",
+      "files": [{"name": "Call notes - Harbourline phase 2.txt", "text": "N01/call-notes.txt"}],
+      "fields": {
+        "client_name": ["found", "Harbourline Residences"], "client_status": ["found", "repeat"],
+        "country": ["referenced", "SG", "next to the existing condo, Harbourline Residences (P08)"],
+        "city": ["referenced", "Singapore", "next to the existing condo, Harbourline Residences (P08)"],
+        "typology": ["found", "residential"],
+        "services": ["found", ["architecture", "interior_design", "landscape"]],
+        "stage_package": ["found", ["concept", "schematic_design", "design_development"]],
+        "gfa_m2": ["ambiguous", 47000, "roughly 46-48k sqm"], "site_area_m2": ["found", 9800],
+        "quality_tier": ["missing", null], "billing_currency": ["found", "SGD"],
+        "submission_deadline": ["ambiguous", "2026-12-15", "mid-Dec"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "clarify", "rules": ["ambiguous_pricing_field"], "flags": ["repeat_client"],
+                   "questions_cover": ["gfa_m2", "submission_deadline"]}
+    },
+    "N02": {
+      "kind": "meeting_notes", "channel": "notes", "studio": "SIN", "received_at": "2026-11-16T20:30:00+08:00",
+      "files": [{"name": "Meeting notes - Arabian Sea Realty.txt", "text": "N02/meeting-notes.txt"}],
+      "fields": {
+        "client_name": ["found", "Arabian Sea Realty"], "client_status": ["found", "repeat"],
+        "country": ["found", "IN"], "city": ["found", "Mumbai", "BKC"], "typology": ["found", "office"],
+        "services": ["found", ["architecture"]], "stage_package": ["found", ["concept", "schematic_design"]],
+        "gfa_m2": ["found", 60387, "6,50,000 sq ft"], "site_area_m2": ["missing", null],
+        "quality_tier": ["missing", null], "billing_currency": ["found", "INR"],
+        "submission_deadline": ["missing", null, "formal RFP expected early December"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "go", "rules": [], "flags": ["repeat_client", "cross_entity"],
+                   "questions_cover": ["site_area_m2", "submission_deadline"]}
+    },
+    "N03": {
+      "kind": "call_notes", "channel": "notes", "studio": "DXB", "received_at": "2026-11-19T12:00:00+04:00",
+      "files": [{"name": "Call notes - Coral Bay spa.txt", "text": "N03/call-notes.txt"}],
+      "fields": {
+        "client_name": ["found", "Coral Bay Hospitality"], "client_status": ["found", "repeat"],
+        "country": ["found", "AE"], "city": ["found", "Ras Al Khaimah"], "typology": ["found", "hospitality"],
+        "services": ["found", ["architecture", "interior_design"]], "stage_package": ["found", ["concept"]],
+        "gfa_m2": ["found", 3500, "spa wing"], "site_area_m2": ["missing", null],
+        "quality_tier": ["missing", null], "billing_currency": ["missing", null],
+        "submission_deadline": ["found", "2026-11-23", "first thing Monday 23rd"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "no-go", "rules": ["deadline_too_close"], "flags": ["repeat_client"],
+                   "questions_cover": []}
+    },
+    "R01": {
+      "kind": "repeat_client", "channel": "email", "studio": "DXB", "received_at": "2026-11-18T10:00:00+04:00",
+      "files": [{"name": "Dubai Hills office - similar to Bay Square.eml", "render": "email", "text": "R01/body.txt",
+                 "from": "Karim Nassar <karim.nassar@marinacrest.example>", "to": "rfp@northbeam.example",
+                 "subject": "New office project, similar to Bay Square"}],
+      "fields": {
+        "client_name": ["found", "Marina Crest Developments"], "client_status": ["found", "repeat"],
+        "country": ["found", "AE"], "city": ["found", "Dubai", "Dubai Hills"], "typology": ["found", "office"],
+        "services": ["referenced", ["architecture", "interior_design"], "same scope as Bay Square (P14)"],
+        "stage_package": ["referenced", ["concept", "schematic_design"], "same scope as Bay Square (P14)"],
+        "gfa_m2": ["found", 30000], "site_area_m2": ["missing", null],
+        "quality_tier": ["missing", null], "billing_currency": ["missing", null],
+        "submission_deadline": ["found", "2026-12-08"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "go", "rules": [], "flags": ["repeat_client"], "questions_cover": ["site_area_m2"]}
+    },
+    "R02": {
+      "kind": "repeat_client", "channel": "whatsapp", "studio": "DXB", "received_at": "2026-11-18T12:30:45+04:00",
+      "files": [{"name": "WhatsApp Chat - Oasis Living.txt", "text": "R02/chat.txt"}],
+      "fields": {
+        "client_name": ["found", "Oasis Living"], "client_status": ["found", "repeat"],
+        "country": ["found", "AE"], "city": ["found", "Abu Dhabi", "Yas"], "typology": ["found", "residential"],
+        "services": ["found", ["masterplan", "architecture", "landscape"]],
+        "stage_package": ["referenced", ["concept", "schematic_design", "design_development"], "like Oasis Gardens (P04)"],
+        "gfa_m2": ["missing", null, "~80 villas"], "site_area_m2": ["missing", null],
+        "quality_tier": ["missing", null], "billing_currency": ["missing", null],
+        "submission_deadline": ["found", "2026-12-15"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "clarify", "rules": ["low_completeness"], "flags": ["repeat_client"],
+                   "questions_cover": ["site_area_m2", "gfa_m2"]}
+    },
+    "R03": {
+      "kind": "repeat_client", "channel": "email", "studio": "SGN", "received_at": "2026-11-19T09:00:00+07:00",
+      "files": [{"name": "Han River Bay phase 2.eml", "render": "email", "text": "R03/body.txt",
+                 "from": "Nguyen Thi Lan <lan.nguyen@hanriver.example>", "to": "saigon@northbeam.example",
+                 "subject": "Han River Bay phase 2: beach club and villas"}],
+      "fields": {
+        "client_name": ["found", "Han River Resorts JSC"], "client_status": ["found", "repeat"],
+        "country": ["found", "VN"], "city": ["found", "Da Nang"], "typology": ["found", "hospitality"],
+        "services": ["found", ["architecture", "interior_design"]],
+        "stage_package": ["found", ["concept", "schematic_design"]],
+        "gfa_m2": ["found", 12000], "site_area_m2": ["missing", null, "within the masterplan"],
+        "quality_tier": ["missing", null], "billing_currency": ["found", "USD"],
+        "submission_deadline": ["found", "2026-12-04"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "go", "rules": [], "flags": ["repeat_client"], "questions_cover": ["site_area_m2"]}
+    },
+    "V01": {
+      "kind": "revision", "channel": "email", "studio": "DXB", "received_at": "2026-11-18T09:00:00+04:00",
+      "files": [{"name": "Al Noor Gateway Phase 2 - request.eml", "render": "email", "text": "V01/original.txt",
+                 "from": "Saud Al-Qahtani <saud@alnoor-ui.example>", "to": "rfp@northbeam.example",
+                 "subject": "Al Noor Gateway Phase 2: request for proposal", "date": "2026-11-10T10:00:00+03:00"},
+                {"name": "Al Noor Gateway Phase 2 - revision.eml", "render": "email", "text": "V01/revision.txt",
+                 "from": "Saud Al-Qahtani <saud@alnoor-ui.example>", "to": "rfp@northbeam.example",
+                 "subject": "Re: Al Noor Gateway Phase 2: revised request"}],
+      "fields": {
+        "client_name": ["found", "Al Noor Urban Investment Co."], "client_status": ["found", "repeat"],
+        "country": ["found", "SA"], "city": ["found", "Riyadh"], "typology": ["found", "mixed_use"],
+        "services": ["found", ["architecture", "landscape"]],
+        "stage_package": ["found", ["concept", "schematic_design", "design_development"], "DD added in the revision"],
+        "gfa_m2": ["found", 95000, "revised from 120,000"], "site_area_m2": ["found", 31000],
+        "quality_tier": ["missing", null], "billing_currency": ["missing", null],
+        "submission_deadline": ["found", "2026-12-08", "moved from 30 November"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "clarify", "rules": ["currency_unconfirmed"], "flags": ["repeat_client"],
+                   "questions_cover": ["billing_currency"]}
+    },
+    "V02": {
+      "kind": "revision", "channel": "whatsapp", "studio": "DXB", "received_at": "2026-11-18T09:05:12+04:00",
+      "files": [{"name": "WhatsApp Chat - Sana.txt", "text": "V02/chat.txt"}],
+      "fields": {
+        "client_name": ["missing", null, "only 'Marina hotel'"], "client_status": ["missing", null],
+        "country": ["found", "AE"], "city": ["found", "Dubai", "Dubai Marina"], "typology": ["found", "hospitality"],
+        "services": ["found", ["interior_design", "architecture"], "architecture added later"],
+        "stage_package": ["ambiguous", ["concept", "schematic_design", "design_development"], "given for interiors only"],
+        "gfa_m2": ["missing", null, "interiors 4,500 m2; podium areas to follow"], "site_area_m2": ["missing", null],
+        "quality_tier": ["missing", null], "billing_currency": ["missing", null],
+        "submission_deadline": ["found", "2026-12-01"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "clarify", "rules": ["low_completeness", "ambiguous_pricing_field"], "flags": [],
+                   "questions_cover": ["gfa_m2", "stage_package", "client_name"]}
+    },
+    "V03": {
+      "kind": "revision", "channel": "email", "studio": "SIN", "received_at": "2026-11-17T10:00:00+08:00",
+      "files": [{"name": "Straits Tower - Addendum 2.eml", "render": "email", "text": "V03/body.txt",
+                 "from": "Development <development@straitsreit.example>", "to": "singapore@northbeam.example",
+                 "subject": "Straits Tower RFP: Addendum 2",
+                 "attachments": [{"name": "Straits_Tower_Addendum_2.pdf", "text": "V03/addendum.txt"}]}],
+      "fields": {
+        "client_name": ["found", "Straits Commercial REIT"], "client_status": ["found", "repeat"],
+        "country": ["referenced", "SG", "Straits Tower (P07)"], "city": ["referenced", "Singapore", "Straits Tower (P07)"],
+        "typology": ["found", "mixed_use"],
+        "services": ["found", ["architecture"]], "stage_package": ["found", ["concept", "schematic_design"]],
+        "gfa_m2": ["found", 74000], "site_area_m2": ["found", 6200],
+        "quality_tier": ["missing", null], "billing_currency": ["missing", null],
+        "submission_deadline": ["found", "2026-12-09"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "go", "rules": [], "flags": ["repeat_client"], "questions_cover": []}
+    },
+    "X01": {
+      "kind": "mixed_language", "channel": "whatsapp", "studio": "DXB", "received_at": "2026-11-19T14:04:02+04:00",
+      "files": [{"name": "WhatsApp Chat - Abdullah.txt", "text": "X01/chat.txt"}],
+      "fields": {
+        "client_name": ["missing", null], "client_status": ["missing", null],
+        "country": ["found", "SA"], "city": ["found", "Jeddah"], "typology": ["found", "residential", "villa compound"],
+        "services": ["found", ["architecture"]], "stage_package": ["found", ["concept"]],
+        "gfa_m2": ["missing", null, "25 villas"], "site_area_m2": ["found", 18000],
+        "quality_tier": ["missing", null], "billing_currency": ["missing", null],
+        "submission_deadline": ["ambiguous", "2026-11-27", "end of next week"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "clarify", "rules": ["low_completeness", "currency_unconfirmed"], "flags": [],
+                   "questions_cover": ["client_name", "gfa_m2", "submission_deadline"]}
+    },
+    "X02": {
+      "kind": "mixed_language", "channel": "email", "studio": "SGN", "received_at": "2026-11-18T10:00:00+07:00",
+      "files": [{"name": "Moi bao gia - khach san Nha Trang.eml", "render": "email", "text": "X02/body.txt",
+                 "from": "Le Minh Quan <quan.le@vinhhai-tourism.example>", "to": "saigon@northbeam.example",
+                 "subject": "Mời báo giá thiết kế: khách sạn 4 sao Nha Trang"}],
+      "fields": {
+        "client_name": ["found", "Vinh Hai Tourism JSC"], "client_status": ["found", "new"],
+        "country": ["found", "VN"], "city": ["found", "Nha Trang"], "typology": ["found", "hospitality"],
+        "services": ["found", ["architecture"]], "stage_package": ["found", ["concept", "schematic_design"]],
+        "gfa_m2": ["found", 15000, "15.000 m² (dot as thousands separator)"], "site_area_m2": ["found", 3500],
+        "quality_tier": ["found", "high", "4 sao (4-star)"], "billing_currency": ["missing", null],
+        "submission_deadline": ["found", "2026-12-05"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "go", "rules": [], "flags": [], "questions_cover": []}
+    },
+    "X03": {
+      "kind": "cross_entity", "channel": "email", "studio": "SIN", "received_at": "2026-11-19T11:30:00+08:00",
+      "files": [{"name": "HITEC City IT park tower.eml", "render": "email", "text": "X03/body.txt",
+                 "from": "Arjun Reddy <arjun.reddy@deccantechparks.example>", "to": "singapore@northbeam.example",
+                 "subject": "Fee proposal request: IT park tower, HITEC City"}],
+      "fields": {
+        "client_name": ["found", "Deccan Tech Parks Pvt Ltd", "invoices to Deccan Holdings Pte Ltd"],
+        "client_status": ["found", "new"],
+        "country": ["found", "IN"], "city": ["found", "Hyderabad", "HITEC City"], "typology": ["found", "office"],
+        "services": ["found", ["architecture"]], "stage_package": ["found", ["concept", "schematic_design"]],
+        "gfa_m2": ["found", 102193, "1.1 million sq ft"], "site_area_m2": ["found", 18211, "4.5 acres"],
+        "quality_tier": ["missing", null], "billing_currency": ["found", "USD"],
+        "submission_deadline": ["found", "2026-12-09"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "go", "rules": [], "flags": ["cross_entity"], "questions_cover": []}
+    },
+    "K01": {
+      "kind": "full_pack", "channel": "email", "studio": "SIN", "received_at": "2024-12-30T09:00:00+08:00",
+      "demo": "step 4",
+      "files": [{"pack": "../v0-synthetic/packs/P08"}],
+      "fields": {
+        "client_name": ["found", "Harbourline Residences Pte Ltd"], "client_status": ["found", "repeat"],
+        "country": ["found", "SG"], "city": ["found", "Singapore"], "typology": ["found", "residential"],
+        "services": ["found", ["architecture", "interior_design", "landscape"]],
+        "stage_package": ["found", ["concept", "schematic_design", "design_development", "construction_review"]],
+        "gfa_m2": ["ambiguous", 41000, "area schedule 41,000 vs main RFP 36,900"], "site_area_m2": ["found", 15500],
+        "quality_tier": ["missing", null], "billing_currency": ["missing", null],
+        "submission_deadline": ["found", "2025-01-20"]},
+      "appointment_intent": true,
+      "conflicts": ["gfa_m2"],
+      "expected": {"recommendation": "clarify", "rules": ["ambiguous_pricing_field"], "flags": ["repeat_client"],
+                   "questions_cover": ["gfa_m2"]}
+    },
+    "K02": {
+      "kind": "full_pack", "channel": "email", "studio": "SIN", "received_at": "2025-08-20T09:00:00+05:30",
+      "files": [{"pack": "../v0-synthetic/packs/P13"}],
+      "fields": {
+        "client_name": ["found", "Arabian Sea Realty Pvt Ltd"], "client_status": ["found", "new"],
+        "country": ["found", "IN"], "city": ["found", "Mumbai"], "typology": ["found", "residential"],
+        "services": ["found", ["architecture", "interior_design"]],
+        "stage_package": ["found", ["concept", "schematic_design", "design_development"]],
+        "gfa_m2": ["found", 110000, "square feet with Indian digit grouping"], "site_area_m2": ["found", 9500],
+        "quality_tier": ["missing", null], "billing_currency": ["missing", null],
+        "submission_deadline": ["found", "2025-09-10"]},
+      "appointment_intent": true,
+      "expected": {"recommendation": "clarify", "rules": ["currency_unconfirmed"], "flags": ["uncapped_liability", "cross_entity"],
+                   "questions_cover": ["billing_currency"]}
+    },
+    "K03": {
+      "kind": "full_pack", "channel": "email", "studio": "DXB", "received_at": "2025-01-13T09:00:00+04:00",
+      "files": [{"pack": "../v0-synthetic/packs/P02"}],
+      "fields": {
+        "client_name": ["found", "Coral Bay Hospitality Holdings"], "client_status": ["found", "new"],
+        "country": ["found", "AE"], "city": ["found", "Ras Al Khaimah"], "typology": ["found", "hospitality"],
+        "services": ["found", ["architecture", "interior_design", "landscape"]],
+        "stage_package": ["found", ["concept", "schematic_design", "design_development", "gfc_review"]],
+        "gfa_m2": ["ambiguous", 38000, "area schedule 38,000 vs main RFP 42,180"], "site_area_m2": ["found", 62000],
+        "quality_tier": ["missing", null], "billing_currency": ["missing", null],
+        "submission_deadline": ["found", "2025-02-03"]},
+      "appointment_intent": true,
+      "conflicts": ["gfa_m2"],
+      "expected": {"recommendation": "clarify", "rules": ["ambiguous_pricing_field"], "flags": [],
+                   "questions_cover": ["gfa_m2"]}
+    }
+  }
+}

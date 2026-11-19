@@ -20,6 +20,7 @@ data/gold/*/runs/
 docs/files.zip
 # Client material under NDA (SOG): never commit; deleted at the end of the evaluation phase
 docs/business requiremets/
+frontend/public/inspo/
 confidential/
 corrected-format/
 # TypeScript incremental build cache

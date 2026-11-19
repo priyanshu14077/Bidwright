@@ -33,7 +33,8 @@ from bidwright.storage import blob_store
 
 REFERENCE_FILE = REPO_ROOT / "data" / "reference" / "v0.json"
 COST_BOOK_FILE = REPO_ROOT / "data" / "reference" / "cost-book-v0.json"
-SETTINGS_TABLES = ("ref.fee_assumption", "ref.typology_cost_ratio", "ref.market", "ref.construction_cost", "ref.clause")
+SETTINGS_TABLES = ("ref.fee_assumption", "ref.typology_cost_ratio", "ref.market", "ref.construction_cost", "ref.clause",
+                   "ref.intake_setting")
 
 # The synthetic JSON's list of services uses "interior"; ref.service uses "interior_design".
 SERVICE_ALIASES = {"interior": "interior_design"}
@@ -132,6 +133,11 @@ def seed_workspace(conn: Connection, path: Path = REFERENCE_FILE, reset_pricing:
     ]
     for sql, rows in upserts:
         conn.execute(text(sql), rows)
+    # completeness counts exactly the starter pack's fields
+    conn.execute(text("DELETE FROM ref.field_criticality WHERE NOT (field = ANY(:fields))"),
+                 dict(fields=[f for f, _, _ in ref["field_criticality"]]))
+    conn.execute(text("DELETE FROM ref.qualification_rule WHERE owner = 'starter-pack' AND NOT (name = ANY(:names))"),
+                 dict(names=[r["name"] for r in ref["qualification_rules"]]))
     seed_settings(conn, path, reset=reset_pricing)
 
 
@@ -171,8 +177,18 @@ def seed_settings(conn: Connection, path: Path = REFERENCE_FILE, cost_book: Path
     inserts.append(("INSERT INTO ref.clause (kind, key, service, stage, seq, label, body, updated_by) "
                     "VALUES (:kind, :key, :service, :stage, :seq, :label, :body, :by)",
                     [dict(c, by=source) for c in clauses]))
+    inserts.append(("INSERT INTO ref.intake_setting (key, value, updated_by) VALUES (:key, CAST(:value AS jsonb), :by)",
+                    [dict(key=k, value=json.dumps(v), by=source) for k, v in ref["intake_policy"].items()]))
     for sql, rows in inserts:
         conn.execute(text(sql + " ON CONFLICT DO NOTHING"), rows)
+    seed_studio_markets(conn, ref, reset)
+
+
+def seed_studio_markets(conn: Connection, ref: dict, reset: bool = False) -> None:
+    """The countries each studio covers, for studios the workspace has. Keeps a workspace's own edits."""
+    for code, markets in ref["studio_markets"].items():
+        conn.execute(text("UPDATE ref.studio SET markets = :m WHERE code = :c AND (:reset OR markets = '{}')"),
+                     dict(c=code, m=markets, reset=reset))
 
 
 def country_codes(conn: Connection) -> dict[str, str]:
@@ -210,6 +226,7 @@ def load_archive(conn: Connection, dataset_version: str) -> int:
         ),
         [dict(s, country=countries[s["country"].lower()]) for s in data["studios"]],
     )
+    seed_studio_markets(conn, json.loads(REFERENCE_FILE.read_text()))
     conn.execute(
         text("INSERT INTO archive.client (client_id, dataset_version, name, client_type, country) "
              "VALUES (:client_id, :v, :name, :type, :country)"),
@@ -404,6 +421,33 @@ def load_gold(conn: Connection, dataset_version: str) -> int:
     return len(cases)
 
 
+REQUEST_SET = "v1-requests"
+
+
+def load_requests(conn: Connection, dataset_version: str = REQUEST_SET) -> int:
+    """The incoming-request gold set: expected field statuses and outcomes, no envelopes. The evaluation
+    ingests each request when it runs (titles start with "[eval"), so these stay out of the inbox."""
+    truth = json.loads((REPO_ROOT / "data" / "gold" / dataset_version / "truth.json").read_text())
+    for envelope_id in conn.execute(text("SELECT envelope_id FROM eval.gold_case WHERE dataset_version = :v "
+                                         "AND envelope_id IS NOT NULL"), dict(v=dataset_version)).scalars().all():
+        delete_envelope(conn, envelope_id)
+    conn.execute(text("DELETE FROM eval.gold_case WHERE dataset_version = :v"), dict(v=dataset_version))
+    for case_id, case in sorted(truth["cases"].items()):
+        key = dict(v=dataset_version, c=case_id)
+        expected = case["expected"] | {"conflicts": case.get("conflicts", []),
+                                       "appointment_intent": case["appointment_intent"]}
+        conn.execute(text("""INSERT INTO eval.gold_case (dataset_version, case_id, style, issued_at, kind, channel,
+                                studio, expected)
+                             VALUES (:v, :c, :kind, :issued, :kind, :channel, :studio, CAST(:expected AS jsonb))"""),
+                     key | dict(kind=case["kind"], issued=case["received_at"], channel=case["channel"],
+                                studio=case["studio"], expected=json.dumps(expected)))
+        conn.execute(text("""INSERT INTO eval.gold_truth (dataset_version, case_id, field, value, status, hint)
+                             VALUES (:v, :c, :f, CAST(:val AS jsonb), :status, :hint)"""),
+                     [key | dict(f=f, status=spec[0], val=json.dumps(spec[1]), hint=spec[2] if len(spec) > 2 else None)
+                      for f, spec in case["fields"].items()])
+    return len(truth["cases"])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", default=settings.dataset_version)
@@ -417,13 +461,14 @@ def main() -> None:
         seed_workspace(conn, reset_pricing=True)
         n = load_archive(conn, args.dataset)
         g = 0 if args.skip_gold else load_gold(conn, args.dataset)
+        r = load_requests(conn)
     with owner_engine.connect() as conn:
         others = conn.execute(text("SELECT org_id FROM tenancy.organization WHERE NOT is_demo")).scalars().all()
     for other in others:  # fill pricing gaps in existing workspaces without touching their edits
         with workspace(other), owner_engine.begin() as conn:
             seed_settings(conn)
     print(f"loaded shared data and schemas {schemas}; demo workspace '{DEMO_ORG['name']}' has {n} proposals "
-          f"and {g} gold RFP packs from {args.dataset}")
+          f"and {g} gold RFP packs from {args.dataset}, plus {r} gold requests from {REQUEST_SET}")
     print(f"demo sign-in: {DEMO_USER['email']} / {DEMO_USER['password']}")
 
 

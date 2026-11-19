@@ -19,7 +19,8 @@ from bidwright.storage import blob_store
 
 MIME = {".pdf": "application/pdf", ".eml": "message/rfc822", ".zip": "application/zip",
         ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".txt": "text/plain",
+        ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif"}
 
 
 def expand(files: list[tuple[str, bytes]]) -> list[tuple[str, bytes, str | None]]:
@@ -43,8 +44,12 @@ def expand(files: list[tuple[str, bytes]]) -> list[tuple[str, bytes, str | None]
 
 
 def ingest(conn: Connection, files: list[tuple[str, bytes]], channel: str, sender: str | None = None,
-           title: str | None = None, received_at: datetime | None = None) -> tuple[int, bool]:
-    """Store a pack. Returns (envelope_id, created)."""
+           title: str | None = None, received_at: datetime | None = None,
+           envelope_id: int | None = None) -> tuple[int, bool]:
+    """Store a pack, or with envelope_id add files (a client's reply) to a request. Returns (envelope_id, created).
+
+    Messages, notes and emails are laid out from their text, so every line is an exact slice of it with its
+    character offset. Images are stored now and read (transcribed) when the request is extracted."""
     items = expand(files)
     stored = [(name, data, parent, *blob_store.put(data, name)) for name, data, parent in items]
     shas = [s[3] for s in stored]
@@ -52,7 +57,10 @@ def ingest(conn: Connection, files: list[tuple[str, bytes]], channel: str, sende
     existing = conn.execute(
         text("SELECT envelope_id FROM lineage.source_document WHERE sha256 = ANY(:shas) AND envelope_id IS NOT NULL "
              "ORDER BY document_id LIMIT 1"), dict(shas=shas)).scalar()
-    created = existing is None
+    if envelope_id is not None:
+        created, existing = False, envelope_id
+    else:
+        created = existing is None
     if created:
         if title is None:
             title = email_title(items) or Path(files[0][0]).stem
@@ -72,21 +80,30 @@ def ingest(conn: Connection, files: list[tuple[str, bytes]], channel: str, sende
             ids_by_name[name] = known
             continue
         supported = reading.is_supported(name)
-        pdf = reading.render_pdf(name, data) if supported else None
+        suffix = Path(name).suffix.lower()
+        text_uri = None
+        if suffix in reading.TEXT_SUFFIXES:
+            body = reading.document_text(name, data)
+            text_uri = blob_store.put(body.encode(), Path(name).stem + ".text.txt")[1]
+            pages = reading.text_pages(body)
+            pdf = reading.text_to_pdf(name, body)
+        else:
+            pdf = reading.render_pdf(name, data) if supported else None
+            pages = reading.read_layout(pdf) if pdf else []
         render_uri = blob_store.put(pdf, Path(name).stem + ".render.pdf")[1] if pdf else None
-        pages = reading.read_layout(pdf) if pdf else []
+        is_image = suffix in reading.IMAGE_SUFFIXES
         doc_id = conn.execute(
             text("""INSERT INTO lineage.source_document
                     (envelope_id, parent_document_id, channel, file_name, mime_type, size_bytes, sha256, blob_uri,
-                     render_uri, sender, received_at, doc_class, page_count, supported)
-                    VALUES (:env, :parent, :channel, :name, :mime, :size, :sha, :uri, :render, :sender,
+                     render_uri, text_uri, sender, received_at, doc_class, page_count, supported)
+                    VALUES (:env, :parent, :channel, :name, :mime, :size, :sha, :uri, :render, :text_uri, :sender,
                             COALESCE(:received_at, now()), :doc_class, :pages, :supported)
                     RETURNING document_id"""),
             dict(env=envelope_id, parent=ids_by_name.get(parent) if parent else None, channel=channel, name=name,
-                 mime=MIME.get(Path(name).suffix.lower()), size=len(data), sha=sha, uri=uri, render=render_uri,
+                 mime=MIME.get(suffix), size=len(data), sha=sha, uri=uri, render=render_uri, text_uri=text_uri,
                  sender=sender, received_at=received_at, pages=len(pages) or None,
-                 doc_class="email" if name.lower().endswith(".eml") else ("unsupported" if not supported else None),
-                 supported=supported and pdf is not None),
+                 doc_class="email" if suffix == ".eml" else ("unsupported" if not supported else None),
+                 supported=supported and (pdf is not None or is_image)),
         ).scalar_one()
         ids_by_name[name] = doc_id
         if pages:
@@ -94,7 +111,8 @@ def ingest(conn: Connection, files: list[tuple[str, bytes]], channel: str, sende
                 text("INSERT INTO lineage.page (document_id, page_no, width, height, lines) "
                      "VALUES (:d, :n, :w, :h, CAST(:lines AS jsonb))"),
                 [dict(d=doc_id, n=p.page_no, w=p.width, h=p.height,
-                      lines=json.dumps([{"id": ln.line_id, "text": ln.text, "bbox": ln.bbox} for ln in p.lines]))
+                      lines=json.dumps([{"id": ln.line_id, "text": ln.text, "bbox": ln.bbox}
+                                        | ({"start": ln.start} if ln.start is not None else {}) for ln in p.lines]))
                  for p in pages],
             )
     conn.execute(text("UPDATE intake.envelope SET updated_at = now(), "

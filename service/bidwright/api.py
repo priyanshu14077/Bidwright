@@ -8,16 +8,17 @@ the caller's workspace; row-level security does the rest.
 
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field as PField
 from sqlalchemy import text
 
-from bidwright import drafting, export, fees, proposals, record
+from bidwright import chat, drafting, export, feecard, fees, gate1, proposals, record
 from bidwright.auth import require, router as auth_router
-from bidwright.config import REPO_ROOT, settings
+from bidwright.config import settings
 from bidwright.db import engine, in_workspace
 from bidwright.engine import comparables, run_engine
 from bidwright.extraction import extract_envelope
@@ -31,6 +32,9 @@ app.include_router(auth_router)
 app.include_router(proposals.router)
 app.include_router(drafting.router)
 app.include_router(export.router)
+app.include_router(gate1.router)
+app.include_router(feecard.router)
+app.include_router(chat.router)
 
 READ, INTAKE, REVIEW, REFERENCE, BACKTEST = (Depends(require(p)) for p in
                                              ("read", "intake", "review", "reference", "backtest"))
@@ -57,6 +61,61 @@ async def upload(background: BackgroundTasks, files: list[UploadFile] = File(...
     return {"envelope_id": envelope_id, "created": created}
 
 
+TEXT_SOURCES = {"whatsapp": "WhatsApp message", "email": "Email", "notes": "Notes", "upload": "Pasted text"}
+
+
+class PastedText(BaseModel):
+    text: str = PField(min_length=1, max_length=200_000)
+    channel: Literal["whatsapp", "email", "notes", "upload"] = "upload"
+    sender: str | None = PField(None, max_length=200)
+    received_at: datetime | None = None
+
+
+def text_source(body: PastedText) -> tuple[datetime, str, bytes]:
+    at = body.received_at or datetime.now(timezone.utc)
+    who = f" from {re.sub(r'[^\w .+-]', '', body.sender)[:60]}" if body.sender else ""
+    return at, f"{TEXT_SOURCES[body.channel]}{who} {at:%Y-%m-%d %H.%M}.txt", body.text.replace("\r\n", "\n").encode()
+
+
+@app.post("/api/envelopes/text")
+def paste(body: PastedText, background: BackgroundTasks, who: Principal = INTAKE):
+    """A request pasted or forwarded as text: a WhatsApp message or thread, an email, call notes."""
+    at, name, data = text_source(body)
+    with engine.begin() as conn:
+        envelope_id, created = ingest(conn, [(name, data)], body.channel, sender=body.sender,
+                                      title=name.removesuffix(".txt"), received_at=at)
+        if created:
+            conn.execute(text("UPDATE intake.envelope SET status = 'extracting' WHERE envelope_id = :e"),
+                         dict(e=envelope_id))
+    if created:
+        background.add_task(in_workspace, who.org_id, extract_envelope, envelope_id)
+    return {"envelope_id": envelope_id, "created": created}
+
+
+@app.post("/api/envelopes/{envelope_id}/text")
+def add_text(envelope_id: int, body: PastedText, background: BackgroundTasks, who: Principal = INTAKE):
+    """The client's reply (or any later message) added to a request; the request is read again with it."""
+    at, name, data = text_source(body)
+    with engine.begin() as conn:
+        if not conn.execute(text("SELECT 1 FROM intake.envelope WHERE envelope_id = :e"), dict(e=envelope_id)).first():
+            raise HTTPException(404, "no such request")
+        ingest(conn, [(name, data)], body.channel, sender=body.sender, received_at=at, envelope_id=envelope_id)
+        conn.execute(text("UPDATE intake.envelope SET status = 'extracting' WHERE envelope_id = :e"), dict(e=envelope_id))
+    background.add_task(in_workspace, who.org_id, extract_envelope, envelope_id)
+    return {"envelope_id": envelope_id, "status": "extracting"}
+
+
+@app.get("/api/documents/{document_id}/text")
+def document_text(document_id: int, _: Principal = READ):
+    """A text source (message, notes, email, transcribed screenshot) as text, for showing quotes in place."""
+    with engine.connect() as conn:
+        uri = conn.execute(text("SELECT text_uri FROM lineage.source_document WHERE document_id = :d"),
+                           dict(d=document_id)).first()
+    if not uri or not uri.text_uri:
+        raise HTTPException(404, "this document has no text form")
+    return Response(blob_store.get(uri.text_uri), media_type="text/plain; charset=utf-8")
+
+
 @app.post("/api/envelopes/{envelope_id}/extract")
 def rerun(envelope_id: int, background: BackgroundTasks, who: Principal = INTAKE):
     background.add_task(in_workspace, who.org_id, extract_envelope, envelope_id)
@@ -77,6 +136,12 @@ def inbox(_: Principal = READ):
                (SELECT count(*) FROM intake.engine_flag f WHERE f.envelope_id = e.envelope_id AND f.severity <> 'info') AS flags,
                (SELECT count(*) FROM lineage.source_document d WHERE d.envelope_id = e.envelope_id) AS documents,
                (SELECT max(version) FROM intake.opportunity o WHERE o.envelope_id = e.envelope_id) AS confirmed_version,
+               (SELECT decision FROM intake.gate_decision d WHERE d.envelope_id = e.envelope_id AND d.gate = 1
+                  ORDER BY decided_at DESC, decision_id DESC LIMIT 1) AS gate1_decision,
+               (SELECT decision FROM intake.gate_decision d WHERE d.envelope_id = e.envelope_id AND d.gate = 2
+                  ORDER BY decided_at DESC, decision_id DESC LIMIT 1) AS gate2_decision,
+               (SELECT jsonb_array_length(assessment->'ask') FROM intake.assessment a
+                  WHERE a.envelope_id = e.envelope_id) AS open_questions,
                p.proposal_id, p.reference AS proposal_reference, p.version_no AS proposal_version,
                p.status AS proposal_status, p.fee_total_local AS proposal_total, p.currency AS proposal_currency
         FROM intake.envelope e LEFT JOIN ref.location l USING (location_id)
@@ -84,6 +149,7 @@ def inbox(_: Principal = READ):
                            FROM proposal.bid b JOIN proposal.version v USING (proposal_id)
                            WHERE b.envelope_id = e.envelope_id
                            ORDER BY b.created_at DESC, v.version_no DESC LIMIT 1) p ON true
+        WHERE e.title IS NULL OR e.title NOT LIKE '[eval %'
         ORDER BY e.received_at DESC""")
 
 
@@ -190,28 +256,7 @@ class Confirm(BaseModel):
 @app.post("/api/envelopes/{envelope_id}/confirm")
 def confirm(envelope_id: int, body: Confirm, who: Principal = REVIEW):
     with engine.begin() as conn:
-        open_conflicts = conn.execute(text("SELECT count(*) FROM intake.field_conflict WHERE envelope_id = :e "
-                                           "AND status = 'open'"), dict(e=envelope_id)).scalar()
-        if open_conflicts:
-            raise HTTPException(409, f"{open_conflicts} open conflict(s) must be resolved before confirming")
-        rec = record.build(conn, envelope_id)
-        snapshot = {k: v["value"] for k, v in rec.items() if not k.startswith("_")}
-        env = conn.execute(text("SELECT lead_status, completeness, country, billing_currency, routed_studio "
-                                "FROM intake.envelope WHERE envelope_id = :e"), dict(e=envelope_id)).one()
-        snapshot |= {"lead_status": env.lead_status, "completeness": float(env.completeness or 0)}
-        version = (conn.execute(text("SELECT max(version) FROM intake.opportunity WHERE envelope_id = :e"),
-                                dict(e=envelope_id)).scalar() or 0) + 1
-        conn.execute(text("INSERT INTO intake.opportunity (envelope_id, version, record, schema_version, confirmed_by) "
-                          "VALUES (:e, :v, CAST(:r AS jsonb), :sv, :u)"),
-                     dict(e=envelope_id, v=version, r=json.dumps(snapshot, default=str), sv=SCHEMA_VERSION, u=who.email))
-        ids = conn.execute(text("""UPDATE lineage.field_value SET status = 'confirmed' WHERE envelope_id = :e
-                                   AND status = 'proposed' RETURNING field_value_id"""), dict(e=envelope_id)).scalars().all()
-        conn.execute(text("""INSERT INTO lineage.field_change (field, new_value, action, reason, changed_by)
-                             VALUES ('*', CAST(:v AS jsonb), 'confirm', :r, :u)"""),
-                     dict(v=json.dumps({"envelope_id": envelope_id, "version": version, "values_locked": len(ids)}),
-                          r=body.reason, u=who.email))
-        conn.execute(text("UPDATE intake.envelope SET status = 'confirmed', updated_at = now() WHERE envelope_id = :e"),
-                     dict(e=envelope_id))
+        version = record.confirm(conn, envelope_id, who.email, body.reason)
     return {"envelope_id": envelope_id, "version": version}
 
 

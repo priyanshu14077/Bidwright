@@ -13,11 +13,10 @@ The AI suggests; the engine only accepts values in the controlled lists.
 import json
 import math
 import re
-import statistics
 import uuid
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from rapidfuzz import fuzz
@@ -55,6 +54,7 @@ class Candidate:
     normalized: object = None
     status: str = "proposed"
     notes: list[str] = field(default_factory=list)
+    replaced: bool = False  # a later message revises this value
 
 
 @dataclass
@@ -83,7 +83,8 @@ class Reference:
                 self.countries[key.lower()] = code
         self.locations = [dict(r._mapping) for r in conn.execute(
             text("SELECT location_id, country, city, tier, aliases FROM ref.location"))]
-        self.studios = [dict(r._mapping) for r in conn.execute(text("SELECT code, name, city, country FROM ref.studio"))]
+        self.studios = [dict(r._mapping) for r in conn.execute(
+            text("SELECT code, name, city, country, markets FROM ref.studio ORDER BY code"))]
         self.criticality = {f: float(w) for f, crit, w in conn.execute(
             text("SELECT field, pricing_critical, weight FROM ref.field_criticality")) if crit}
         self.rules = [dict(r._mapping) for r in conn.execute(
@@ -132,9 +133,62 @@ def digits(s: str) -> str:
     return re.sub(r"\D", "", s or "")
 
 
+SHORTHAND = {"k": 1e3, "m": 1e6, "mn": 1e6, "million": 1e6, "lakh": 1e5, "lac": 1e5, "crore": 1e7}
+
+
 def number_in_text(number: float, *texts: str) -> bool:
+    """Whether the number is written in the text: as digits, or in shorthand ("45k", "1.1 million", "6.5 lakh")."""
     n = f"{number:f}".rstrip("0").rstrip(".")
-    return digits(n) in "".join(digits(t) for t in texts)
+    if digits(n) in "".join(digits(t) for t in texts):
+        return True
+    for t in texts:
+        for value, unit in re.findall(r"(\d+(?:[.,]\d+)?)\s*(k|mn|m|million|lakh|lac|crore)\b", (t or "").lower()):
+            if abs(float(value.replace(",", ".")) * SHORTHAND[unit] - number) <= 0.005 * number:
+                return True
+    return False
+
+
+def number_written(value_text: str) -> float | None:
+    """The one number written in a short value ("4-acre", "1.2 ha", "11,84,030 sq ft", "45k"), or None if
+    there is not exactly one."""
+    found = re.findall(r"(?<![a-z\d.,])\d[\d,]*(?:\.\d+)?\s*(?:k|mn|m|million|lakh|lac|crore)?\b", value_text.lower())
+    if len(found) != 1:
+        return None
+    m = re.fullmatch(r"([\d,]+(?:\.\d+)?)\s*(k|mn|m|million|lakh|lac|crore)?", found[0].strip())
+    if not m:
+        return None
+    n = float(m.group(1).replace(",", ""))
+    return n * SHORTHAND[m.group(2)] if m.group(2) else n
+
+
+AUTO_TITLE = r"^(WhatsApp message|Email|Notes|Pasted text|Reply)( from .*)? \d{4}-\d{2}-\d{2} \d{2}\.\d{2}$"
+WEEKDAYS = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
+WHATSAPP_STAMP = re.compile(r"\[(\d{1,2})/(\d{1,2})/(\d{2,4}),")
+
+
+def relative_date(said: str, anchor: date) -> date | None:
+    """A deadline written relative to when it was sent ("Thursday next week", "by Fri", "end of month"), worked
+    out from the day it was sent. None for anything with an explicit date ("Monday 23rd", "4 Dec")."""
+    s = said.lower()
+    if re.search(r"\d", s):
+        return None
+    next_monday = anchor + timedelta(days=7 - anchor.weekday())
+    if "end of next week" in s:
+        return next_monday + timedelta(days=4)
+    if "end of the week" in s or "end of this week" in s or "end of week" in s:
+        return anchor + timedelta(days=(4 - anchor.weekday()) % 7)
+    if "end of month" in s or "end of the month" in s:
+        first_next = (anchor.replace(day=28) + timedelta(days=4)).replace(day=1)
+        return first_next - timedelta(days=1)
+    if "tomorrow" in s:
+        return anchor + timedelta(days=1)
+    m = re.search(r"\b(mon|tue|wed|thu|fri|sat|sun)[a-z]*\b", s)
+    if not m:
+        return None
+    wd = WEEKDAYS[m.group(1)]
+    if "next week" in s or re.search(r"\bnext\s+(mon|tue|wed|thu|fri|sat|sun)", s):
+        return next_monday + timedelta(days=wd)
+    return anchor + timedelta(days=(wd - anchor.weekday()) % 7 or 7)
 
 
 def normalize(f: Field, c: Candidate, ref: Reference, country: str | None) -> list[Flag]:
@@ -144,10 +198,15 @@ def normalize(f: Field, c: Candidate, ref: Reference, country: str | None) -> li
         if v.get("number") is None or v.get("unit") not in TO_M2:
             c.status = "rejected"
             return [Flag("area_unreadable", "warn", f"Could not read an area from '{v['value_text']}'", f.name, c.field_value_id)]
-        if not number_in_text(v["number"], v["value_text"], c.value.get("quote", "")):
+        number = v["number"]
+        if not number_in_text(number, v["value_text"], c.value.get("quote", "")):
             flags.append(Flag("number_not_in_source", "warn", f"{v['number']} does not appear in the cited text",
                               f.name, c.field_value_id))
-        c.normalized = round(v["number"] * TO_M2[v["unit"]], 1)
+            written = number_written(v["value_text"])
+            if written is not None:  # the model converted or misread it: use what is written ("4-acre" -> 4)
+                c.notes.append(f"read {written:g} from '{v['value_text']}', not {number:g}")
+                number = written
+        c.normalized = round(number * TO_M2[v["unit"]], 1)
         if v["unit"] != "m2":
             c.notes.append(f"converted from {v['value_text']}")
     elif f.kind == "integer":
@@ -182,10 +241,15 @@ def normalize(f: Field, c: Candidate, ref: Reference, country: str | None) -> li
             flags.append(Flag("unknown_country", "warn", f"'{v['value_text']}' is not a market in the reference data",
                               f.name, c.field_value_id))
     elif f.kind == "city":
-        c.normalized = v["value_text"].strip().rstrip(".")
-        loc = ref.location(c.normalized, country)
+        # the model gives "City, CC" in English: a district resolves to its city, the code to its country
+        name, _, code = (v.get("normalized_text") or "").rpartition(",")
+        name = (name or v.get("normalized_text") or v["value_text"]).strip().rstrip(".")
+        c.normalized = name
+        c.value["country_hint"] = code.strip().upper() or None
+        loc = ref.location(name, country) or ref.location(v["value_text"].strip(), country)
         if loc:
             c.normalized = loc["city"]
+            c.value["country_hint"] = loc["country"]
     elif f.kind == "datetime":
         try:
             dt = datetime.fromisoformat(v.get("normalized_text") or "")
@@ -200,6 +264,12 @@ def normalize(f: Field, c: Candidate, ref: Reference, country: str | None) -> li
         try:
             c.normalized = date.fromisoformat((v.get("normalized_text") or "")[:10]).isoformat()
         except ValueError:
+            c.status = "rejected"
+    elif f.kind == "currency":
+        code = (v.get("normalized_text") or "").strip().upper()
+        if re.fullmatch(r"[A-Z]{3}", code):
+            c.normalized = code
+        else:
             c.status = "rejected"
     elif f.kind == "enum":
         if v.get("normalized_text") in f.options:
@@ -245,7 +315,7 @@ def group(f: Field, cands: list[Candidate]) -> list[list[Candidate]]:
 
 def consolidate(f: Field, cands: list[Candidate], doc_names: dict[int, str]) -> tuple[list[Candidate], dict | None]:
     """Mark the winning candidate(s) proposed and the rest superseded. Returns (chosen, conflict)."""
-    live = [c for c in cands if c.status != "rejected"]
+    live = [c for c in cands if c.status != "rejected" and not c.replaced]
     groups = group(f, live)
     chosen = []
     for g in groups:
@@ -293,10 +363,11 @@ class Engine:
                              AND NOT EXISTS (SELECT 1 FROM lineage.field_change c
                                              WHERE fv.field_value_id IN (c.old_field_value_id, c.new_field_value_id))"""),
                      dict(e=e))
-        doc_rows = conn.execute(text("SELECT document_id, doc_class, file_name FROM lineage.source_document "
+        doc_rows = conn.execute(text("SELECT document_id, doc_class, file_name, received_at FROM lineage.source_document "
                                      "WHERE envelope_id = :e"), dict(e=e)).all()
-        doc_class = {d: c for d, c, _ in doc_rows}
-        doc_names = {d: n for d, _, n in doc_rows}
+        doc_class = {d: c for d, c, _, _ in doc_rows}
+        doc_names = {d: n for d, _, n, _ in doc_rows}
+        self.doc_received = {d: r for d, _, _, r in doc_rows}
         rows = conn.execute(text("""SELECT field_value_id, field, value, quote, document_id, confidence, origin
                                     FROM lineage.field_value WHERE envelope_id = :e AND origin IN ('ai', 'human')"""),
                             dict(e=e)).all()
@@ -309,14 +380,34 @@ class Engine:
                                                doc_class.get(r.document_id), float(r.confidence or 0.5)))
         self.candidates = by_field
 
-        # country first: it scopes synonyms and city lookup
+        # country first: it scopes synonyms and city lookup. A request that names only a city gets its country
+        # from the city.
         country = None
         for name in ["country", *[n for n in self.fields if n != "country"]]:
             f = self.fields[name]
             cands = by_field.get(name, [])
             for c in cands:
                 self.flags += normalize(f, c, self.ref, country)
+                if f.kind in ("datetime", "date") and c.status != "rejected":
+                    self.resolve_relative(c)
+            if name == "country" and name not in human and not [c for c in cands if c.status != "rejected"]:
+                derived = self.country_from_city(by_field.get("city", []))
+                if derived:
+                    for c in cands:
+                        self.save_candidate(c)
+                    self.record["country"] = [derived]
+                    country = derived.normalized if derived.normalized in self.ref.country_rows else None
+                    continue
+            if not f.is_list and any(c.value.get("revises") for c in cands if c.status != "rejected"):
+                for c in cands:  # a revised value replaces what the earlier message said; no conflict between them
+                    if c.status != "rejected" and not c.value.get("revises"):
+                        c.replaced, c.status = True, "superseded"
+                        c.notes.append("replaced by a later revision")
             chosen, conflict = consolidate(f, cands, doc_names)
+            if chosen and not f.is_list and chosen[0].confidence <= 0.4 and not conflict:
+                self.flags.append(Flag("unconfirmed_value", "warn",
+                                       f"'{chosen[0].value['value_text']}' is stated tentatively; confirm it with the client",
+                                       name, chosen[0].field_value_id))
             self.record[name] = chosen
             if conflict and name not in human:
                 self.add_conflict(conflict)
@@ -328,6 +419,8 @@ class Engine:
         self.apply_human(human)
         self.enrich(country)
         self.write_flags()
+        from bidwright import gate1  # the assessment reads what this run wrote
+        gate1.assess(conn, e)
 
     # ---------------------------------------------------------------- helpers
 
@@ -361,6 +454,46 @@ class Engine:
             text("INSERT INTO intake.field_conflict (envelope_id, field, field_value_ids, summary) VALUES (:e, :f, :ids, :s)"),
             dict(e=self.envelope_id, f=conflict["field"], ids=conflict["ids"], s=conflict["summary"]))
         self.flags.append(Flag("conflict", "block", conflict["summary"], conflict["field"], conflict["ids"][0]))
+
+    def resolve_relative(self, c: Candidate) -> None:
+        """Work out "Thursday next week" from the day the message was sent, rather than trust the model's
+        arithmetic: the WhatsApp time stamp on the quoted line (or the nearest one above it), else the day the
+        document arrived."""
+        lines = [ln for p in self.conn.execute(text("SELECT lines FROM lineage.page WHERE document_id = :d ORDER BY page_no"),
+                                                 dict(d=c.document_id)).scalars() for ln in p] if c.document_id else []
+        ids = [ln["id"] for ln in lines]
+        cited = [ids.index(i) for i in c.value.get("line_ids") or [] if i in ids]
+        anchor = None
+        for ln in reversed(lines[: (cited[0] + 1) if cited else 0]):
+            m = WHATSAPP_STAMP.search(ln["text"])
+            if m:
+                d, mo, y = (int(x) for x in m.groups())
+                anchor = date(y + 2000 if y < 100 else y, mo, d)
+                break
+        if anchor is None and self.doc_received.get(c.document_id):
+            anchor = self.doc_received[c.document_id].date()
+        resolved = relative_date(c.value["value_text"], anchor) if anchor else None
+        if resolved and str(c.normalized)[:10] != resolved.isoformat():
+            c.notes.append(f"'{c.value['value_text']}' sent {anchor:%a %-d %b} is {resolved:%a %-d %b}")
+            c.normalized = resolved.isoformat()
+
+    def country_from_city(self, cities: list[Candidate]) -> Candidate | None:
+        """The country of the city the request names, as an engine value with its reason."""
+        ref = self.ref
+        for c in cities:
+            for raw in (c.value.get("normalized_text") or "", c.value["value_text"]):
+                name, _, code = raw.rpartition(",")
+                loc = ref.location((name or raw).strip(), None)
+                found = loc["country"] if loc else ref.country(code.strip()) or (code.strip().upper() if
+                                                                                 re.fullmatch(r"[A-Za-z]{2}", code.strip()) else None)
+                if found:
+                    country_name = ref.country_rows.get(found, {}).get("name", found)
+                    city = loc["city"] if loc else (name or raw).strip()
+                    self.add_engine_value("country", found, evidence={"basis": f"{city} is in {country_name}",
+                                                                      "from_field_value": c.field_value_id})
+                    return Candidate(0, "country", {"value_text": found}, c.document_id, c.doc_class, c.confidence,
+                                     normalized=found)
+        return None
 
     def add_engine_value(self, name: str, value, kind: str = "fact", evidence: dict | None = None,
                          confidence: float = 1.0) -> None:
@@ -409,10 +542,13 @@ class Engine:
             self.flags.append(Flag("unknown_location_tier", "warn", f"No location tier for {city}", "city"))
 
         currency = studio = None
-        if country:
+        asked = self.value("fee_currency")
+        if country or asked:
             in_country = [p for p in archive if p["country"] == country]
             national = self.ref.country_rows.get(country, {}).get("currency")
-            if in_country:
+            if asked:
+                currency, basis = asked, f"the client asked for fees in {asked}"
+            elif in_country:
                 cur, n = Counter(p["currency"] for p in in_country).most_common(1)[0]
                 currency = cur
                 basis = f"{n} of {len(in_country)} past proposals in this country were billed in {cur}"
@@ -426,19 +562,34 @@ class Engine:
 
         self.match_client(archive)
         self.plausibility(archive)
-        self.suggest_gaps(archive)
-        completeness = self.completeness()
-        lead = self.qualify(country, completeness)
         deadline = self.value("submission_deadline")
+        if deadline and len(str(deadline)) == 10:  # a date with no time: the end of that day
+            deadline = f"{deadline}T23:59:00"
+        # completeness and the recommendation come from the gate 1 assessment (bidwright.gate1)
         self.conn.execute(
+            # a pasted message is named after its file ("WhatsApp message 2026-11-19 21.26") until the request
+            # says what it is: its project name, else its use and place ("Office in Lusail")
             text("""UPDATE intake.envelope SET country = :c, location_id = :l, billing_currency = :cur,
-                    routed_studio = :s, completeness = :comp, lead_status = :lead, submission_deadline = :d,
-                    title = COALESCE(title, :title), status = 'review', updated_at = now() WHERE envelope_id = :e"""),
+                    routed_studio = :s, submission_deadline = :d,
+                    title = CASE WHEN CAST(:title AS text) IS NOT NULL AND (title IS NULL OR title ~ :auto)
+                                 THEN CAST(:title AS text) ELSE title END,
+                    status = 'review', updated_at = now() WHERE envelope_id = :e"""),
             dict(e=self.envelope_id, c=country if country in self.ref.country_rows else None,
-                 l=loc["location_id"] if loc else None, cur=currency, s=studio, comp=completeness, lead=lead,
-                 d=deadline, title=self.value("project_name")))
+                 l=loc["location_id"] if loc else None, cur=currency, s=studio,
+                 d=deadline, title=self.display_title(), auto=AUTO_TITLE))
+
+    def display_title(self) -> str | None:
+        if self.value("project_name"):
+            return self.value("project_name")
+        typology, city = self.value("typology"), self.value("city")
+        label = {"mixed_use": "Mixed-use project", "masterplan": "Masterplan", "hospitality": "Hotel"}.get(
+            typology, (typology or "").replace("_", " ").capitalize())
+        return f"{label} in {city}" if label and city else label or None
 
     def route_studio(self, country: str, archive: list[dict]) -> tuple[str | None, str]:
+        covering = [s for s in self.ref.studios if country in (s.get("markets") or [])]
+        if covering:
+            return covering[0]["code"], f"{covering[0]['name']} covers this market"
         past = Counter(p["studio_code"] for p in archive if p["country"] == country)
         if past:
             code, n = past.most_common(1)[0]
@@ -458,7 +609,15 @@ class Engine:
             return
         clean = lambda s: re.sub(r"\s+", " ", re.sub(LEGAL_SUFFIXES, "", s.lower())).strip(" .,")  # noqa: E731
         clients = {(p["client_id"], p["client_name"]) for p in archive if p["client_name"]}
-        scored = sorted(((fuzz.token_sort_ratio(clean(name), clean(cn)), cid, cn) for cid, cn in clients), reverse=True)
+        said = clean(name)
+
+        def score(cn: str) -> float:
+            # messages use short names ("Marina Crest"): a name of two or more words contained in the archive
+            # name counts, a single word does not ("Crest" would match too much)
+            whole = fuzz.token_sort_ratio(said, clean(cn))
+            return max(whole, fuzz.token_set_ratio(said, clean(cn))) if len(said.split()) >= 2 else whole
+
+        scored = sorted(((score(cn), cid, cn) for cid, cn in clients), reverse=True)
         if scored and scored[0][0] >= 90:
             score, cid, cn = scored[0]
             past = [p["reference"] for p in archive if p["client_id"] == cid]
@@ -499,91 +658,6 @@ class Engine:
                     {"value": round(ratio, 3), "range": [round(lo, 3), round(hi, 3)], "scope": scope,
                      "cases": [p["reference"] for p in pool]}))
 
-    def suggest_gaps(self, archive: list[dict]) -> None:
-        typology, services = self.value("typology"), self.value("services") or []
-        gfa, site = self.value("gfa_m2"), self.value("site_area_m2")
-
-        def suggest(target: str, num: str, den: str, base: float | None, reason: str) -> None:
-            if self.value(target) or not base:
-                return
-            pool = [p for p in archive if p.get(num) and p.get(den) and p["typology"] == typology] or \
-                   [p for p in archive if p.get(num) and p.get(den)]
-            if len(pool) < 2:
-                return
-            ratio = statistics.median(p[num] / p[den] for p in pool)
-            value = round(base * ratio, -2)
-            self.add_engine_value(target, value, kind="suggestion", confidence=0.4, evidence={
-                "basis": f"{reason}: median ratio {ratio:.2f} across {len(pool)} past proposals",
-                "cases": [p["reference"] for p in pool]})
-            self.flags.append(Flag("gap_suggestion", "info",
-                                   f"{self.fields[target].label} not stated; suggested {value:,.0f} m² from similar projects",
-                                   target))
-
-        if "interior_design" in services:
-            suggest("fitout_area_m2", "fitout_area_m2", "gfa_m2", gfa, "interior area / GFA")
-        if "landscape" in services:
-            suggest("landscape_area_m2", "landscape_area_m2", "site_area_m2", site, "landscape area / site area")
-        if typology and typology != "masterplan":
-            suggest("gfa_m2", "gfa_m2", "site_area_m2", site, "GFA / site area")
-
-    def required_fields(self) -> dict[str, float]:
-        req = {f: w for f, w in self.ref.criticality.items() if not f.endswith("_m2")}
-        req["site_area_m2"] = self.ref.criticality.get("site_area_m2", 0.8)
-        for service in self.value("services") or []:
-            area = SERVICE_AREA.get(service)
-            if area:
-                req[area] = self.ref.criticality.get(area, 1.0)
-        if self.value("typology") == "masterplan":
-            req.pop("gfa_m2", None)
-        return req
-
-    def completeness(self) -> float:
-        req = self.required_fields()
-        present = sum(w for f, w in req.items() if self.value(f) not in (None, [], ""))
-        missing = [self.fields[f].label for f in req if self.value(f) in (None, [], "")]
-        if missing:
-            self.flags.append(Flag("missing_critical", "warn", "Missing pricing-critical fields: " + ", ".join(missing)))
-        return round(present / sum(req.values()), 3) if req else 0.0
-
-    def qualify(self, country: str | None, completeness: float) -> str:
-        received = self.conn.execute(text("SELECT received_at FROM intake.envelope WHERE envelope_id = :e"),
-                                     dict(e=self.envelope_id)).scalar_one()
-        effects = []
-        for rule in self.rules_triggered(country, completeness, received):
-            effects.append(rule["effect"])
-            self.flags.append(Flag(f"rule:{rule['name']}", "block" if rule["effect"] == "recommend_no_bid" else "warn",
-                                   rule["message"], rule["expression"].get("field")))
-        if "recommend_no_bid" in effects:
-            return "recommend_no_bid"
-        if "needs_info" in effects:
-            return "needs_info"
-        return "qualified"
-
-    @property
-    def rules(self):
-        return self.ref.rules
-
-    def rules_triggered(self, country, completeness, received):
-        for rule in self.rules:
-            ex = rule["expression"]
-            name = ex.get("field")
-            value = completeness if name == "completeness" else self.value(name)
-            op = ex["op"]
-            hit = False
-            if op == "days_until_lt" and value:
-                days = (datetime.fromisoformat(value) - received).total_seconds() / 86400
-                hit = days < ex["value"]
-            elif op == "not_in_ref" and name == "country":
-                hit = value is not None and value not in self.ref.country_rows
-            elif op == "empty":
-                hit = not value and bool(self.candidates.get(name))
-            elif op == "lt":
-                hit = value is not None and value < ex["value"]
-            elif op == "matches" and value:
-                hit = re.search(ex["pattern"], str(value), re.I) is not None
-            if hit:
-                yield rule
-
 
 # ------------------------------------------------------------------ comparables
 
@@ -603,15 +677,25 @@ def comparables(conn: Connection, envelope_id: int, limit: int = 3) -> dict:
     size_field = "site_area_m2" if vals.get("typology") == "masterplan" else "gfa_m2"
     size = vals.get(size_field)
     rows = conn.execute(text("""
-        SELECT p.reference, p.title, p.typology, p.gfa_m2, p.site_area_m2, p.currency, p.fee_total_local,
+        SELECT p.reference, p.title, p.typology, p.sub_typology, p.gfa_m2, p.site_area_m2, p.currency, p.fee_total_local,
                p.fee_total_usd, p.status, p.loss_reason, l.country, l.city, c.region, p.submission_date,
                array(SELECT service FROM archive.proposal_service s WHERE s.proposal_id = p.proposal_id) AS services
         FROM archive.proposal p JOIN ref.location l USING (location_id) JOIN ref.country c ON c.code = l.country
         WHERE p.dataset_version = :v AND p.data_origin <> 'rfp_new'
           AND p.submission_date < (SELECT received_at FROM intake.envelope WHERE envelope_id = :e)::date"""), dict(v=settings.dataset_version, e=envelope_id)).all()
+    kind = None  # residential: a tower is not compared with a villa community
+    if vals.get("typology") == "residential":
+        said = " ".join(str(r) for r in conn.execute(text(
+            "SELECT value->>'value_text' FROM lineage.field_value WHERE envelope_id = :e AND field IN ('typology', 'units')"),
+            dict(e=envelope_id)).scalars()).lower()
+        storeys = vals.get("storeys")
+        kind = "residential_villa" if "villa" in said or (storeys and storeys <= 3) else \
+            "residential_highrise" if (storeys and storeys >= 5) or "tower" in said else None
     scored = []
     for p in rows:
         score = 3.0 * (p.typology == vals.get("typology")) + 2.0 * (p.country == env.country) + 1.0 * (p.region == region)
+        if kind:
+            score += 2.0 if p.sub_typology == kind else -2.0
         p_size = p.site_area_m2 if size_field == "site_area_m2" else p.gfa_m2
         if size and p_size:
             score -= abs(math.log(float(size) / float(p_size)))

@@ -5,6 +5,8 @@
 #   make fees     backtest the fee engine on the demo archive
 #   make cost-book  regenerate the synthetic starter cost book (then make seed)
 #   make draft-smoke  draft the demo's envelope 57 with the real model (a few cents)
+#   make eval-intake  score intake on the v1-requests set (ARGS=--rescore for no model calls)
+#   make requests     regenerate the v1-requests files from their wording
 #   make template   regenerate the default proposal template (data/templates/proposal-v0.docx)
 #   make status   which migration is applied and how many rows each table holds
 #
@@ -14,7 +16,7 @@ SHELL := /bin/bash
 DB    := docker compose exec -T postgres
 PSQL  := $(DB) psql -U bidwright -d bidwright
 
-.PHONY: setup env db wait roles migrate seed deps dev api web studio status psql eval eval-one fees cost-book draft-smoke template check test reset stop
+.PHONY: setup env db wait roles migrate seed deps dev api web studio status psql eval eval-one fees cost-book draft-smoke template eval-intake requests check test reset stop
 
 setup: env db wait roles deps migrate seed status
 
@@ -93,6 +95,13 @@ eval-one:
 
 eval:
 	cd service && uv run python -m bidwright.evaluation $(ARGS)
+
+# Intake on incoming requests (WhatsApp, emails, notes, packs): field status, gaps, recommendation, questions
+eval-intake:
+	cd service && uv run python -m bidwright.intake_eval $(ARGS)
+
+requests:
+	cd service && uv run python ../data/gold/v1-requests/generate.py
 
 # Fee engine backtest: what the model would have quoted for each archive proposal, against what was quoted
 fees:
