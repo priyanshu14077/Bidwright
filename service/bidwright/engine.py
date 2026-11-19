@@ -363,10 +363,11 @@ class Engine:
                              AND NOT EXISTS (SELECT 1 FROM lineage.field_change c
                                              WHERE fv.field_value_id IN (c.old_field_value_id, c.new_field_value_id))"""),
                      dict(e=e))
-        doc_rows = conn.execute(text("SELECT document_id, doc_class, file_name FROM lineage.source_document "
+        doc_rows = conn.execute(text("SELECT document_id, doc_class, file_name, received_at FROM lineage.source_document "
                                      "WHERE envelope_id = :e"), dict(e=e)).all()
-        doc_class = {d: c for d, c, _ in doc_rows}
-        doc_names = {d: n for d, _, n in doc_rows}
+        doc_class = {d: c for d, c, _, _ in doc_rows}
+        doc_names = {d: n for d, _, n, _ in doc_rows}
+        self.doc_received = {d: r for d, _, _, r in doc_rows}
         rows = conn.execute(text("""SELECT field_value_id, field, value, quote, document_id, confidence, origin
                                     FROM lineage.field_value WHERE envelope_id = :e AND origin IN ('ai', 'human')"""),
                             dict(e=e)).all()
@@ -386,7 +387,26 @@ class Engine:
             cands = by_field.get(name, [])
             for c in cands:
                 self.flags += normalize(f, c, self.ref, country)
+                if f.kind in ("datetime", "date") and c.status != "rejected":
+                    self.resolve_relative(c)
+            if name == "country" and name not in human and not [c for c in cands if c.status != "rejected"]:
+                derived = self.country_from_city(by_field.get("city", []))
+                if derived:
+                    for c in cands:
+                        self.save_candidate(c)
+                    self.record["country"] = [derived]
+                    country = derived.normalized if derived.normalized in self.ref.country_rows else None
+                    continue
+            if not f.is_list and any(c.value.get("revises") for c in cands if c.status != "rejected"):
+                for c in cands:  # a revised value replaces what the earlier message said; no conflict between them
+                    if c.status != "rejected" and not c.value.get("revises"):
+                        c.replaced, c.status = True, "superseded"
+                        c.notes.append("replaced by a later revision")
             chosen, conflict = consolidate(f, cands, doc_names)
+            if chosen and not f.is_list and chosen[0].confidence <= 0.4 and not conflict:
+                self.flags.append(Flag("unconfirmed_value", "warn",
+                                       f"'{chosen[0].value['value_text']}' is stated tentatively; confirm it with the client",
+                                       name, chosen[0].field_value_id))
             self.record[name] = chosen
             if conflict and name not in human:
                 self.add_conflict(conflict)
@@ -431,6 +451,46 @@ class Engine:
             text("INSERT INTO intake.field_conflict (envelope_id, field, field_value_ids, summary) VALUES (:e, :f, :ids, :s)"),
             dict(e=self.envelope_id, f=conflict["field"], ids=conflict["ids"], s=conflict["summary"]))
         self.flags.append(Flag("conflict", "block", conflict["summary"], conflict["field"], conflict["ids"][0]))
+
+    def resolve_relative(self, c: Candidate) -> None:
+        """Work out "Thursday next week" from the day the message was sent, rather than trust the model's
+        arithmetic: the WhatsApp time stamp on the quoted line (or the nearest one above it), else the day the
+        document arrived."""
+        lines = [ln for p in self.conn.execute(text("SELECT lines FROM lineage.page WHERE document_id = :d ORDER BY page_no"),
+                                                 dict(d=c.document_id)).scalars() for ln in p] if c.document_id else []
+        ids = [ln["id"] for ln in lines]
+        cited = [ids.index(i) for i in c.value.get("line_ids") or [] if i in ids]
+        anchor = None
+        for ln in reversed(lines[: (cited[0] + 1) if cited else 0]):
+            m = WHATSAPP_STAMP.search(ln["text"])
+            if m:
+                d, mo, y = (int(x) for x in m.groups())
+                anchor = date(y + 2000 if y < 100 else y, mo, d)
+                break
+        if anchor is None and self.doc_received.get(c.document_id):
+            anchor = self.doc_received[c.document_id].date()
+        resolved = relative_date(c.value["value_text"], anchor) if anchor else None
+        if resolved and str(c.normalized)[:10] != resolved.isoformat():
+            c.notes.append(f"'{c.value['value_text']}' sent {anchor:%a %-d %b} is {resolved:%a %-d %b}")
+            c.normalized = resolved.isoformat()
+
+    def country_from_city(self, cities: list[Candidate]) -> Candidate | None:
+        """The country of the city the request names, as an engine value with its reason."""
+        ref = self.ref
+        for c in cities:
+            for raw in (c.value.get("normalized_text") or "", c.value["value_text"]):
+                name, _, code = raw.rpartition(",")
+                loc = ref.location((name or raw).strip(), None)
+                found = loc["country"] if loc else ref.country(code.strip()) or (code.strip().upper() if
+                                                                                 re.fullmatch(r"[A-Za-z]{2}", code.strip()) else None)
+                if found:
+                    country_name = ref.country_rows.get(found, {}).get("name", found)
+                    city = loc["city"] if loc else (name or raw).strip()
+                    self.add_engine_value("country", found, evidence={"basis": f"{city} is in {country_name}",
+                                                                      "from_field_value": c.field_value_id})
+                    return Candidate(0, "country", {"value_text": found}, c.document_id, c.doc_class, c.confidence,
+                                     normalized=found)
+        return None
 
     def add_engine_value(self, name: str, value, kind: str = "fact", evidence: dict | None = None,
                          confidence: float = 1.0) -> None:
