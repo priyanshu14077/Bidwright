@@ -3,9 +3,12 @@ sources, conflicts and flags. Shared by the API and the evaluation."""
 
 from collections import defaultdict
 
+import json
+
+from fastapi import HTTPException
 from sqlalchemy import Connection, text
 
-from bidwright.schema import fields
+from bidwright.schema import SCHEMA_VERSION, fields
 
 ENGINE_FIELDS = {
     "location_tier": "Location tier",
@@ -92,3 +95,31 @@ def source(c: dict) -> dict:
         "kind": c["kind"],
         "status": c["status"],
     }
+
+
+def confirm(conn: Connection, envelope_id: int, email: str, reason: str, extra: dict | None = None) -> int:
+    """Lock the current record as the next confirmed version (gate 2 of intake). extra adds to the snapshot,
+    e.g. the values priced as assumptions. Returns the version number."""
+    open_conflicts = conn.execute(text("SELECT count(*) FROM intake.field_conflict WHERE envelope_id = :e "
+                                       "AND status = 'open'"), dict(e=envelope_id)).scalar()
+    if open_conflicts:
+        raise HTTPException(409, f"{open_conflicts} open conflict(s) must be resolved before confirming")
+    rec = build(conn, envelope_id)
+    snapshot = {k: v["value"] for k, v in rec.items() if not k.startswith("_")}
+    env = conn.execute(text("SELECT lead_status, completeness FROM intake.envelope WHERE envelope_id = :e"),
+                       dict(e=envelope_id)).one()
+    snapshot |= {"lead_status": env.lead_status, "completeness": float(env.completeness or 0)} | (extra or {})
+    version = (conn.execute(text("SELECT max(version) FROM intake.opportunity WHERE envelope_id = :e"),
+                            dict(e=envelope_id)).scalar() or 0) + 1
+    conn.execute(text("INSERT INTO intake.opportunity (envelope_id, version, record, schema_version, confirmed_by) "
+                      "VALUES (:e, :v, CAST(:r AS jsonb), :sv, :u)"),
+                 dict(e=envelope_id, v=version, r=json.dumps(snapshot, default=str), sv=SCHEMA_VERSION, u=email))
+    ids = conn.execute(text("""UPDATE lineage.field_value SET status = 'confirmed' WHERE envelope_id = :e
+                               AND status = 'proposed' RETURNING field_value_id"""), dict(e=envelope_id)).scalars().all()
+    conn.execute(text("""INSERT INTO lineage.field_change (field, new_value, action, reason, changed_by)
+                         VALUES ('*', CAST(:v AS jsonb), 'confirm', :r, :u)"""),
+                 dict(v=json.dumps({"envelope_id": envelope_id, "version": version, "values_locked": len(ids)}),
+                      r=reason, u=email))
+    conn.execute(text("UPDATE intake.envelope SET status = 'confirmed', updated_at = now() WHERE envelope_id = :e"),
+                 dict(e=envelope_id))
+    return version
