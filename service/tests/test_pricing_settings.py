@@ -87,3 +87,37 @@ def test_missing_market_blocks_pricing(stranger):
               "location_tier": "prime", "typology": "office", "gfa_m2": 20000}
     with pytest.raises(PricingError, match="no market settings for AU"):
         estimate(inputs_from_record(record, params, 2026), params, [])
+
+
+def test_standard_text_can_be_changed_added_and_removed_with_a_log(stranger):
+    client, org = stranger
+    lib = client.get("/api/settings/library").json()
+    assert {c["kind"] for c in lib} == {"scope", "exclusion", "terms", "position"}
+    assert client.put("/api/settings/library/scope/interior_design.gfc_review",
+                      json={"body": "Review of interior GFC drawings.", "reason": "new service"}).status_code == 200
+    assert client.put("/api/settings/library/scope/interior.nowhere", json={"body": "x"}).status_code == 422
+    assert client.put("/api/settings/library/terms/standard", json={"body": "Our terms."}).status_code == 200
+    assert client.delete("/api/settings/library/terms/signoff", params={"reason": "x"}).status_code == 422
+    assert client.delete("/api/settings/library/exclusion/e6", params={"reason": "we build models"}).status_code == 200
+    lib = {(c["kind"], c["key"]): c for c in client.get("/api/settings/library").json()}
+    assert lib[("scope", "interior_design.gfc_review")]["stage"] == "gfc_review"
+    assert ("exclusion", "e6") not in lib and lib[("terms", "standard")]["body"] == "Our terms."
+    with workspace(org), engine.connect() as conn:
+        keys = conn.execute(text("SELECT key FROM ref.setting_change WHERE setting = 'clause' ORDER BY change_id")).scalars().all()
+    assert keys == ["scope/interior_design.gfc_review", "terms/standard", "exclusion/e6"]
+
+
+def test_a_studio_abroad_adds_site_trips(stranger):
+    client, org = stranger
+    assert client.put("/api/settings/studios/syd", json={"name": "Sydney studio", "city": "Sydney",
+                                                         "country": "AU"}).status_code == 200
+    assert client.put("/api/settings/studios/x!", json={"name": "Bad", "city": "Nowhere",
+                                                        "country": "AU"}).status_code == 422
+    with workspace(org), engine.connect() as conn:
+        params = Parameters(conn)
+    record = {"services": ["architecture"], "stage_package": ["concept"], "country": "AE", "city": "Dubai",
+              "location_tier": "prime", "typology": "office", "gfa_m2": 20000, "routed_studio": "SYD"}
+    est = estimate(inputs_from_record(record, params, 2026), params, [])
+    assert [r.type for r in est.reimbursables] == ["renders", "site_trip"]
+    assert "Long haul" in est.reimbursables[1].note or "long" in est.reimbursables[1].note.lower()
+    assert not any(r["area"] == "studios" for r in client.get("/api/settings/pricing").json()["readiness"])
