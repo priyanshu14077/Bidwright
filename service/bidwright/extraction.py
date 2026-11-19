@@ -87,7 +87,8 @@ def output_schema() -> dict:
             "mentions": {"type": "array", "items": {
                 "type": "object",
                 "additionalProperties": False,
-                "required": ["field", "value_text", "number", "unit", "normalized_text", "line_ids", "quote", "confidence"],
+                "required": ["field", "value_text", "number", "unit", "normalized_text", "line_ids", "quote", "confidence",
+                             "revises"],
                 "properties": {
                     "field": {"type": "string", "enum": list(fields())},
                     "value_text": {"type": "string"},
@@ -97,6 +98,7 @@ def output_schema() -> dict:
                     "line_ids": {"type": "array", "items": {"type": "string"}},
                     "quote": {"type": "string"},
                     "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+                    "revises": {"type": "boolean"},
                 },
             }},
         },
