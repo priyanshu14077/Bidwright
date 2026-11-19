@@ -2,6 +2,8 @@
 #
 #   make setup    first time, or after pulling changes: database, migrations, seed, dependencies
 #   make dev      run API (8000), web app (5173) and Prisma Studio (5555) together; Ctrl-C stops all
+#   make fees     backtest the fee engine on the demo archive
+#   make cost-book  regenerate the synthetic starter cost book (then make seed)
 #   make status   which migration is applied and how many rows each table holds
 #
 # Every target is safe to run again.
@@ -10,7 +12,7 @@ SHELL := /bin/bash
 DB    := docker compose exec -T postgres
 PSQL  := $(DB) psql -U bidwright -d bidwright
 
-.PHONY: setup env db wait roles migrate seed deps dev api web studio status psql eval eval-one check test reset stop
+.PHONY: setup env db wait roles migrate seed deps dev api web studio status psql eval eval-one fees cost-book check test reset stop
 
 setup: env db wait roles deps migrate seed status
 
@@ -89,6 +91,13 @@ eval-one:
 
 eval:
 	cd service && uv run python -m bidwright.evaluation $(ARGS)
+
+# Fee engine backtest: what the model would have quoted for each archive proposal, against what was quoted
+fees:
+	cd service && uv run python -m bidwright.fees
+
+cost-book:
+	python3 data/reference/generate_cost_book.py
 
 stop:
 	docker compose stop
