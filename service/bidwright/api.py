@@ -14,7 +14,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field as PField
 from sqlalchemy import text
 
-from bidwright import fees, proposals, record
+from bidwright import drafting, fees, proposals, record
 from bidwright.auth import require, router as auth_router
 from bidwright.config import REPO_ROOT, settings
 from bidwright.db import engine, in_workspace
@@ -28,6 +28,7 @@ from bidwright.tenancy import Principal
 app = FastAPI(title="Bidwright", version="0.2.0")
 app.include_router(auth_router)
 app.include_router(proposals.router)
+app.include_router(drafting.router)
 
 READ, INTAKE, REVIEW, REFERENCE, BACKTEST = (Depends(require(p)) for p in
                                              ("read", "intake", "review", "reference", "backtest"))
