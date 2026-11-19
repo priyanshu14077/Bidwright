@@ -425,6 +425,11 @@ def approval_problems(conn: Connection, v) -> list[str]:
                                  AND coalesce(trim(body), '') = '' ORDER BY seq"""), dict(v=v.version_id)).scalars().all()
     if empty:
         problems.append(f"sections not written yet: {', '.join(empty)}")
+    gaps = conn.execute(text("""SELECT title FROM proposal.section WHERE version_id = :v
+                                AND position('[to be written]' IN coalesce(body, '')) > 0 ORDER BY seq"""),
+                        dict(v=v.version_id)).scalars().all()
+    if gaps:
+        problems.append(f"sections with gaps marked [to be written]: {', '.join(gaps)}")
     if not v.fee_total_local or v.fee_total_local <= 0:
         problems.append("the fee total is zero")
     latest = conn.execute(text("SELECT max(o.version) FROM intake.opportunity o JOIN proposal.bid p "
