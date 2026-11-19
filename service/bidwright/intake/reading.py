@@ -28,6 +28,7 @@ class Line:
     line_id: str  # "p{page}:{n}", stable within a document
     text: str
     bbox: list[float]
+    start: int | None = None  # character offset in the document's plain text, for text sources
 
 
 @dataclass
