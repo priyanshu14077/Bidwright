@@ -226,6 +226,7 @@ def load_archive(conn: Connection, dataset_version: str) -> int:
         ),
         [dict(s, country=countries[s["country"].lower()]) for s in data["studios"]],
     )
+    seed_studio_markets(conn, json.loads(REFERENCE_FILE.read_text()))
     conn.execute(
         text("INSERT INTO archive.client (client_id, dataset_version, name, client_type, country) "
              "VALUES (:client_id, :v, :name, :type, :country)"),
