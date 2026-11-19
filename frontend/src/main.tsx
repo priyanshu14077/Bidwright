@@ -71,55 +71,42 @@ function App() {
   if (me === undefined) return null;
   if (me === null) {
     const mode = route.page === "signup" || route.page === "demo" || route.page === "join" ? route.page : "login";
-    return <SignIn key={mode} mode={mode} invitation={route.page === "join" ? route.token : undefined}
-                   onDone={() => { go("#/"); loadMe(); }} />;
+    return (
+      <div className="bw-app bw-legacy bw-gate-wrap">
+        <SignIn key={mode} mode={mode} invitation={route.page === "join" ? route.token : undefined}
+                onDone={() => { go("#/"); loadMe(); }} />
+      </div>
+    );
   }
-  if (!me.workspace) return <Session.Provider value={me}><NoWorkspace onDone={loadMe} /></Session.Provider>;
+  if (!me.workspace) return <Session.Provider value={me}><div className="bw-app bw-legacy bw-gate-wrap"><NoWorkspace onDone={loadMe} /></div></Session.Provider>;
 
-  const can = (p: string) => me.permissions.includes(p as never);
-  const open = (id: number) => go(`#/rfp/${id}`);
-  const nav: [Route["page"], string, string, boolean][] = [
-    ["inbox", "#/", "Inbox", true],
-    ["backtests", "#/backtests", "Backtests", true],
-    ["settings", "#/settings", "Settings", true],
-    ["members", "#/members", "Members", true],
-    ["models", "#/models", "Model calls", can("backtest")],
-  ];
-  const switchTo = async (orgId: string) => { await auth.switchTo(orgId); go("#/"); setRef(null); await loadMe(); };
   const signOut = async () => { await auth.logout(); setMe(null); go("#/login"); };
+  const switchTo = async (orgId: string) => { await auth.switchTo(orgId); go("#/"); setRef(null); await loadMe(); };
+  if (route.page === "guided") {
+    return <Session.Provider value={me}><Guided route={route.route} me={me} onSignOut={signOut} onSwitch={switchTo} /></Session.Provider>;
+  }
+  const open = (id: number) => go(`#/r/${id}`);
   const current = ["login", "signup", "demo", "join"].includes(route.page) ? "inbox" : route.page;
 
+  const titles: Record<string, string> = { inbox: "Requests", review: "Request details", proposal: "Proposal",
+    settings: "Set up", models: "Model calls", backtests: "Backtests", members: "Members" };
+  const active = current === "inbox" || current === "review" ? "requests" : current === "proposal" ? "decide" : current;
+  const wide = current === "review" || current === "proposal" || current === "backtests";
   return (
     <Session.Provider value={me}>
-      <div className="shell">
-        <header className="bar">
-          <a href="#/" aria-label="Inbox"><Wordmark /></a>
-          <nav aria-label="Workspace">
-            {nav.filter((n) => n[3]).map(([page, hash, label]) => (
-              <a key={page} href={hash} aria-current={current === page || (page === "inbox" && (current === "review" || current === "proposal")) ? "page" : undefined}>{label}</a>
-            ))}
-          </nav>
-          <div className="bar-end">
-            {me.workspace.is_demo && <span className="demo-tag">Demo practice</span>}
-            <select className="workspace" aria-label="Workspace" value={me.workspace.org_id}
-                    onChange={(e) => switchTo(e.target.value)}>
-              {me.workspaces.map((w) => <option key={w.org_id} value={w.org_id}>{w.name}</option>)}
-            </select>
-            <span className="who" title={me.user.email}>{me.user.name}<span className="dim">, {me.role}</span></span>
-            <button className="quiet" onClick={signOut}>Sign out</button>
-          </div>
-        </header>
-        <main>
+      <Shell active={active} me={me} title={titles[current] ?? "Bidwright"} onSignOut={signOut} onSwitch={switchTo} wide={wide}
+             back={current === "review" ? `#/r/${(route as { id: number }).id}` : current === "proposal" ? "#/decide" : undefined}>
+        <div className="bw-legacy">
           {current === "inbox" && <Inbox onOpen={open} />}
-          {route.page === "review" && reference && <Review key={route.id} id={route.id} reference={reference} onBack={() => go("#/")} />}
+          {route.page === "review" && reference && <Review key={route.id} id={route.id} reference={reference} onBack={() => go(`#/r/${route.id}`)} />}
           {route.page === "proposal" && <ProposalPage key={`${route.id}-${route.version}`} proposalId={route.id}
                                                       versionNo={route.version} reference={reference} />}
           {route.page === "settings" && <Settings tab={route.tab} reference={reference} onChanged={loadRef} />}
           {current === "models" && <ModelLog />}
           {current === "backtests" && <Accuracy onOpen={open} />}
           {current === "members" && <Members />}
-        </main>
-      </div>
+        </div>
+      </Shell>
     </Session.Provider>
   );
 }
