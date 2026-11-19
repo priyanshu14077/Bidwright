@@ -14,7 +14,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field as PField
 from sqlalchemy import text
 
-from bidwright import fees, record
+from bidwright import fees, proposals, record
 from bidwright.auth import require, router as auth_router
 from bidwright.config import REPO_ROOT, settings
 from bidwright.db import engine, in_workspace
@@ -27,6 +27,7 @@ from bidwright.tenancy import Principal
 
 app = FastAPI(title="Bidwright", version="0.2.0")
 app.include_router(auth_router)
+app.include_router(proposals.router)
 
 READ, INTAKE, REVIEW, REFERENCE, BACKTEST = (Depends(require(p)) for p in
                                              ("read", "intake", "review", "reference", "backtest"))
@@ -211,24 +212,10 @@ def confirm(envelope_id: int, body: Confirm, who: Principal = REVIEW):
 def fee_estimate(envelope_id: int, complexity: str | None = None, cost_type: str | None = None,
                  construction_cost_usd_m2: float | None = None, _: Principal = READ):
     """A fee estimate for the latest confirmed record. The query parameters are the estimator's pricing choices."""
+    choices = proposals.PricingChoices(complexity=complexity, cost_type=cost_type,
+                                       construction_cost_usd_m2=construction_cost_usd_m2).choices()
     with engine.connect() as conn:
-        opp = conn.execute(text("""SELECT o.version, o.record, o.confirmed_at, e.received_at FROM intake.opportunity o
-                                   JOIN intake.envelope e USING (envelope_id) WHERE o.envelope_id = :e
-                                   ORDER BY o.version DESC LIMIT 1"""), dict(e=envelope_id)).first()
-        if not opp:
-            raise HTTPException(409, "confirm the request before pricing it")
-        params = fees.Parameters(conn)
-        issued = opp.record.get("issue_date")
-        year = int(str(issued)[:4]) if issued else opp.confirmed_at.year
-        try:
-            inputs = fees.inputs_from_record(opp.record, params, year, dict(
-                complexity=complexity, cost_type=cost_type, construction_cost_usd_m2=construction_cost_usd_m2))
-            archive = fees.load_archive(conn, settings.dataset_version, before=opp.received_at.date())
-            est = fees.estimate(inputs, params, archive)
-        except fees.MissingInputs as e:
-            raise HTTPException(422, {"message": str(e), "missing": e.fields})
-        except fees.PricingError as e:
-            raise HTTPException(422, {"message": str(e), "missing": []})
+        opp, est, _ = proposals.price(conn, envelope_id, choices)
     return {"envelope_id": envelope_id, "record_version": opp.version, **est.to_dict()}
 
 
