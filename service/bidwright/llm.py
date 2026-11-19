@@ -39,6 +39,10 @@ def client() -> anthropic.Anthropic:
     return _client
 
 
+# On a refusal, these models hand the same request to a fallback model inside the call (server-side fallbacks).
+FALLBACK_BETA = "server-side-fallback-2026-07-01"
+FALLBACK_MODELS = ("claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-2", "claude-fable-5-1", "claude-opus-5")
+
 # Haiku 4.5 rejects the effort parameter; the 4.6+ models accept it.
 NO_EFFORT = ("claude-haiku-4-5",)
 
@@ -77,18 +81,21 @@ def structured_call(*, run_id: int | None, trace_id: uuid.UUID, model: str, prom
     request_hash = hashlib.sha256(
         json.dumps({"m": model, "s": system, "c": content, "schema": schema}, sort_keys=True).encode()).hexdigest()
     last_error = ""
+    request = dict(model=model, max_tokens=max_tokens,
+                   system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+                   output_config=output_config(model, effort, schema))
     for attempt in range(1, max_attempts + 1):
         started = time.monotonic()
         row: dict[str, Any] = dict(run=run_id, trace=str(trace_id), attempt=attempt, model=model, pv=prompt_version,
                                    hash=request_hash)
         try:
-            with client().messages.stream(
-                model=model, max_tokens=max_tokens,
-                system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
-                messages=messages,
-                output_config=output_config(model, effort, schema),
-            ) as stream:
-                response = stream.get_final_message()
+            if model.startswith(FALLBACK_MODELS):
+                stream = client().beta.messages.stream(**request, messages=messages, betas=[FALLBACK_BETA],
+                                                       fallbacks="default")
+            else:
+                stream = client().messages.stream(**request, messages=messages)
+            with stream as s:
+                response = s.get_final_message()
         except anthropic.APIError as e:
             log(row | dict(latency=int((time.monotonic() - started) * 1000), error=f"{type(e).__name__}: {e}"))
             raise
@@ -96,7 +103,10 @@ def structured_call(*, run_id: int | None, trace_id: uuid.UUID, model: str, prom
         body = next((b.text for b in response.content if b.type == "text"), "")
         row |= dict(latency=int((time.monotonic() - started) * 1000), tin=usage.input_tokens, tout=usage.output_tokens,
                     cr=usage.cache_read_input_tokens, cw=usage.cache_creation_input_tokens,
-                    cost=cost(model, usage), stop=response.stop_reason)
+                    cost=cost(response.model or model, usage), stop=response.stop_reason)
+        if response.stop_reason == "refusal":  # the whole fallback chain declined; asking again will not help
+            log(row | dict(response=body[:200000], validation_error="refusal"))
+            raise ValidationFailed("the model declined this request")
         try:
             if response.stop_reason != "end_turn":
                 raise ValidationFailed(f"stop_reason={response.stop_reason}")
