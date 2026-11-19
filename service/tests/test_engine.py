@@ -70,4 +70,28 @@ def test_brief_vs_schedule_gfa_is_a_conflict_and_schedule_leads(ref):
 def test_number_not_in_quote_is_flagged(ref):
     c = cand(1, "gfa_m2", "38,000 m²", number=83000, unit="m2")
     flags = normalize(fields()["gfa_m2"], c, ref, "AE")
-    assert any(fl.rule == "number_not_in_source" for fl in flags)
+    assert any(fl.rule == "number_not_in_source" for fl in flags) and c.normalized == 38000  # the written figure
+
+
+def test_an_area_the_model_already_converted_is_read_from_the_words(ref):
+    """'4-acre' with number 16187 and unit acre would be 65 million m²; the written 4 acres is what counts."""
+    c = cand(1, "site_area_m2", "4-acre", number=16187, unit="acre")
+    flags = normalize(fields()["site_area_m2"], c, ref, "IN")
+    assert c.normalized == pytest.approx(16187, rel=0.001) and [f.rule for f in flags] == ["number_not_in_source"]
+    assert "read 4 from '4-acre'" in c.notes[0]
+
+
+@pytest.mark.parametrize("said,sent,due", [
+    ("Thursday next week", "2026-11-19", "2026-11-26"),   # sent on a Thursday
+    ("by next Thu", "2026-11-16", "2026-11-26"),
+    ("by Friday", "2026-11-18", "2026-11-20"),
+    ("Friday next week", "2026-11-18", "2026-11-27"),
+    ("end of month", "2026-11-19", "2026-11-30"),
+    ("end of next week", "2026-11-19", "2026-11-27"),
+    ("first thing Monday 23rd", "2026-11-19", None),      # an explicit date is left to what is written
+])
+def test_relative_deadlines_are_worked_out_from_the_day_they_were_sent(said, sent, due):
+    from datetime import date
+    from bidwright.engine import relative_date
+    got = relative_date(said, date.fromisoformat(sent))
+    assert (got.isoformat() if got else None) == due
