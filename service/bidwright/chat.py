@@ -98,6 +98,17 @@ class Turn:
         self.seen: list[str] = [user_text]
         self.cards: list[dict] = []
         self.actions: list[dict] = []
+        self.started = time.monotonic()
+        self.effort = "low"
+        self.touched: dict[int, str] = {}  # request -> how this turn touched it (created beats discussed)
+        self.spans: list[dict] = []  # what the assistant did, on a time axis, for "how I got this"
+
+    def span(self, label: str, kind: str, started: float, **extra) -> dict:
+        ms = lambda t: int((t - self.started) * 1000)
+        sp = dict(id=f"s{len(self.spans)}", label=label, kind=kind, start=ms(started), end=ms(time.monotonic()))
+        sp |= {k: v for k, v in extra.items() if v is not None}
+        self.spans.append(sp)
+        return sp
 
     def keep(self, result: dict, evidence: list[dict] = ()) -> dict:
         for e in evidence:
@@ -286,11 +297,38 @@ TOOL_FUNCS = {
 }
 
 
-def run_tool(turn: Turn, name: str, args: dict) -> dict:
+def run_tool(turn: Turn, name: str, args: dict, parent: str | None = None) -> dict:
+    started = time.monotonic()
     try:
-        return TOOL_FUNCS[name](turn, args)
+        result = TOOL_FUNCS[name](turn, args)
     except HTTPException as e:
-        return {"error": e.detail if isinstance(e.detail, str) else json.dumps(e.detail)}
+        result = {"error": e.detail if isinstance(e.detail, str) else json.dumps(e.detail)}
+    rid = args.get("request_id")
+    if isinstance(rid, int) and not (isinstance(result, dict) and "error" in result):
+        turn.touched.setdefault(rid, "discussed")
+    kind = "agent" if name.startswith("propose_") else "io" if name in ("read_request", "show_source") else "tool"
+    err = isinstance(result, dict) and "error" in result
+    turn.span(name, kind, started, parentId=parent, status="error" if err else None,
+              detail=str(result["error"])[:60] if err else tool_detail(result))
+    return result
+
+
+def tool_detail(result) -> str:
+    """A few words on what a tool returned, for the trace."""
+    if not isinstance(result, dict):
+        return "done"
+    fee = result.get("opening_fee", result.get("opening"))
+    if fee is not None and result.get("currency"):
+        return f"{result['currency']} {float(fee):,.0f}"
+    if result.get("summary"):
+        return str(result["summary"])[:48]
+    for k, v in result.items():
+        if isinstance(v, list):
+            noun = k.replace("_", " ")
+            return f"{len(v)} {noun[:-1] if len(v) == 1 and noun.endswith('s') else noun}"
+    if result.get("envelope_id") or result.get("request_id"):
+        return f"request {result.get('envelope_id') or result.get('request_id')}"
+    return "done"
 
 
 # ---------------------------------------------------------------- checks on the answer
@@ -349,6 +387,10 @@ def call_model(system: str, messages: list[dict], trace_id: uuid.UUID):
         llm.log(row | dict(latency=int((time.monotonic() - started) * 1000), error=f"{type(e).__name__}: {e}"))
         raise
     u = response.usage
+    if turn is not None:
+        tools = sum(1 for b in response.content if b.type == "tool_use")
+        turn.span(label, "model", started, tokens=(u.input_tokens or 0) + (u.output_tokens or 0),
+                  detail=f"{tools} tool call{'s' if tools != 1 else ''}" if tools else "wrote the answer")
     llm.log(row | dict(latency=int((time.monotonic() - started) * 1000), tin=u.input_tokens, tout=u.output_tokens,
                        cr=u.cache_read_input_tokens, cw=u.cache_creation_input_tokens,
                        cost=llm.cost(response.model or settings.model_chat, u), stop=response.stop_reason,
@@ -359,21 +401,26 @@ def call_model(system: str, messages: list[dict], trace_id: uuid.UUID):
 def respond(turn: Turn, system: str, messages: list[dict]) -> str:
     trace_id = uuid.uuid4()
     retried = False
-    for _ in range(MAX_STEPS):
-        response = call_model(system, messages, trace_id)
+    for step in range(MAX_STEPS):
+        response = call_model(system, messages, trace_id, turn,
+                              "model.recheck" if retried else "model.plan" if step == 0 else "model.think")
         if response.stop_reason == "refusal":
             return "I can't help with that one."
         if response.stop_reason == "tool_use":
+            planner = turn.spans[-1]["id"] if turn.spans and turn.spans[-1]["kind"] == "model" else None
             messages.append({"role": "assistant", "content": [b.model_dump(exclude_none=True) for b in response.content]})
             results = []
             for b in response.content:
                 if b.type == "tool_use":
                     results.append({"type": "tool_result", "tool_use_id": b.id,
-                                    "content": json.dumps(run_tool(turn, b.name, dict(b.input)), default=str)})
+                                    "content": json.dumps(run_tool(turn, b.name, dict(b.input), planner), default=str)})
             messages.append({"role": "user", "content": results})
             continue
         answer = "".join(b.text for b in response.content if b.type == "text").strip()
+        checked = time.monotonic()
         wrong = problems(answer, turn)
+        turn.span("check_figures", "tool", checked, status="error" if wrong else None,
+                  detail="; ".join(wrong)[:60] if wrong else "every figure has a source")
         if not wrong:
             return answer
         if retried:
