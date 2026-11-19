@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type Evaluation, type Observability, type Reference } from "../api";
+import { api, type IntakeEvaluation, type Evaluation, type Observability, type Reference } from "../api";
 import { codeLabel } from "../format";
 import { useCan } from "../session";
 
@@ -118,20 +118,91 @@ const FIELD_LABEL: Record<string, string> = {
 };
 
 export function Accuracy({ onOpen }: { onOpen: (id: number) => void }) {
-  const [e, setE] = useState<Evaluation | null | undefined>(undefined);
-  useEffect(() => { api.evaluation().then(setE); }, []);
-  if (e === undefined) return <div className="page"><p className="empty">Loading…</p></div>;
-  if (e === null) return (
-    <div className="page admin">
-      <h1>Backtests</h1>
-      <p className="lede">A backtest runs the extraction on every pack in your gold set, RFP packs paired with the proposals your practice actually wrote, and scores each value against the answer.</p>
-      <p className="empty">No backtest has run in this workspace yet. An admin starts one with <code>make eval</code> (the whole gold set) or <code>make eval-one CASE=P13</code> (one pack).</p>
-    </div>);
-  const s = e.summary;
-  const fieldsList = Object.keys(s.per_field);
   return (
     <div className="page admin">
       <h1>Backtests</h1>
+      <p className="lede">How Bidwright scores against answers known in advance: first on incoming requests (WhatsApp messages, emails, call notes, RFP packs), then on the practice's past RFP packs.</p>
+      <IntakeBacktest />
+      <PackBacktest onOpen={onOpen} />
+    </div>
+  );
+}
+
+const KIND_LABEL: Record<string, string> = { go: "Qualify", clarify: "Clarify", "no-go": "Decline" };
+
+/** The intake run on the sample requests (make eval-intake): recommendation, field status and questions. */
+function IntakeBacktest() {
+  const [e, setE] = useState<IntakeEvaluation | null | undefined>(undefined);
+  useEffect(() => { api.intakeEvaluation().then(setE, () => setE(null)); }, []);
+  if (e === undefined) return <p className="empty">Loading…</p>;
+  if (e === null) return (
+    <section>
+      <h2>Incoming requests</h2>
+      <p className="empty">No run on the sample requests yet. An admin starts one with <code>make eval-intake</code>.</p>
+    </section>);
+  const s = e.summary, pct = (v: number) => `${Math.round(v * 100)}%`;
+  const kinds = ["go", "clarify", "no-go"];
+  return (
+    <section>
+      <h2>Incoming requests</h2>
+      <p className="lede">The latest run over {s.requests} sample requests, each with the answer known in advance: whether to qualify,
+        clarify or decline; which values are found, estimated or missing; and whether the questions for the client cover what is missing.</p>
+      <dl className="figures">
+        <div><dt>Recommendation right</dt><dd>{pct(s.recommendation_accuracy)}</dd><dd className="dim">qualify, clarify or decline</dd></div>
+        <div><dt>Field status right</dt><dd>{pct(s.status_accuracy)}</dd><dd className="dim">values {pct(s.value_accuracy)} right</dd></div>
+        <div><dt>Questions cover the gaps</dt><dd>{pct(s.question_coverage)}</dd><dd className="dim">gaps caught {s.gaps_caught}</dd></div>
+        <div><dt>Model cost, whole set</dt><dd>${s.cost_usd.toFixed(2)}</dd><dd className="dim">{s.llm_calls} calls · false gaps {s.false_gaps}</dd></div>
+      </dl>
+      <p className="dim">Run {e.meta.run_at}, {e.meta.model}, prompt {e.meta.prompt_version}, engine {e.meta.engine_version}, dataset {e.meta.dataset}.</p>
+      <div className="grid-wrap">
+        <table className="grid">
+          <thead><tr><th>Expected</th>{kinds.map((k) => <th key={k}>Said {KIND_LABEL[k]}</th>)}</tr></thead>
+          <tbody>{kinds.map((k) => (
+            <tr key={k}><td><strong>{KIND_LABEL[k]}</strong></td>
+              {kinds.map((g) => {
+                const n = s.recommendation_confusion[k]?.[g] ?? 0;
+                return <td key={g} className={n ? (k === g ? "ok" : "miss") : ""}>{n || ""}</td>;
+              })}
+            </tr>))}
+          </tbody>
+        </table>
+      </div>
+      <div className="grid-wrap">
+        <table className="grid">
+          <thead><tr><th>Request</th><th>Kind</th><th>Recommendation</th><th>Fields right</th><th>Missed</th></tr></thead>
+          <tbody>{e.results.map((r) => (
+            <tr key={r.case_id}>
+              <td><strong>{r.case_id}</strong></td>
+              <td className="dim">{(r.kind ?? "").replace(/_/g, " ")}</td>
+              <td className={r.recommendation?.ok ? "ok" : "miss"}>
+                {r.recommendation?.ok ? "✓ " : "✗ "}{KIND_LABEL[r.recommendation?.got] ?? r.recommendation?.got}
+                {!r.recommendation?.ok && <span className="dim"> (expected {KIND_LABEL[r.recommendation?.expected] ?? r.recommendation?.expected})</span>}
+              </td>
+              <td>{r.fields_ok}/{r.fields}</td>
+              <td className="dim">{r.missed.map((f) => FIELD_LABEL[f] ?? f.replace(/_/g, " ")).join(", ")}</td>
+            </tr>))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function PackBacktest({ onOpen }: { onOpen: (id: number) => void }) {
+  const [e, setE] = useState<Evaluation | null | undefined>(undefined);
+  useEffect(() => { api.evaluation().then(setE); }, []);
+  if (e === undefined) return <p className="empty">Loading…</p>;
+  if (e === null) return (
+    <section>
+      <h2>RFP packs</h2>
+      <p className="lede">Runs the extraction on every pack in your gold set, RFP packs paired with the proposals your practice actually wrote, and scores each value against the answer.</p>
+      <p className="empty">No run on the RFP packs yet. An admin starts one with <code>make eval</code> (the whole gold set) or <code>make eval-one CASE=P13</code> (one pack).</p>
+    </section>);
+  const s = e.summary;
+  const fieldsList = Object.keys(s.per_field);
+  return (
+    <section>
+      <h2>RFP packs</h2>
       <p className="lede">The latest run over {e.results.length} gold packs, each paired with the proposal the practice wrote. What Bidwright extracts is compared with what the proposal says. Click a pack to open its record.</p>
       <dl className="figures">
         <div><dt>Pricing-critical fields</dt><dd>{(s.pricing_critical_accuracy * 100).toFixed(1)}%</dd><dd className="dim">target 90%</dd></div>
@@ -156,6 +227,6 @@ export function Accuracy({ onOpen }: { onOpen: (id: number) => void }) {
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
   );
 }
