@@ -15,6 +15,7 @@ import json
 import re
 import time
 import uuid
+from typing import Literal
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -182,6 +183,7 @@ def t_read_request(turn: Turn, text_: str, channel: str) -> dict:
     if created:
         extract_envelope(e)
     turn.envelope_id = e
+    turn.touched[e] = "created"
     with engine.begin() as conn:
         conn.execute(text("UPDATE chat.thread SET envelope_id = :e WHERE thread_id = :t"), dict(e=e, t=turn.thread_id))
         turn.cards.append(request_card(conn, e))
@@ -372,9 +374,9 @@ def history(conn: Connection, thread_id: int) -> list[dict]:
     return [{"role": r.role, "content": r.content.get("text") or "(no text)"} for r in reversed(rows)]
 
 
-def call_model(system: str, messages: list[dict], trace_id: uuid.UUID):
-    request = dict(model=settings.model_chat, max_tokens=4000, system=system, tools=TOOLS, messages=messages,
-                   output_config={"effort": "low"})
+def call_model(system: str, messages: list[dict], trace_id: uuid.UUID, turn: "Turn | None" = None, label: str = "model"):
+    request = dict(model=settings.model_chat, max_tokens=4000 if not turn or turn.effort == "low" else 8000, system=system,
+                   tools=TOOLS, messages=messages, output_config={"effort": turn.effort if turn else "low"})
     started = time.monotonic()
     row = dict(run=None, trace=str(trace_id), attempt=1, model=settings.model_chat, pv=PROMPT_VERSION,
                hash=uuid.uuid4().hex.ljust(64, "0"))
@@ -445,21 +447,95 @@ class Ask(BaseModel):
     message: str = PField(min_length=1, max_length=20000)
     thread_id: int | None = None
     envelope_id: int | None = None
+    effort: Literal["low", "medium", "high"] = "low"  # how hard the assistant thinks on this answer
+    attached: bool = False  # envelope_id is a request just made from files added in the chat
+    # with attached files, the person's own clock: from their click to the upload finishing, and to this message
+    upload_ms: int | None = PField(default=None, ge=0, le=900_000)
+    waited_ms: int | None = PField(default=None, ge=0, le=900_000)
+
+
+def trace_of(turn: Turn, body: "Ask") -> dict:
+    """The answer's whole wait, as the person saw it: with attached files, the upload and the reading first
+    (from the reading runs' own clocks), then this message's steps."""
+    server = int((time.monotonic() - turn.started) * 1000)
+    if not (body.attached and body.envelope_id and body.waited_ms is not None):
+        return {"spans": turn.spans, "duration": server, "model": settings.model_chat}
+    with engine.connect() as conn:
+        prelude = reading_spans(conn, body.envelope_id, body.upload_ms or 0, body.waited_ms)
+    shift = body.waited_ms
+    spans = prelude + [s | {"start": s["start"] + shift, "end": s["end"] + shift} for s in turn.spans]
+    return {"spans": spans, "duration": shift + server, "model": settings.model_chat}
+
+
+def reading_spans(conn: Connection, envelope_id: int, upload_ms: int, waited_ms: int) -> list[dict]:
+    """Uploading the files, then reading them: each document's run and its model calls, placed by their
+    recorded start and finish times, inside the time the person actually waited."""
+    files = conn.execute(text("SELECT count(*) FROM lineage.source_document WHERE envelope_id = :e"), dict(e=envelope_id)).scalar()
+    spans = [dict(id="u0", label="upload_files", kind="io", start=0, end=upload_ms,
+                  detail=f"{files} file{'s' if files != 1 else ''}")]
+    runs = conn.execute(text("""SELECT r.run_id, r.kind, r.status, r.started_at, r.finished_at, d.file_name
+                                FROM intake.extraction_run r LEFT JOIN lineage.source_document d USING (document_id)
+                                WHERE r.envelope_id = :e ORDER BY r.started_at"""), dict(e=envelope_id)).all()
+    spans.append(dict(id="r0", label="read_files", kind="agent", start=upload_ms, end=waited_ms,
+                      detail=f"{len(runs)} reading run{'s' if len(runs) != 1 else ''}"))
+    if not runs:
+        return spans
+    base = runs[0].started_at
+    at = lambda t: min(waited_ms, upload_ms + max(0, int((t - base).total_seconds() * 1000)))
+    for i, r in enumerate(runs):
+        rid = f"r{i + 1}"
+        spans.append(dict(id=rid, parentId="r0", label=f"read {r.file_name}" if r.file_name else f"read ({r.kind})",
+                          kind="io", start=at(r.started_at), end=at(r.finished_at or r.started_at),
+                          status="error" if r.status == "failed" else None, detail=r.kind))
+        for j, c in enumerate(conn.execute(text("""SELECT model, prompt_version, latency_ms, created_at, coalesce(input_tokens, 0) +
+                                                   coalesce(output_tokens, 0) AS tokens, error
+                                                   FROM intake.llm_call WHERE run_id = :r ORDER BY call_id"""),
+                                           dict(r=r.run_id))):
+            end = at(c.created_at)
+            what = "model.questions" if (c.prompt_version or "").startswith("followup") else "model.read"
+            spans.append(dict(id=f"{rid}m{j}", parentId=rid, label=what, kind="model",
+                              start=max(0, end - (c.latency_ms or 0)), end=end, tokens=c.tokens or None,
+                              status="error" if c.error else None, detail=c.model))
+    return [{k: v for k, v in s.items() if v is not None} for s in spans]
+
+
+def title_from(message: str) -> str:
+    """A conversation's title: its first question, on one line."""
+    line = " ".join(message.split())
+    return line if len(line) <= 80 else line[:77].rstrip() + "…"
+
+
+def own_thread(conn: Connection, thread_id: int, who: Principal):
+    """A conversation is its owner's; people who manage members (owners, admins) can read everyone's."""
+    t = conn.execute(text("SELECT thread_id, envelope_id, user_id, title FROM chat.thread WHERE thread_id = :t"),
+                     dict(t=thread_id)).first()
+    if t is None or (t.user_id not in (None, who.user_id) and not who.can("members")):
+        raise HTTPException(404, "no such conversation")
+    return t
+
+
+def link(conn: Connection, thread_id: int, envelope_id: int, relation: str) -> None:
+    conn.execute(text("""INSERT INTO chat.thread_request (thread_id, envelope_id, relation) VALUES (:t, :e, :r)
+                         ON CONFLICT DO NOTHING"""), dict(t=thread_id, e=envelope_id, r=relation))
 
 
 @router.post("/chat")
 def ask(body: Ask, who: Principal = READ):
+    received = time.monotonic()  # the trace runs from here (plus any wait for files before this message)
     with engine.begin() as conn:
         if body.thread_id:
-            t = conn.execute(text("SELECT thread_id, envelope_id FROM chat.thread WHERE thread_id = :t"),
-                             dict(t=body.thread_id)).first()
-            if t is None:
-                raise HTTPException(404, "no such conversation")
+            t = own_thread(conn, body.thread_id, who)
             thread_id, envelope_id = t.thread_id, body.envelope_id or t.envelope_id
+            if body.attached and body.envelope_id:
+                conn.execute(text("UPDATE chat.thread SET envelope_id = :e WHERE thread_id = :t"), dict(e=envelope_id, t=thread_id))
         else:
             envelope_id = body.envelope_id
-            thread_id = conn.execute(text("INSERT INTO chat.thread (envelope_id, created_by) VALUES (:e, :w) RETURNING thread_id"),
-                                     dict(e=envelope_id, w=who.email)).scalar_one()
+            thread_id = conn.execute(text("""INSERT INTO chat.thread (envelope_id, created_by, user_id, title)
+                                             VALUES (:e, :w, :u, :title) RETURNING thread_id"""),
+                                     dict(e=envelope_id, w=who.email, u=who.user_id,
+                                          title=title_from(body.message))).scalar_one()
+            if envelope_id:
+                link(conn, thread_id, envelope_id, "created" if body.attached else "opened_from")
         past = history(conn, thread_id)
         conn.execute(text("INSERT INTO chat.message (thread_id, role, content, created_by) VALUES (:t, 'user', CAST(:c AS jsonb), :w)"),
                      dict(t=thread_id, c=json.dumps({"text": body.message}), w=who.email))
@@ -467,20 +543,35 @@ def ask(body: Ask, who: Principal = READ):
         system = SYSTEM.format(practice=practice, today=f"{datetime.now(timezone.utc):%A %-d %B %Y}",
                                focus=focus_line(conn, envelope_id))
     turn = Turn(who, thread_id, envelope_id, body.message)
+    turn.started = received
+    turn.span("load_conversation", "io", received, detail=f"{len(past)} earlier message{'s' if len(past) != 1 else ''}")
+    turn.effort = body.effort
+    if body.attached and envelope_id:  # files added in the chat: that request is this turn's to talk about
+        turn.touched[envelope_id] = "created"
     # figures already shown in this conversation passed the same check when they were first given
     turn.seen += [m["content"] for m in past if m["role"] == "assistant"]
     answer = respond(turn, system, past + [{"role": "user", "content": body.message}])
     cited = sorted({int(i) for i in re.findall(r"\[ev:(\d+)\]", answer)} & set(turn.evidence))
     content = {"text": answer, "sources": {str(i): turn.evidence[i] for i in cited}, "cards": turn.cards,
-               "actions": turn.actions}
+               "actions": turn.actions,
+               "trace": trace_of(turn, body)}
     with engine.begin() as conn:
         conn.execute(text("INSERT INTO chat.message (thread_id, role, content) VALUES (:t, 'assistant', CAST(:c AS jsonb))"),
                      dict(t=thread_id, c=json.dumps(content, default=str)))
+        for e, relation in turn.touched.items():
+            link(conn, thread_id, e, relation)
+        made = [e for e, r in turn.touched.items() if r == "created"]
+        if made and not past and (len(body.message) > 160 or body.attached):  # a pasted request: name the chat after the request
+            name = conn.execute(text("SELECT title FROM intake.envelope WHERE envelope_id = :e"),
+                                dict(e=made[0])).scalar()
+            if name:
+                conn.execute(text("UPDATE chat.thread SET title = :n WHERE thread_id = :t"), dict(n=title_from(name), t=thread_id))
+        conn.execute(text("UPDATE chat.thread SET updated_at = now() WHERE thread_id = :t"), dict(t=thread_id))
         return thread_view(conn, thread_id)
 
 
 def thread_view(conn: Connection, thread_id: int) -> dict:
-    t = conn.execute(text("SELECT thread_id, envelope_id FROM chat.thread WHERE thread_id = :t"), dict(t=thread_id)).one()
+    t = conn.execute(text("SELECT thread_id, envelope_id, title FROM chat.thread WHERE thread_id = :t"), dict(t=thread_id)).one()
     status = dict(conn.execute(text("SELECT action_id, status FROM chat.pending_action WHERE thread_id = :t"),
                                dict(t=thread_id)).all())
     messages = []
@@ -490,20 +581,26 @@ def thread_view(conn: Connection, thread_id: int) -> dict:
         for a in c.get("actions", []):
             a["status"] = status.get(a["action_id"], a["status"])
         messages.append({"id": m.message_id, "role": m.role, "created_at": m.created_at, **c})
-    return {"thread_id": t.thread_id, "envelope_id": t.envelope_id, "messages": messages}
+    return {"thread_id": t.thread_id, "envelope_id": t.envelope_id, "title": t.title, "messages": messages}
 
 
 @router.get("/chat/{thread_id}")
-def get_thread(thread_id: int, _: Principal = READ):
+def get_thread(thread_id: int, who: Principal = READ):
     with engine.connect() as conn:
+        own_thread(conn, thread_id, who)
         return thread_view(conn, thread_id)
 
 
 @router.get("/envelopes/{envelope_id}/chat")
-def latest_thread(envelope_id: int, _: Principal = READ):
+def latest_thread(envelope_id: int, who: Principal = READ):
     """The latest conversation about a request, so its side panel continues where the person left off."""
     with engine.connect() as conn:
-        t = conn.execute(text("SELECT max(thread_id) FROM chat.thread WHERE envelope_id = :e"), dict(e=envelope_id)).scalar()
+        # the person's latest conversation about this request: opened on it, or one that read, discussed or decided it
+        t = conn.execute(text("""SELECT t.thread_id FROM chat.thread t
+                                 WHERE t.archived_at IS NULL AND (t.user_id = :u OR t.user_id IS NULL)
+                                   AND (t.envelope_id = :e OR EXISTS (SELECT 1 FROM chat.thread_request r
+                                        WHERE r.thread_id = t.thread_id AND r.envelope_id = :e))
+                                 ORDER BY t.updated_at DESC LIMIT 1"""), dict(e=envelope_id, u=who.user_id)).scalar()
         return thread_view(conn, t) if t else None
 
 
@@ -570,9 +667,75 @@ def decide_action(action_id: int, choice: str, who: Principal = READ):
         conn.execute(text("""UPDATE chat.pending_action SET status = :s, result = CAST(:r AS jsonb), decided_by = :w,
                              decided_at = now() WHERE action_id = :a"""),
                      dict(s=status, r=json.dumps(result, default=str), w=who.email, a=action_id))
+        if status == "confirmed" and a.envelope_id:
+            link(conn, a.thread_id, a.envelope_id, "decided")
+        conn.execute(text("UPDATE chat.thread SET updated_at = now() WHERE thread_id = :t"), dict(t=a.thread_id))
         conn.execute(text("INSERT INTO chat.message (thread_id, role, content, created_by) VALUES (:t, 'system', CAST(:c AS jsonb), :w)"),
                      dict(t=a.thread_id, w=who.email, c=json.dumps({"text": result["message"], "cards": [result["card"]]
                                                                     if "card" in result else [],
                                                                     "downloads": result.get("downloads", []),
                                                                     "action_id": action_id, "status": status}, default=str)))
         return thread_view(conn, a.thread_id)
+
+
+# ---------------------------------------------------------------- the history: past conversations
+
+@router.get("/chats")
+def list_chats(scope: str = "mine", q: str | None = None, envelope_id: int | None = None, archived: bool = False,
+               who: Principal = READ):
+    """Past conversations, most recent first: their title, who had them, the last thing said, and the requests
+    they touched. Everyone sees their own; owners and admins can also see everyone's (scope=everyone)."""
+    if scope == "everyone" and not who.can("members"):
+        raise HTTPException(403, "only owners and admins can see everyone's conversations")
+    where = ["(t.archived_at IS NOT NULL) = :archived"]
+    if scope != "everyone":
+        where.append("t.user_id = :u")
+    if envelope_id is not None:
+        where.append("EXISTS (SELECT 1 FROM chat.thread_request r WHERE r.thread_id = t.thread_id AND r.envelope_id = :e)")
+    if q:
+        where.append("""(t.title ILIKE :q OR EXISTS (SELECT 1 FROM chat.message m WHERE m.thread_id = t.thread_id
+                         AND m.content->>'text' ILIKE :q))""")
+    with engine.connect() as conn:
+        rows = conn.execute(text(f"""
+            SELECT t.thread_id, t.title, t.created_at, t.updated_at, t.archived_at, t.envelope_id,
+                   coalesce(u.name, t.created_by) AS owner, t.user_id = :u AS mine,
+                   (SELECT count(*) FROM chat.message m WHERE m.thread_id = t.thread_id AND m.role <> 'system') AS messages,
+                   (SELECT m.content->>'text' FROM chat.message m WHERE m.thread_id = t.thread_id AND m.role <> 'system'
+                    ORDER BY m.message_id DESC LIMIT 1) AS last_text,
+                   (SELECT coalesce(jsonb_agg(jsonb_build_object('envelope_id', x.envelope_id, 'relation', x.relation,
+                                                                 'title', e.title) ORDER BY x.first_at), '[]')
+                    FROM (SELECT DISTINCT ON (envelope_id) envelope_id, relation, first_at FROM chat.thread_request
+                          WHERE thread_id = t.thread_id
+                          ORDER BY envelope_id, array_position(ARRAY['decided','created','opened_from','discussed'], relation)) x
+                    JOIN intake.envelope e USING (envelope_id)) AS requests
+            FROM chat.thread t LEFT JOIN tenancy.app_user u ON u.user_id = t.user_id
+            WHERE {" AND ".join(where)}
+            ORDER BY t.updated_at DESC LIMIT 200"""),
+            dict(u=who.user_id, e=envelope_id, q=f"%{q}%" if q else None, archived=archived)).mappings().all()
+    out = []
+    for r in rows:
+        last = re.sub(r"\s*\[ev:[^\]]*\]", "", r["last_text"] or "")
+        last = re.sub(r"[*_`#>|]+|^\s*[-•]\s+|\s[-•]\s+", " ", last, flags=re.M)  # plain words, not Markdown
+        out.append(dict(r) | {"preview": " ".join(last.split())[:160]})
+        out[-1].pop("last_text")
+    return out
+
+
+class ChatChange(BaseModel):
+    title: str | None = PField(default=None, min_length=1, max_length=120)
+    archived: bool | None = None
+
+
+@router.patch("/chats/{thread_id}")
+def change_chat(thread_id: int, body: ChatChange, who: Principal = READ):
+    """Rename a conversation, or archive it (hidden from the list, kept for the record) and bring it back."""
+    with engine.begin() as conn:
+        t = own_thread(conn, thread_id, who)
+        if t.user_id not in (None, who.user_id):
+            raise HTTPException(403, "only the person who had this conversation can change it")
+        if body.title is not None:
+            conn.execute(text("UPDATE chat.thread SET title = :n WHERE thread_id = :t"), dict(n=body.title.strip(), t=thread_id))
+        if body.archived is not None:
+            conn.execute(text("UPDATE chat.thread SET archived_at = CASE WHEN :a THEN now() END WHERE thread_id = :t"),
+                         dict(a=body.archived, t=thread_id))
+        return thread_view(conn, thread_id)
