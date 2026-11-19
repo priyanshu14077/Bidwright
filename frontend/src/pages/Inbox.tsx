@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Envelope } from "../api";
-import { LEAD, countryName, daysLeft, formatDate } from "../format";
+import { LEAD, VERSION_STATUS, countryName, daysLeft, formatDate, shortMoney } from "../format";
 import { useCan } from "../session";
 
 const STATUS: Record<Envelope["status"], string> = {
@@ -57,7 +57,7 @@ export function Inbox({ onOpen }: { onOpen: (id: number) => void }) {
         <table className="register-table">
           <thead>
             <tr><th>Project</th><th>Location</th><th>Received</th><th>Deadline</th><th>Lead status</th>
-              <th>Pricing fields</th><th>Conflicts</th><th>Status</th></tr>
+              <th>Pricing fields</th><th>Conflicts</th><th>Status</th><th>Proposal</th></tr>
           </thead>
           <tbody>
             {items.map((e) => {
@@ -77,6 +77,11 @@ export function Inbox({ onOpen }: { onOpen: (id: number) => void }) {
                   </td>
                   <td>{e.open_conflicts ? <span className="delta-count">△ {e.open_conflicts}</span> : <span className="dim">None</span>}</td>
                   <td>{STATUS[e.status]}{e.confirmed_version ? ` (v${e.confirmed_version})` : ""}</td>
+                  <td>{e.proposal_id ? (
+                    <a href={`#/proposal/${e.proposal_id}/v/${e.proposal_version}`} onClick={(ev) => ev.stopPropagation()}>
+                      {e.proposal_reference}<br />
+                      <span className="dim">v{e.proposal_version} {e.proposal_status ? VERSION_STATUS[e.proposal_status].toLowerCase() : ""}, {shortMoney(e.proposal_total, e.proposal_currency ?? "")}</span>
+                    </a>) : <span className="dim">None</span>}</td>
                 </tr>
               );
             })}

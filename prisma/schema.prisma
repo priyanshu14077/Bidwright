@@ -1,11 +1,12 @@
 generator client {
-  provider = "prisma-client"
-  output   = "./generated"
+  provider        = "prisma-client"
+  output          = "./generated"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
   provider = "postgresql"
-  schemas  = ["archive", "eval", "intake", "lineage", "ref", "tenancy"]
+  schemas  = ["archive", "eval", "intake", "lineage", "proposal", "ref", "tenancy"]
 }
 
 model client {
@@ -379,6 +380,7 @@ model envelope {
   opportunity                       opportunity[]
   field_value                       field_value[]
   source_document                   source_document[]
+  bid                               bid[]
 
   @@unique([org_id, envelope_id])
   @@index([org_id, received_at(sort: Desc)], map: "envelope_received")
@@ -593,16 +595,18 @@ model benchmark_source {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model country {
-  code                               String     @id @db.Char(2)
-  name                               String
-  region                             String
-  national_currency                  String     @db.Char(3)
-  area_unit                          String
-  aliases                            String[]   @default([])
-  client_client_countryTocountry     client[]   @relation("client_countryTocountry")
-  envelope_envelope_countryTocountry envelope[] @relation("envelope_countryTocountry")
-  location_location_countryTocountry location[] @relation("location_countryTocountry")
-  studio_studio_countryTocountry     studio[]   @relation("studio_countryTocountry")
+  code                                                 String              @id @db.Char(2)
+  name                                                 String
+  region                                               String
+  national_currency                                    String              @db.Char(3)
+  area_unit                                            String
+  aliases                                              String[]            @default([])
+  client_client_countryTocountry                       client[]            @relation("client_countryTocountry")
+  envelope_envelope_countryTocountry                   envelope[]          @relation("envelope_countryTocountry")
+  construction_cost_construction_cost_countryTocountry construction_cost[] @relation("construction_cost_countryTocountry")
+  location_location_countryTocountry                   location[]          @relation("location_countryTocountry")
+  market_market_countryTocountry                       market[]            @relation("market_countryTocountry")
+  studio_studio_countryTocountry                       studio[]            @relation("studio_countryTocountry")
 
   @@schema("ref")
 }
@@ -702,6 +706,8 @@ model service {
   default_area_basis                                 String
   fee_line_fee_line_serviceToservice                 fee_line[]         @relation("fee_line_serviceToservice")
   proposal_service_proposal_service_serviceToservice proposal_service[] @relation("proposal_service_serviceToservice")
+  line_line_serviceToservice                         line[]             @relation("line_serviceToservice")
+  clause_clause_serviceToservice                     clause[]           @relation("clause_serviceToservice")
 
   @@schema("ref")
 }
@@ -712,6 +718,8 @@ model stage {
   seq                                        Int              @unique
   fee_line_fee_line_stageTostage             fee_line[]       @relation("fee_line_stageTostage")
   proposal_stage_proposal_stage_stageTostage proposal_stage[] @relation("proposal_stage_stageTostage")
+  line_line_stageTostage                     line[]           @relation("line_stageTostage")
+  clause_clause_stageTostage                 clause[]         @relation("clause_stageTostage")
 
   @@schema("ref")
 }
@@ -845,11 +853,21 @@ model organization {
   field_value          field_value[]
   page                 page[]
   source_document      source_document[]
+  bid                  bid[]
+  event                event[]
+  line                 line[]
+  output               output[]
+  section              section[]
+  version              version[]
   benchmark_source     benchmark_source[]
+  clause               clause[]
+  construction_cost    construction_cost[]
   fee_assumption       fee_assumption[]
   field_criticality    field_criticality[]
   location             location[]
+  market               market[]
   qualification_rule   qualification_rule[]
+  setting_change       setting_change[]
   studio               studio[]
   term_synonym         term_synonym[]
   typology_cost_ratio  typology_cost_ratio[]
@@ -871,4 +889,223 @@ model session {
 
   @@index([user_id], map: "session_by_user")
   @@schema("tenancy")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model bid {
+  proposal_id  BigInt       @id @default(autoincrement())
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  reference    String
+  envelope_id  BigInt
+  title        String
+  created_by   String
+  created_at   DateTime     @default(now()) @db.Timestamptz(6)
+  envelope     envelope     @relation(fields: [envelope_id], references: [envelope_id], onDelete: Cascade, onUpdate: NoAction)
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  event        event[]
+  version      version?
+
+  @@unique([org_id, reference])
+  @@schema("proposal")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model event {
+  event_id     BigInt       @id @default(autoincrement())
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  proposal_id  BigInt
+  version_id   BigInt?
+  action       String
+  target       String?
+  old          Json?
+  new          Json?
+  reason       String?
+  actor        String
+  at           DateTime     @default(now()) @db.Timestamptz(6)
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  bid          bid          @relation(fields: [proposal_id], references: [proposal_id], onDelete: Cascade, onUpdate: NoAction)
+  version      version?     @relation(fields: [version_id], references: [version_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([proposal_id, at], map: "event_by_proposal")
+  @@schema("proposal")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model line {
+  version_id                    BigInt
+  line_no                       Int
+  org_id                        String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  service                       String
+  stage                         String
+  basis                         String?
+  basis_qty                     Decimal?     @db.Decimal
+  basis_unit                    String?
+  engine_amount_local           Decimal?     @db.Decimal
+  amount_local                  Decimal      @db.Decimal
+  factors                       Json         @default("[]")
+  note                          String?
+  organization                  organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  service_line_serviceToservice service      @relation("line_serviceToservice", fields: [service], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  stage_line_stageTostage       stage        @relation("line_stageTostage", fields: [stage], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  version                       version      @relation(fields: [version_id], references: [version_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([version_id, line_no])
+  @@schema("proposal")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model output {
+  export_id    BigInt       @id @default(autoincrement())
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  version_id   BigInt
+  format       String
+  blob_sha     String       @db.Char(64)
+  file_name    String
+  template     String
+  created_by   String
+  created_at   DateTime     @default(now()) @db.Timestamptz(6)
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  version      version      @relation(fields: [version_id], references: [version_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("proposal")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model section {
+  version_id   BigInt
+  code         String
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  seq          Int
+  title        String
+  kind         String
+  body         String?
+  data         Json?
+  origin       String
+  citations    Json         @default("[]")
+  updated_by   String?
+  updated_at   DateTime     @default(now()) @db.Timestamptz(6)
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  version      version      @relation(fields: [version_id], references: [version_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([version_id, code])
+  @@schema("proposal")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model version {
+  version_id         BigInt       @id @default(autoincrement())
+  org_id             String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  proposal_id        BigInt       @unique(map: "one_draft_per_proposal", where: raw("(status = 'draft'::text)"))
+  version_no         Int
+  status             String       @default("draft")
+  based_on           BigInt?
+  record_version     Int
+  pricing_choices    Json         @default("{}")
+  estimate           Json
+  engine_version     String
+  currency           String       @db.Char(3)
+  fx_per_usd         Decimal      @db.Decimal
+  engine_total_local Decimal      @db.Decimal
+  fee_total_local    Decimal      @db.Decimal
+  revision           Int          @default(1)
+  created_by         String
+  created_at         DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime     @default(now()) @db.Timestamptz(6)
+  approved_by        String?
+  approved_at        DateTime?    @db.Timestamptz(6)
+  superseded_at      DateTime?    @db.Timestamptz(6)
+  event              event[]
+  line               line[]
+  output             output[]
+  section            section[]
+  version            version?     @relation("versionToversion", fields: [based_on], references: [version_id], onDelete: NoAction, onUpdate: NoAction)
+  other_version      version[]    @relation("versionToversion")
+  organization       organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  bid                bid          @relation(fields: [proposal_id], references: [proposal_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([proposal_id, version_no])
+  @@schema("proposal")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model construction_cost {
+  org_id                                     String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  country                                    String       @db.Char(2)
+  city                                       String       @default("")
+  cost_type                                  String
+  usd_m2                                     Decimal      @db.Decimal
+  price_year                                 Int
+  basis                                      String
+  source                                     String?
+  note                                       String?
+  updated_at                                 DateTime     @default(now()) @db.Timestamptz(6)
+  updated_by                                 String?
+  country_construction_cost_countryTocountry country      @relation("construction_cost_countryTocountry", fields: [country], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  organization                               organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([org_id, country, city, cost_type])
+  @@schema("ref")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model market {
+  org_id                          String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  country                         String       @db.Char(2)
+  band                            String
+  fee_factor                      Decimal      @db.Decimal
+  fee_factor_source               String?
+  escalation_pct                  Decimal      @db.Decimal
+  escalation_source               String?
+  updated_at                      DateTime     @default(now()) @db.Timestamptz(6)
+  updated_by                      String?
+  country_market_countryTocountry country      @relation("market_countryTocountry", fields: [country], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  organization                    organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([org_id, country])
+  @@schema("ref")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model setting_change {
+  change_id    BigInt       @id @default(autoincrement())
+  org_id       String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  setting      String
+  key          String
+  old          Json?
+  new          Json?
+  reason       String?
+  changed_by   String
+  changed_at   DateTime     @default(now()) @db.Timestamptz(6)
+  organization organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([org_id, changed_at(sort: Desc)], map: "setting_change_by_time")
+  @@schema("ref")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model clause {
+  org_id                          String       @default(dbgenerated("tenancy.current_org()")) @db.Uuid
+  kind                            String
+  key                             String
+  service                         String?
+  stage                           String?
+  seq                             Int          @default(0)
+  label                           String?
+  body                            String
+  updated_at                      DateTime     @default(now()) @db.Timestamptz(6)
+  updated_by                      String?
+  organization                    organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+  service_clause_serviceToservice service?     @relation("clause_serviceToservice", fields: [service], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  stage_clause_stageTostage       stage?       @relation("clause_stageTostage", fields: [stage], references: [code], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([org_id, kind, key])
+  @@schema("ref")
 }

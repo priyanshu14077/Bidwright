@@ -7,6 +7,7 @@ the caller's workspace; row-level security does the rest.
 """
 
 import json
+import re
 from datetime import datetime
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
@@ -14,7 +15,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field as PField
 from sqlalchemy import text
 
-from bidwright import record
+from bidwright import drafting, export, fees, proposals, record
 from bidwright.auth import require, router as auth_router
 from bidwright.config import REPO_ROOT, settings
 from bidwright.db import engine, in_workspace
@@ -27,6 +28,9 @@ from bidwright.tenancy import Principal
 
 app = FastAPI(title="Bidwright", version="0.2.0")
 app.include_router(auth_router)
+app.include_router(proposals.router)
+app.include_router(drafting.router)
+app.include_router(export.router)
 
 READ, INTAKE, REVIEW, REFERENCE, BACKTEST = (Depends(require(p)) for p in
                                              ("read", "intake", "review", "reference", "backtest"))
@@ -72,8 +76,14 @@ def inbox(_: Principal = READ):
                (SELECT count(*) FROM intake.field_conflict c WHERE c.envelope_id = e.envelope_id AND c.status = 'open') AS open_conflicts,
                (SELECT count(*) FROM intake.engine_flag f WHERE f.envelope_id = e.envelope_id AND f.severity <> 'info') AS flags,
                (SELECT count(*) FROM lineage.source_document d WHERE d.envelope_id = e.envelope_id) AS documents,
-               (SELECT max(version) FROM intake.opportunity o WHERE o.envelope_id = e.envelope_id) AS confirmed_version
+               (SELECT max(version) FROM intake.opportunity o WHERE o.envelope_id = e.envelope_id) AS confirmed_version,
+               p.proposal_id, p.reference AS proposal_reference, p.version_no AS proposal_version,
+               p.status AS proposal_status, p.fee_total_local AS proposal_total, p.currency AS proposal_currency
         FROM intake.envelope e LEFT JOIN ref.location l USING (location_id)
+        LEFT JOIN LATERAL (SELECT b.proposal_id, b.reference, v.version_no, v.status, v.fee_total_local, v.currency
+                           FROM proposal.bid b JOIN proposal.version v USING (proposal_id)
+                           WHERE b.envelope_id = e.envelope_id
+                           ORDER BY b.created_at DESC, v.version_no DESC LIMIT 1) p ON true
         ORDER BY e.received_at DESC""")
 
 
@@ -203,6 +213,225 @@ def confirm(envelope_id: int, body: Confirm, who: Principal = REVIEW):
         conn.execute(text("UPDATE intake.envelope SET status = 'confirmed', updated_at = now() WHERE envelope_id = :e"),
                      dict(e=envelope_id))
     return {"envelope_id": envelope_id, "version": version}
+
+
+# ---------------------------------------------------------------- fees
+
+@app.get("/api/envelopes/{envelope_id}/fees")
+def fee_estimate(envelope_id: int, complexity: str | None = None, cost_type: str | None = None,
+                 construction_cost_usd_m2: float | None = None, _: Principal = READ):
+    """A fee estimate for the latest confirmed record. The query parameters are the estimator's pricing choices."""
+    choices = proposals.PricingChoices(complexity=complexity, cost_type=cost_type,
+                                       construction_cost_usd_m2=construction_cost_usd_m2).choices()
+    with engine.connect() as conn:
+        opp, est, _ = proposals.price(conn, envelope_id, choices)
+    return {"envelope_id": envelope_id, "record_version": opp.version, **est.to_dict()}
+
+
+# ---------------------------------------------------------------- pricing settings
+
+@app.get("/api/settings/pricing")
+def pricing_settings(_: Principal = READ):
+    """Everything the fee engine reads for this workspace, and what is still missing."""
+    with engine.connect() as conn:
+        ready = fees.readiness(conn)
+    return {
+        "readiness": ready,
+        "fee_method": rows("SELECT key, value_text, value, unit, rationale FROM ref.fee_assumption ORDER BY key"),
+        "cost_ratios": rows("SELECT cost_type, ratio FROM ref.typology_cost_ratio ORDER BY cost_type"),
+        "markets": rows("""SELECT m.*, c.name AS country_name, c.national_currency FROM ref.market m
+                           JOIN ref.country c ON c.code = m.country ORDER BY c.region, c.name"""),
+        "construction_costs": rows("""SELECT cc.*, c.name AS country_name FROM ref.construction_cost cc
+                                      JOIN ref.country c ON c.code = cc.country
+                                      ORDER BY c.region, c.name, cc.city, cc.cost_type"""),
+        "studios": rows("SELECT * FROM ref.studio ORDER BY code"),
+        "changes": rows("SELECT * FROM ref.setting_change ORDER BY changed_at DESC LIMIT 100"),
+    }
+
+
+def log_setting_change(conn, setting: str, key: str, old: dict | None, new: dict, reason: str | None,
+                       who: Principal) -> None:
+    conn.execute(text("""INSERT INTO ref.setting_change (setting, key, old, new, reason, changed_by)
+                         VALUES (:s, :k, CAST(:old AS jsonb), CAST(:new AS jsonb), :r, :u)"""),
+                 dict(s=setting, k=key, old=json.dumps(old, default=str) if old else None,
+                      new=json.dumps(new, default=str), r=reason, u=who.email))
+
+
+class CostFigure(BaseModel):
+    country: str = PField(min_length=2, max_length=2)
+    city: str = ""  # empty: the country-wide figure
+    cost_type: str
+    usd_m2: float = PField(gt=0)
+    price_year: int | None = None  # defaults to this year
+    note: str | None = None
+    reason: str | None = None
+
+
+@app.put("/api/settings/pricing/construction-costs")
+def set_construction_cost(body: CostFigure, who: Principal = REFERENCE):
+    if body.cost_type not in fees.COST_TYPES:
+        raise HTTPException(422, f"cost_type must be one of {', '.join(fees.COST_TYPES)}")
+    key = dict(country=body.country.upper(), city=body.city.strip(), cost_type=body.cost_type)
+    with engine.begin() as conn:
+        if not conn.execute(text("SELECT 1 FROM ref.country WHERE code = :c"), dict(c=key["country"])).first():
+            raise HTTPException(422, f"unknown country {key['country']}")
+        old = conn.execute(text("""SELECT usd_m2, price_year, basis, source, note FROM ref.construction_cost
+                                   WHERE country = :country AND city = :city AND cost_type = :cost_type"""),
+                           key).mappings().first()
+        new = dict(key, usd_m2=body.usd_m2, price_year=body.price_year or datetime.now().year, basis="estimator",
+                   source=f"entered by {who.email}", note=body.note)
+        conn.execute(text("""INSERT INTO ref.construction_cost
+                               (country, city, cost_type, usd_m2, price_year, basis, source, note, updated_by)
+                             VALUES (:country, :city, :cost_type, :usd_m2, :price_year, :basis, :source, :note, :by)
+                             ON CONFLICT (org_id, country, city, cost_type) DO UPDATE SET usd_m2 = EXCLUDED.usd_m2,
+                               price_year = EXCLUDED.price_year, basis = EXCLUDED.basis, source = EXCLUDED.source,
+                               note = EXCLUDED.note, updated_by = EXCLUDED.updated_by, updated_at = now()"""),
+                     dict(new, by=who.email))
+        log_setting_change(conn, "construction_cost", f"{key['country']}/{key['city'] or '*'}/{body.cost_type}",
+                           dict(old) if old else None, new, body.reason, who)
+    return new
+
+
+class MarketSettings(BaseModel):
+    band: str | None = None
+    fee_factor: float | None = PField(None, gt=0)
+    escalation_pct: float | None = None
+    reason: str | None = None
+
+
+@app.put("/api/settings/pricing/markets/{country}")
+def set_market(country: str, body: MarketSettings, who: Principal = REFERENCE):
+    country = country.upper()
+    if body.band not in (None, "high", "low"):
+        raise HTTPException(422, "band must be high or low")
+    changes = {k: v for k, v in body.model_dump(exclude={"reason"}).items() if v is not None}
+    with engine.begin() as conn:
+        old = conn.execute(text("SELECT band, fee_factor, escalation_pct FROM ref.market WHERE country = :c"),
+                           dict(c=country)).mappings().first()
+        if old is None:
+            if set(changes) != {"band", "fee_factor", "escalation_pct"}:
+                raise HTTPException(422, "a new market needs band, fee_factor and escalation_pct")
+            if not conn.execute(text("SELECT 1 FROM ref.country WHERE code = :c"), dict(c=country)).first():
+                raise HTTPException(422, f"unknown country {country}")
+            conn.execute(text("""INSERT INTO ref.market (country, band, fee_factor, fee_factor_source, escalation_pct,
+                                   escalation_source, updated_by)
+                                 VALUES (:c, :band, :fee_factor, :src, :escalation_pct, :src, :by)"""),
+                         dict(changes, c=country, src=f"set by {who.email}", by=who.email))
+        elif changes:
+            sets = ", ".join(f"{k} = :{k}" for k in changes)
+            sources = ", fee_factor_source = :src" if "fee_factor" in changes else ""
+            sources += ", escalation_source = :src" if "escalation_pct" in changes else ""
+            conn.execute(text(f"UPDATE ref.market SET {sets}{sources}, updated_by = :by, updated_at = now() "
+                              "WHERE country = :c"),
+                         dict(changes, c=country, src=f"set by {who.email}", by=who.email))
+        log_setting_change(conn, "market", country, dict(old) if old else None, changes, body.reason, who)
+    return {"country": country, **changes}
+
+
+class AssumptionValue(BaseModel):
+    value: float | str
+    reason: str | None = None
+
+
+@app.put("/api/settings/pricing/fee-method/{key}")
+def set_fee_assumption(key: str, body: AssumptionValue, who: Principal = REFERENCE):
+    numeric = isinstance(body.value, (int, float))
+    with engine.begin() as conn:
+        old = conn.execute(text("SELECT value_text, value FROM ref.fee_assumption WHERE key = :k"),
+                           dict(k=key)).mappings().first()
+        if old is None:
+            raise HTTPException(404, f"no fee method value {key}")
+        if old["value"] is not None and not numeric:
+            raise HTTPException(422, f"{key} is a number")
+        conn.execute(text("""UPDATE ref.fee_assumption SET value_text = :t, value = :v, dataset_version = 'workspace'
+                             WHERE key = :k"""), dict(k=key, t=str(body.value), v=body.value if numeric else None))
+        log_setting_change(conn, "fee_assumption", key, dict(old), {"value": body.value}, body.reason, who)
+    return {"key": key, "value": body.value}
+
+
+# ---------------------------------------------------------------- standard text and studios
+
+CLAUSE_KINDS = ("scope", "exclusion", "terms", "position")
+
+
+@app.get("/api/settings/library")
+def library(_: Principal = READ):
+    return rows("SELECT * FROM ref.clause ORDER BY kind, seq, key")
+
+
+class ClauseText(BaseModel):
+    body: str = PField(min_length=1)
+    label: str | None = None
+    reason: str | None = None
+
+
+@app.put("/api/settings/library/{kind}/{key}")
+def set_clause(kind: str, key: str, body: ClauseText, who: Principal = REFERENCE):
+    """Change a clause, or add one (a scope for a service and stage, an exclusion, a clause position)."""
+    if kind not in CLAUSE_KINDS:
+        raise HTTPException(422, f"kind must be one of {', '.join(CLAUSE_KINDS)}")
+    service = stage = None
+    if kind == "scope":
+        service, _, stage = key.partition(".")
+    with engine.begin() as conn:
+        old = conn.execute(text("SELECT body, label FROM ref.clause WHERE kind = :k AND key = :key"),
+                           dict(k=kind, key=key)).mappings().first()
+        if old is None and kind == "terms":
+            raise HTTPException(404, "terms has only the standard paragraph and the sign-off")
+        seq = conn.execute(text("SELECT coalesce(max(seq), -1) + 1 FROM ref.clause WHERE kind = :k"),
+                           dict(k=kind)).scalar()
+        try:
+            with conn.begin_nested():
+                conn.execute(text("""INSERT INTO ref.clause (kind, key, service, stage, seq, label, body, updated_by)
+                                     VALUES (:k, :key, :service, :stage, :seq, :label, :body, :who)
+                                     ON CONFLICT (org_id, kind, key) DO UPDATE SET body = EXCLUDED.body,
+                                       label = COALESCE(EXCLUDED.label, ref.clause.label),
+                                       updated_by = EXCLUDED.updated_by, updated_at = now()"""),
+                             dict(k=kind, key=key, service=service, stage=stage, seq=seq, label=body.label,
+                                  body=body.body.strip(), who=who.email))
+        except Exception:
+            raise HTTPException(422, "a scope key is <service>.<stage>, both known codes")
+        log_setting_change(conn, "clause", f"{kind}/{key}", dict(old) if old else None,
+                           {"body": body.body.strip(), "label": body.label}, body.reason, who)
+    return {"kind": kind, "key": key}
+
+
+@app.delete("/api/settings/library/{kind}/{key}")
+def delete_clause(kind: str, key: str, reason: str, who: Principal = REFERENCE):
+    if kind == "terms":
+        raise HTTPException(422, "the standard terms and sign-off can be changed, not removed")
+    with engine.begin() as conn:
+        old = conn.execute(text("DELETE FROM ref.clause WHERE kind = :k AND key = :key RETURNING body, label"),
+                           dict(k=kind, key=key)).mappings().first()
+        if old is None:
+            raise HTTPException(404, "no such clause")
+        log_setting_change(conn, "clause", f"{kind}/{key}", dict(old), {"deleted": True}, reason, who)
+    return {"deleted": f"{kind}/{key}"}
+
+
+class Studio(BaseModel):
+    name: str = PField(min_length=2)
+    city: str = PField(min_length=2)
+    country: str = PField(min_length=2, max_length=2)
+    reason: str | None = None
+
+
+@app.put("/api/settings/studios/{code}")
+def set_studio(code: str, body: Studio, who: Principal = REFERENCE):
+    code = code.strip().upper()
+    if not re.fullmatch(r"[A-Z0-9]{2,6}", code):
+        raise HTTPException(422, "a studio code is 2 to 6 letters or digits, for example DXB")
+    with engine.begin() as conn:
+        if not conn.execute(text("SELECT 1 FROM ref.country WHERE code = :c"), dict(c=body.country.upper())).first():
+            raise HTTPException(422, f"unknown country {body.country}")
+        old = conn.execute(text("SELECT name, city, country FROM ref.studio WHERE code = :c"),
+                           dict(c=code)).mappings().first()
+        new = dict(name=body.name.strip(), city=body.city.strip(), country=body.country.upper())
+        conn.execute(text("""INSERT INTO ref.studio (code, name, city, country) VALUES (:code, :name, :city, :country)
+                             ON CONFLICT (org_id, code) DO UPDATE SET name = EXCLUDED.name, city = EXCLUDED.city,
+                               country = EXCLUDED.country"""), dict(new, code=code))
+        log_setting_change(conn, "studio", code, dict(old) if old else None, new, body.reason, who)
+    return {"code": code, **new}
 
 
 # ---------------------------------------------------------------- audit, mapping, admin, observability

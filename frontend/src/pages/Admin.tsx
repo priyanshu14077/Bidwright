@@ -7,7 +7,7 @@ export function ReferenceData({ reference, onChanged }: { reference: Reference |
   const [syn, setSyn] = useState({ synonym: "", target_table: "stage", target_code: "", scope: "global" });
   const [msg, setMsg] = useState<string | null>(null);
   const can = useCan();
-  if (!reference) return <div className="page"><p className="empty">Loading…</p></div>;
+  if (!reference) return <p className="empty">Loading…</p>;
   const codes = syn.target_table === "stage" ? reference.stage : syn.target_table === "service" ? reference.service : reference.typology;
   const add = async () => {
     await api.addSynonym(syn);
@@ -16,9 +16,8 @@ export function ReferenceData({ reference, onChanged }: { reference: Reference |
     onChanged();
   };
   return (
-    <div className="page admin">
-      <h1>Reference data</h1>
-      <p className="lede">The vocabulary, markets and bid rules the engine checks every RFP against. Your workspace started with a standard set; teach it the terms your clients use.</p>
+    <div>
+      <p className="lede">The vocabulary, markets and bid rules the engine checks every RFP against. Teach it the terms your clients use.</p>
       <div className="cols">
         <section className="group">
           <h2>Controlled terms</h2>

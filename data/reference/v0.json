@@ -1,6 +1,6 @@
 {
  "version": "v0",
- "note": "Starter reference pack. Every new workspace gets a copy and edits it from there. Typology, service and stage codes are the shared vocabulary; markets, tiers, synonyms and rules are starting points for a practice to adjust.",
+ "note": "Starter reference pack. Every new workspace gets a copy and edits it from there. Typology, service and stage codes are the shared vocabulary; markets, tiers, synonyms, rules and the fee method are starting points for a practice to adjust. Construction costs and market settings are in cost-book-v0.json.",
  "countries": [
   [
    "AE",
@@ -1088,5 +1088,400 @@
    "effect": "flag",
    "message": "Client asks for uncapped liability; the practice standard is 100% of fee"
   }
- ]
+ ],
+ "fee_method": [
+  {
+   "key": "full_service_fee_pct.residential_highrise",
+   "value": 3.5,
+   "unit": "% of construction cost",
+   "rationale": "Within cited Dubai 2-8% range; large commercial-scale projects sit at the low end"
+  },
+  {
+   "key": "full_service_fee_pct.residential_villa",
+   "value": 6.0,
+   "unit": "% of construction cost",
+   "rationale": "Cited villa range 5-8%"
+  },
+  {
+   "key": "full_service_fee_pct.office",
+   "value": 3.0,
+   "unit": "% of construction cost",
+   "rationale": "Cited commercial 2-4%"
+  },
+  {
+   "key": "full_service_fee_pct.mixed_use",
+   "value": 3.5,
+   "unit": "% of construction cost",
+   "rationale": "Between residential and office"
+  },
+  {
+   "key": "full_service_fee_pct.hospitality",
+   "value": 4.5,
+   "unit": "% of construction cost",
+   "rationale": "Higher design intensity than residential"
+  },
+  {
+   "key": "scale_exponent",
+   "value": -0.1,
+   "unit": "fee % x (GFA/50,000)^exp",
+   "rationale": "Fee % falls as projects grow"
+  },
+  {
+   "key": "stage_share.feasibility",
+   "value": 0.05,
+   "unit": "share of full-service fee",
+   "rationale": "Informed by cited RIBA 0-3 = 35% split"
+  },
+  {
+   "key": "stage_share.concept",
+   "value": 0.15,
+   "unit": "share of full-service fee",
+   "rationale": "Cited villa concept 15-20%"
+  },
+  {
+   "key": "stage_share.schematic_design",
+   "value": 0.15,
+   "unit": "share of full-service fee"
+  },
+  {
+   "key": "stage_share.design_development",
+   "value": 0.2,
+   "unit": "share of full-service fee"
+  },
+  {
+   "key": "stage_share.gfc_review",
+   "value": 0.05,
+   "unit": "share of full-service fee",
+   "rationale": "Review of local architect-of-record GFC drawings"
+  },
+  {
+   "key": "stage_share.construction_review",
+   "value": 0.08,
+   "unit": "share of full-service fee",
+   "rationale": "Periodic design-intent reviews, not supervision"
+  },
+  {
+   "key": "modifier.location_tier.second",
+   "value": 0.92,
+   "unit": "multiplier",
+   "rationale": "practice fee guide: prime vs second-tier city"
+  },
+  {
+   "key": "modifier.client.repeat",
+   "value": 0.95,
+   "unit": "multiplier",
+   "rationale": "practice fee guide: customer status"
+  },
+  {
+   "key": "modifier.complexity.low",
+   "value": 0.95,
+   "unit": "multiplier",
+   "rationale": "practice fee guide: site complexity"
+  },
+  {
+   "key": "modifier.complexity.high",
+   "value": 1.12,
+   "unit": "multiplier"
+  },
+  {
+   "key": "interior.fitout_cost_ratio.hospitality",
+   "value": 0.45,
+   "unit": "of building cost/m2",
+   "rationale": "FF&E and fit-out share"
+  },
+  {
+   "key": "interior.fitout_cost_ratio.residential",
+   "value": 0.3,
+   "unit": "of building cost/m2",
+   "rationale": "Amenities and show units"
+  },
+  {
+   "key": "interior.fitout_cost_ratio.office",
+   "value": 0.2,
+   "unit": "of building cost/m2",
+   "rationale": "Cat B fit-out"
+  },
+  {
+   "key": "interior.fee_pct",
+   "value": 9.0,
+   "unit": "% of fit-out cost",
+   "rationale": "Below cited luxury studio 10-20%, as large-scale work"
+  },
+  {
+   "key": "interior.stage_share_to_dd",
+   "value": 0.6,
+   "unit": "share of interior fee",
+   "rationale": "Concept + SD + DD"
+  },
+  {
+   "key": "landscape.cost_per_m2.high_cost",
+   "value": 180,
+   "unit": "USD/m2",
+   "rationale": "UAE, KSA, Singapore, Spain"
+  },
+  {
+   "key": "landscape.cost_per_m2.low_cost",
+   "value": 90,
+   "unit": "USD/m2",
+   "rationale": "Vietnam, China, India"
+  },
+  {
+   "key": "landscape.fee_pct",
+   "value": 9.0,
+   "unit": "% of landscape construction",
+   "rationale": "Cited 7-12% for multi-family / mixed-use"
+  },
+  {
+   "key": "landscape.stage_share_to_dd",
+   "value": 0.55,
+   "unit": "share of landscape fee"
+  },
+  {
+   "key": "masterplan.rate_per_ha",
+   "value": 14000,
+   "unit": "USD/ha (first 50 ha)",
+   "rationale": "No reliable public benchmark found; calibrate with the practice"
+  },
+  {
+   "key": "masterplan.rate_per_ha_above_50",
+   "value": 7000,
+   "unit": "USD/ha (above 50 ha)"
+  },
+  {
+   "key": "render.unit_price.high_cost",
+   "value": 2000,
+   "unit": "USD per render"
+  },
+  {
+   "key": "render.unit_price.low_cost",
+   "value": 1500,
+   "unit": "USD per render"
+  },
+  {
+   "key": "trip.regional",
+   "value": 3500,
+   "unit": "USD per trip",
+   "rationale": "Flights, hotel, per diem, 2 staff"
+  },
+  {
+   "key": "trip.long_haul",
+   "value": 6000,
+   "unit": "USD per trip"
+  },
+  {
+   "key": "masterplan.band_factor.low_cost",
+   "value": 0.8,
+   "unit": "multiplier",
+   "rationale": "Masterplan rates in low-cost markets"
+  },
+  {
+   "key": "masterplan.stage_factor.feasibility",
+   "value": 0.3,
+   "unit": "x masterplan base fee",
+   "rationale": "Share of the per-hectare base fee for this stage"
+  },
+  {
+   "key": "masterplan.stage_factor.concept",
+   "value": 0.7,
+   "unit": "x masterplan base fee",
+   "rationale": "Share of the per-hectare base fee for this stage"
+  },
+  {
+   "key": "masterplan.stage_factor.schematic_design",
+   "value": 0.4,
+   "unit": "x masterplan base fee",
+   "rationale": "Share of the per-hectare base fee for this stage"
+  },
+  {
+   "key": "payment.advance_pct",
+   "value": 10,
+   "unit": "% of fee",
+   "rationale": "Paid on signing; the rest follows the stage fees"
+  },
+  {
+   "key": "programme.weeks.feasibility",
+   "value": 4,
+   "unit": "weeks",
+   "rationale": "Standard programme"
+  },
+  {
+   "key": "programme.weeks.concept",
+   "value": 8,
+   "unit": "weeks",
+   "rationale": "Standard programme"
+  },
+  {
+   "key": "programme.weeks.schematic_design",
+   "value": 8,
+   "unit": "weeks",
+   "rationale": "Standard programme"
+  },
+  {
+   "key": "programme.weeks.design_development",
+   "value": 12,
+   "unit": "weeks",
+   "rationale": "Standard programme"
+  },
+  {
+   "key": "programme.weeks.gfc_review",
+   "value": 6,
+   "unit": "weeks",
+   "rationale": "Standard programme"
+  },
+  {
+   "key": "programme.weeks.construction_review",
+   "value": "Through construction (periodic)",
+   "rationale": "Standard programme"
+  },
+  {
+   "key": "render.default_qty",
+   "value": 8,
+   "unit": "renders",
+   "rationale": "Used when the archive has no similar proposal to take the median from"
+  },
+  {
+   "key": "terms.validity_days",
+   "value": 90,
+   "unit": "days",
+   "rationale": "Proposal validity unless the RFP sets one"
+  },
+  {
+   "key": "terms.payment_days",
+   "value": 30,
+   "unit": "days",
+   "rationale": "Invoice payment term unless the RFP sets one"
+  }
+ ],
+ "typology_cost_ratios": {
+  "residential_highrise": 0.778,
+  "office": 0.877,
+  "hospitality_5star": 1.484,
+  "hospitality_3star": 0.919,
+  "residential_villa": 0.856,
+  "mixed_use": 0.858
+ },
+ "library": {
+  "note": "Standard proposal text. {firm} and {payment_days} are filled in when a proposal is drafted.",
+  "scope": [
+   {
+    "service": "architecture",
+    "stage": "feasibility",
+    "text": "Review of site, planning controls and brief; massing options and area schedules; high-level yield and efficiency assessment; feasibility report."
+   },
+   {
+    "service": "architecture",
+    "stage": "concept",
+    "text": "Design vision and narrative; site planning and massing; plans, sections and elevations at concept level; outline area schedule; material palette; concept report and presentation."
+   },
+   {
+    "service": "architecture",
+    "stage": "schematic_design",
+    "text": "Development of the approved concept; coordinated plans, sections and elevations; facade strategy; preliminary coordination with structural and MEP consultants; updated area schedule; schematic design report."
+   },
+   {
+    "service": "architecture",
+    "stage": "design_development",
+    "text": "Fully coordinated design development drawings; facade and envelope details; key interior architecture details; outline specifications; design development report to support the local architect of record."
+   },
+   {
+    "service": "architecture",
+    "stage": "gfc_review",
+    "text": "Review of good-for-construction drawings prepared by the local architect of record for compliance with design intent; written comments and one follow-up review."
+   },
+   {
+    "service": "architecture",
+    "stage": "construction_review",
+    "text": "Periodic design-intent reviews during construction; review of key material samples and mock-ups; site visits as listed under reimbursables."
+   },
+   {
+    "service": "interior_design",
+    "stage": "concept",
+    "text": "Interior design concept and mood boards for public areas and key typical spaces; space planning; concept presentation."
+   },
+   {
+    "service": "interior_design",
+    "stage": "schematic_design",
+    "text": "Developed layouts, reflected ceiling plans, key elevations and finishes palette; preliminary FF&E strategy."
+   },
+   {
+    "service": "interior_design",
+    "stage": "design_development",
+    "text": "Detailed interior drawings for public areas and typical rooms or units; finishes schedule; FF&E design intent package."
+   },
+   {
+    "service": "landscape",
+    "stage": "concept",
+    "text": "Landscape concept and planting strategy; open space framework; hardscape and softscape character."
+   },
+   {
+    "service": "landscape",
+    "stage": "schematic_design",
+    "text": "Developed landscape plans; levels strategy; planting palette; water features and amenity areas."
+   },
+   {
+    "service": "landscape",
+    "stage": "design_development",
+    "text": "Coordinated landscape design development drawings; hardscape details; planting plans; irrigation design intent."
+   },
+   {
+    "service": "masterplan",
+    "stage": "feasibility",
+    "text": "Site analysis, constraints and opportunities; development scenarios; land-use budget options; feasibility report."
+   },
+   {
+    "service": "masterplan",
+    "stage": "concept",
+    "text": "Masterplan concept: land-use plan, movement framework, open space network, phasing strategy and development controls; masterplan report."
+   },
+   {
+    "service": "masterplan",
+    "stage": "schematic_design",
+    "text": "Refined masterplan with plot-level development parameters and design guidelines."
+   }
+  ],
+  "exclusions": [
+   "Structural, MEP and civil engineering design",
+   "Local architect of record and authority submissions",
+   "Construction documentation and tender documents",
+   "Site supervision and contract administration",
+   "Surveys, geotechnical investigations and specialist consultants",
+   "Physical models"
+  ],
+  "terms": {
+   "standard": "This proposal is subject to {firm}'s Standard Terms of Engagement, including: two rounds of design revisions per stage; liability limited to 100% of the professional fee; copyright in the design retained by {firm}; suspension rights for late payment; and termination on 30 days' written notice.",
+   "signoff": "For and on behalf of {firm}"
+  },
+  "positions": [
+   {
+    "clause": "design_rounds",
+    "label": "Design rounds",
+    "position": "Two rounds included per stage"
+   },
+   {
+    "clause": "liability_cap",
+    "label": "Liability cap",
+    "position": "Cap at 100% of fee"
+   },
+   {
+    "clause": "payment_terms",
+    "label": "Payment terms",
+    "position": "{payment_days} days from invoice"
+   },
+   {
+    "clause": "copyright",
+    "label": "Copyright",
+    "position": "Copyright retained by {firm}; the client is licensed to use the design for this project on full payment"
+   },
+   {
+    "clause": "termination",
+    "label": "Termination",
+    "position": "Either party on 30 days' written notice"
+   },
+   {
+    "clause": "insurance",
+    "label": "Insurance",
+    "position": "Professional indemnity insurance maintained at {firm}'s standard level"
+   }
+  ]
+ }
 }

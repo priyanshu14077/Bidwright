@@ -3,8 +3,9 @@
 Three layers:
 - shared: countries, FX, the typology/service/stage vocabulary and the request
   schema. One copy for every workspace.
-- starter pack: markets and tiers, synonyms, field weights and bid rules. Every
-  new workspace gets a copy (seed_workspace) and edits it from there.
+- starter pack: markets and tiers, synonyms, field weights, bid rules, the fee
+  method and the construction cost book. Every new workspace gets a copy
+  (seed_workspace) and edits it from there.
 - sample archive and gold set: the fictional Northbeam Studio's 14 proposals
   and RFP packs, loaded into the demo workspace only.
 
@@ -31,6 +32,8 @@ from bidwright.intake.ingest import delete_envelope, ingest
 from bidwright.storage import blob_store
 
 REFERENCE_FILE = REPO_ROOT / "data" / "reference" / "v0.json"
+COST_BOOK_FILE = REPO_ROOT / "data" / "reference" / "cost-book-v0.json"
+SETTINGS_TABLES = ("ref.fee_assumption", "ref.typology_cost_ratio", "ref.market", "ref.construction_cost", "ref.clause")
 
 # The synthetic JSON's list of services uses "interior"; ref.service uses "interior_design".
 SERVICE_ALIASES = {"interior": "interior_design"}
@@ -94,7 +97,7 @@ def load_shared(conn: Connection, path: Path = REFERENCE_FILE) -> None:
         conn.execute(text(sql), rows)
 
 
-def seed_workspace(conn: Connection, path: Path = REFERENCE_FILE) -> None:
+def seed_workspace(conn: Connection, path: Path = REFERENCE_FILE, reset_pricing: bool = False) -> None:
     """Copy the starter pack into the current workspace. Upserts, so it also refreshes the demo workspace."""
     ref = json.loads(path.read_text())
     upserts = [
@@ -129,6 +132,47 @@ def seed_workspace(conn: Connection, path: Path = REFERENCE_FILE) -> None:
     ]
     for sql, rows in upserts:
         conn.execute(text(sql), rows)
+    seed_settings(conn, path, reset=reset_pricing)
+
+
+def seed_settings(conn: Connection, path: Path = REFERENCE_FILE, cost_book: Path = COST_BOOK_FILE,
+                 reset: bool = False) -> None:
+    """The fee method, cost ratios, markets, construction costs and the standard text library. Adds what the
+    workspace lacks and keeps what it has edited; reset=True replaces everything (the demo workspace)."""
+    ref, book = json.loads(path.read_text()), json.loads(cost_book.read_text())
+    if reset:
+        for table in SETTINGS_TABLES:
+            conn.execute(text(f"DELETE FROM {table}"))
+    source = f"starter-{ref['version']}"
+    inserts = [
+        ("INSERT INTO ref.fee_assumption (key, value_text, value, unit, rationale, dataset_version) "
+         "VALUES (:key, :text, :value, :unit, :rationale, :source)",
+         [dict(key=a["key"], text=str(a["value"]), value=a["value"] if isinstance(a["value"], (int, float)) else None,
+               unit=a.get("unit"), rationale=a.get("rationale"), source=source) for a in ref["fee_method"]]),
+        ("INSERT INTO ref.typology_cost_ratio (cost_type, ratio, dataset_version) VALUES (:t, :r, :source)",
+         [dict(t=t, r=r, source=source) for t, r in ref["typology_cost_ratios"].items()]),
+        ("INSERT INTO ref.market (country, band, fee_factor, fee_factor_source, escalation_pct, escalation_source, "
+         "updated_by) VALUES (:country, :band, :fee_factor, :fee_factor_source, :escalation_pct, "
+         ":escalation_source, :by)",
+         [dict(m, by=f"cost-book-{book['version']}") for m in book["markets"]]),
+        ("INSERT INTO ref.construction_cost (country, city, cost_type, usd_m2, price_year, basis, source, note, "
+         "updated_by) VALUES (:country, :city, :cost_type, :usd_m2, :year, :basis, :source, :note, :by)",
+         [dict(c, year=book["base_year"], by=f"cost-book-{book['version']}") for c in book["costs"]]),
+    ]
+    lib = ref["library"]
+    clauses = [dict(kind="scope", key=f"{c['service']}.{c['stage']}", service=c["service"], stage=c["stage"], seq=i,
+                    label=None, body=c["text"]) for i, c in enumerate(lib["scope"])]
+    clauses += [dict(kind="exclusion", key=f"e{i + 1}", service=None, stage=None, seq=i, label=None, body=t)
+                for i, t in enumerate(lib["exclusions"])]
+    clauses += [dict(kind="terms", key=k, service=None, stage=None, seq=i, label=None, body=t)
+                for i, (k, t) in enumerate(lib["terms"].items())]
+    clauses += [dict(kind="position", key=p["clause"], service=None, stage=None, seq=i, label=p["label"],
+                     body=p["position"]) for i, p in enumerate(lib["positions"])]
+    inserts.append(("INSERT INTO ref.clause (kind, key, service, stage, seq, label, body, updated_by) "
+                    "VALUES (:kind, :key, :service, :stage, :seq, :label, :body, :by)",
+                    [dict(c, by=source) for c in clauses]))
+    for sql, rows in inserts:
+        conn.execute(text(sql + " ON CONFLICT DO NOTHING"), rows)
 
 
 def country_codes(conn: Connection) -> dict[str, str]:
@@ -158,14 +202,6 @@ def load_archive(conn: Connection, dataset_version: str) -> int:
         dict(v=dataset_version, name=meta["name"], origin=data_origin, generated=meta.get("generated"),
              n=meta.get("record_count"), warning=meta.get("warning")),
     )
-    conn.execute(text("DELETE FROM ref.fee_assumption WHERE dataset_version = :v"), dict(v=dataset_version))
-    conn.execute(text("INSERT INTO ref.fee_assumption (key, value_text, value, unit, rationale, dataset_version) "
-                      "VALUES (:key, :text, :value, :unit, :rationale, :v)"),
-                 [dict(a, text=str(a["value"]), value=a["value"] if isinstance(a["value"], (int, float)) else None,
-                       v=dataset_version) for a in data["assumptions"]])
-    conn.execute(text("DELETE FROM ref.typology_cost_ratio WHERE dataset_version = :v"), dict(v=dataset_version))
-    conn.execute(text("INSERT INTO ref.typology_cost_ratio (cost_type, ratio, dataset_version) VALUES (:t, :r, :v)"),
-                 [dict(t=t, r=r, v=dataset_version) for t, r in data["typology_cost_ratios"].items()])
 
     conn.execute(
         text(
@@ -378,9 +414,14 @@ def main() -> None:
         schemas = load_schema(conn)
         org_id = tenancy.ensure_demo(conn, DEMO_ORG, DEMO_USER)
     with workspace(org_id), owner_engine.begin() as conn:
-        seed_workspace(conn)
+        seed_workspace(conn, reset_pricing=True)
         n = load_archive(conn, args.dataset)
         g = 0 if args.skip_gold else load_gold(conn, args.dataset)
+    with owner_engine.connect() as conn:
+        others = conn.execute(text("SELECT org_id FROM tenancy.organization WHERE NOT is_demo")).scalars().all()
+    for other in others:  # fill pricing gaps in existing workspaces without touching their edits
+        with workspace(other), owner_engine.begin() as conn:
+            seed_settings(conn)
     print(f"loaded shared data and schemas {schemas}; demo workspace '{DEMO_ORG['name']}' has {n} proposals "
           f"and {g} gold RFP packs from {args.dataset}")
     print(f"demo sign-in: {DEMO_USER['email']} / {DEMO_USER['password']}")

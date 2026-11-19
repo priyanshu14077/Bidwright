@@ -59,3 +59,27 @@ export const DOC_CLASS: Record<string, string> = {
   main_rfp: "Main RFP", design_brief: "Design brief", area_schedule: "Area schedule", client_terms: "Client terms",
   email: "Email", drawings: "Drawings", other: "Other", unsupported: "Not read",
 };
+
+export const SECTION_ORIGIN: Record<string, string> = {
+  record: "From the record", engine: "Fee engine", library: "Standard text", claude: "Drafted by Claude",
+  estimator: "Edited", pending: "Not written yet",
+};
+
+export const COST_BASIS: Record<string, string> = {
+  benchmark: "Benchmark", derived: "Derived", proxy: "Proxy", synthetic: "Synthetic", estimator: "Estimator",
+};
+
+export const VERSION_STATUS: Record<string, string> = { draft: "Draft", approved: "Approved", superseded: "Superseded" };
+
+export const COST_TYPE: Record<string, string> = {
+  average: "Average", residential_highrise: "Residential, high rise", residential_villa: "Residential, villas",
+  office: "Office", mixed_use: "Mixed use", hospitality_5star: "Hotel, 5-star", hospitality_3star: "Hotel, 3-star",
+};
+
+export const shortMoney = (n: number | null | undefined, currency: string) => {
+  if (n == null) return "";
+  const a = Math.abs(n);
+  return a >= 1e6 ? `${currency} ${(n / 1e6).toFixed(2)}M` : a >= 1e3 ? `${currency} ${Math.round(n / 1e3)}k` : money(n, currency);
+};
+
+export const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
