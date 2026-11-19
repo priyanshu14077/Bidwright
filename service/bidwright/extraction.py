@@ -60,13 +60,16 @@ Controlled vocabularies:
 {vocab_lines}
 
 For each mention:
-- value_text: the value exactly as written, including its unit (e.g. "11,84,030 sq ft", "6.2 ha", "Scheme Design (Anteproyecto)").
-- number: for area and integer fields, the number as written, with digit grouping removed (11,84,030 -> 1184030). Otherwise null.
+- value_text: the value exactly as written, in its original language and script, including its unit (e.g. "11,84,030 sq ft", "6.2 ha", "Scheme Design (Anteproyecto)", "~30 floors").
+- number: for area and integer fields, the number as written, with digit grouping removed (11,84,030 -> 1184030; 15.000 m² written with a dot for thousands -> 15000; 45k -> 45000; ~30 floors -> 30; G+20 -> 21). For a range, the midpoint. Otherwise null.
 - unit: for area fields, the unit as written: m2, sqft, ha or acre. Otherwise none.
-- normalized_text: for vocab fields, the best matching code or 'unmapped'; for enum fields, one of the options; for datetime, ISO 8601 with the UTC offset if a time zone is given (GST=+04:00, AST=+03:00, IST=+05:30, SGT=+08:00, ICT=+07:00, CST=+08:00 in China, CET=+01:00, CEST=+02:00, AEST=+10:00); for date, YYYY-MM-DD; for country, the country name in English; for other fields, null.
+- normalized_text: for vocab fields, the best matching code or 'unmapped'; for enum fields, one of the options; for datetime, ISO 8601 with the UTC offset if a time zone is given (GST=+04:00, AST=+03:00, IST=+05:30, SGT=+08:00, ICT=+07:00, CST=+08:00 in China, CET=+01:00, CEST=+02:00, AEST=+10:00); for date, YYYY-MM-DD; for country, the ISO 3166 alpha-2 code; for city, the city's English name and its country's alpha-2 code as "Dubai, AE"; for currency, the ISO 4217 code; for other fields, null.
 - line_ids: the ids of the lines the value comes from.
-- quote: the shortest exact substring of those lines that contains the value.
-- confidence: high if the text states it directly, medium if you had to interpret wording, low if unsure.
+- quote: the shortest exact substring of those lines that contains the value, copied character for character.
+- confidence: high if the text states it directly; medium if you had to interpret wording; low if the writer is unsure or vague ("I think 45k, will confirm", "roughly 46-48k", "mid-Dec", "end of next week").
+- revises: true if the text says this value replaces one given earlier ("revised", "reduced to", "moved to", "change of plan", "now wants"); otherwise false.
+
+Relative dates ("by next Thu", "Friday next week", "end of month") are resolved against the date the document arrived, or the date on the message they appear in. A relative date that names its day ("Thursday next week", "first thing Monday 23rd") is exact: confidence medium. For a vague one ("mid-Dec", "end of next week"), give the latest date it can mean, with confidence low.
 
 Also set doc_class to what this document is: {", ".join(DOC_CLASSES)}.
 
