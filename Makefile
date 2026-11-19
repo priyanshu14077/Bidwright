@@ -5,6 +5,7 @@
 #   make fees     backtest the fee engine on the demo archive
 #   make cost-book  regenerate the synthetic starter cost book (then make seed)
 #   make draft-smoke  draft the demo's envelope 57 with the real model (a few cents)
+#   make template   regenerate the default proposal template (data/templates/proposal-v0.docx)
 #   make status   which migration is applied and how many rows each table holds
 #
 # Every target is safe to run again.
@@ -13,7 +14,7 @@ SHELL := /bin/bash
 DB    := docker compose exec -T postgres
 PSQL  := $(DB) psql -U bidwright -d bidwright
 
-.PHONY: setup env db wait roles migrate seed deps dev api web studio status psql eval eval-one fees cost-book draft-smoke check test reset stop
+.PHONY: setup env db wait roles migrate seed deps dev api web studio status psql eval eval-one fees cost-book draft-smoke template check test reset stop
 
 setup: env db wait roles deps migrate seed status
 
@@ -102,6 +103,9 @@ cost-book:
 
 draft-smoke:
 	cd service && uv run python tests/smoke_draft.py
+
+template:
+	cd service && uv run python ../data/templates/generate_default_template.py
 
 stop:
 	docker compose stop
