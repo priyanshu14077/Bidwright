@@ -44,6 +44,8 @@
   {"name": "issue_date", "kind": "date", "label": "Issue date", "group": "Dates"},
   {"name": "liability_cap", "kind": "enum", "options": ["capped", "uncapped"], "label": "Liability", "group": "Commercial",
    "hint": "Whether the client's terms cap the consultant's liability (capped) or make it unlimited (uncapped)."},
+  {"name": "fee_currency", "kind": "currency", "label": "Fee currency asked for", "group": "Commercial",
+   "hint": "The currency the client asks the fee to be quoted or invoiced in, if stated ('fees in AED', 'pricing in US dollars is fine')."},
   {"name": "payment_terms_days", "kind": "integer", "label": "Payment terms (days)", "group": "Commercial",
    "hint": "Days within which the client pays invoices."}
  ]
