@@ -280,10 +280,17 @@ def extract_envelope(envelope_id: int, workers: int = 4) -> uuid.UUID:
                              AND NOT EXISTS (SELECT 1 FROM lineage.field_change c
                                              WHERE fv.field_value_id IN (c.old_field_value_id, c.new_field_value_id))"""),
                      dict(e=envelope_id))
-        docs = conn.execute(text("SELECT document_id FROM lineage.source_document WHERE envelope_id = :e "
-                                 "AND supported AND render_uri IS NOT NULL ORDER BY document_id"),
-                            dict(e=envelope_id)).scalars().all()
+        images = conn.execute(text("""SELECT document_id FROM lineage.source_document WHERE envelope_id = :e
+                                       AND supported AND mime_type LIKE 'image/%' AND text_uri IS NULL"""),
+                              dict(e=envelope_id)).scalars().all()
     try:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            list(pool.map(lambda d, ctx: ctx.run(read_image, envelope_id, d, trace_id), images,
+                          [contextvars.copy_context() for _ in images]))
+        with engine.connect() as conn:
+            docs = conn.execute(text("SELECT document_id FROM lineage.source_document WHERE envelope_id = :e "
+                                     "AND supported AND render_uri IS NOT NULL ORDER BY document_id"),
+                                dict(e=envelope_id)).scalars().all()
         with ThreadPoolExecutor(max_workers=workers) as pool:
             # each document keeps the caller's workspace (see bidwright.db)
             list(pool.map(lambda d, ctx: ctx.run(extract_document, envelope_id, d, trace_id), docs,
