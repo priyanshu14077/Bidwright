@@ -487,6 +487,7 @@ function FeeView({ id, card, setCard, onSheet }: {
               ))}
               {card.why.map((w, k) => <p key={k}><strong>{w.label}:</strong> {typeof w.value === "number" ? w.value.toLocaleString("en-US") : w.value}. {w.source}</p>)}
               {card.won && <p>{card.won.basis}.</p>}
+              <a className="bw-btn bw-btn--soft bw-btn--sm" href={`#/logic/r/${id}`}>See every rule this fee used</a>
             </div>
           </details>
           <details className="bw-details">
