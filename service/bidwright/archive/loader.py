@@ -133,6 +133,11 @@ def seed_workspace(conn: Connection, path: Path = REFERENCE_FILE, reset_pricing:
     ]
     for sql, rows in upserts:
         conn.execute(text(sql), rows)
+    # completeness counts exactly the starter pack's fields
+    conn.execute(text("DELETE FROM ref.field_criticality WHERE NOT (field = ANY(:fields))"),
+                 dict(fields=[f for f, _, _ in ref["field_criticality"]]))
+    conn.execute(text("DELETE FROM ref.qualification_rule WHERE owner = 'starter-pack' AND NOT (name = ANY(:names))"),
+                 dict(names=[r["name"] for r in ref["qualification_rules"]]))
     seed_settings(conn, path, reset=reset_pricing)
 
 
