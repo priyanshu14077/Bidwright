@@ -1,0 +1,105 @@
+/* The older screens (register, request details, proposal editor, settings, backtests, members, sign-in) in the
+   same design system: their own markup, the guided screens' tokens, type, surfaces and controls. */
+
+.bw-app {
+  --film: var(--bw-bg); --sheet: var(--bw-card); --ink: var(--bw-text); --ink-2: var(--bw-text-muted);
+  --line: var(--bw-divider); --line-soft: var(--bw-surface);
+  --redline: var(--bw-est-strong); --blueprint: var(--bw-found-fg); --amber: var(--bw-est-fg);
+  --red-wash: var(--bw-est-bg); --blue-wash: var(--bw-found-bg); --amber-wash: var(--bw-est-bg);
+  --font: var(--bw-font-body);
+}
+.bw-legacy { font: 400 15px/1.5 var(--bw-font-body); color: var(--bw-text); }
+.bw-legacy .page { padding: 0; max-width: none; display: flex; flex-direction: column; gap: 14px; }
+.bw-legacy h1 { font: 400 32px/1.1 var(--bw-font-display); letter-spacing: -.015em; }
+@media (min-width: 1024px) { .bw-legacy h1 { font-size: 40px; } }
+.bw-legacy h2 { font: 700 11px var(--bw-font-body); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--bw-text-label); margin: 0 0 10px; border: 0; padding: 0; }
+.bw-legacy h3 { font: 700 15px var(--bw-font-body); }
+.bw-legacy .lede, .bw-legacy .dim { color: var(--bw-text-muted); }
+.bw-legacy a { color: var(--bw-link); }
+
+/* controls */
+.bw-legacy button {
+  border: 0; border-radius: var(--bw-r-pill); background: var(--bw-surface); color: var(--bw-text);
+  min-height: 38px; padding: 0 16px; font: 600 14px var(--bw-font-body); cursor: pointer;
+}
+.bw-legacy button:hover:not(:disabled) { background: color-mix(in srgb, var(--bw-text) 8%, var(--bw-surface)); }
+.bw-legacy button.primary { background: var(--bw-primary-bg); color: var(--bw-primary-fg); }
+.bw-legacy button.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--bw-primary-bg) 88%, var(--bw-bg)); }
+.bw-legacy button.wide { min-height: 52px; width: 100%; font-size: 15px; }
+.bw-legacy button.quiet, .bw-legacy button.link, .bw-legacy .edit-link {
+  background: none; min-height: 0; padding: 0; color: var(--bw-link); text-decoration: underline; text-underline-offset: 3px;
+}
+.bw-legacy input, .bw-legacy select, .bw-legacy textarea {
+  border: 0; border-radius: 14px; background: var(--bw-surface); color: var(--bw-text);
+  font: 400 15px/1.4 var(--bw-font-body); padding: 10px 14px; min-height: 42px;
+}
+.bw-legacy input[type="checkbox"], .bw-legacy input[type="radio"] { min-height: 0; width: auto; }
+.bw-legacy label { color: var(--bw-text-muted); font-size: 13px; }
+
+/* tables */
+.bw-legacy table { font-size: 14px; }
+.bw-legacy th { font: 700 11px var(--bw-font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--bw-text-label);
+  border-bottom: 1px solid var(--bw-divider); }
+.bw-legacy td { border-bottom: 1px solid var(--bw-divider); }
+.bw-legacy .register-table tbody tr:hover td { background: var(--bw-surface); }
+.bw-legacy .grid-wrap, .bw-legacy .register-table { background: var(--bw-card); border-radius: var(--bw-r-lg); }
+.bw-legacy .register-table td:first-child, .bw-legacy .register-table th:first-child { padding-left: 16px; }
+
+/* surfaces: the pinned cards */
+.bw-legacy .group, .bw-legacy .drop, .bw-legacy .preview, .bw-legacy .editor, .bw-legacy .figures,
+.bw-legacy .fee-context, .bw-legacy .readiness, .bw-legacy .invite-link {
+  background: var(--bw-surface); border: 0; border-radius: var(--bw-r-lg); padding: 16px 18px;
+}
+.bw-legacy .group > h2 { border: 0; padding: 0; }
+.bw-legacy .figures { margin: 6px 0; }
+.bw-legacy .figures dd { font: 700 28px var(--bw-font-body); }
+.bw-legacy .drop { border: 2px dashed var(--bw-outline); background: transparent; }
+.bw-legacy .badge, .bw-legacy .chip, .bw-legacy .basis, .bw-legacy .stamp-sm {
+  border: 0; border-radius: var(--bw-r-pill); padding: 2px 10px; font-weight: 600;
+}
+.bw-legacy .conflict { border: 0; border-radius: 16px; background: var(--bw-est-bg); }
+.bw-legacy .suggestion { border: 0; border-radius: 16px; }
+.bw-legacy .notes { border: 0; border-radius: 16px; }
+.bw-legacy .banner { border: 0; border-radius: 14px; margin: 0 0 8px; }
+.bw-legacy a.download { border: 0; border-radius: var(--bw-r-pill); background: var(--bw-found-bg); color: var(--bw-found-fg); padding: 6px 14px; }
+
+/* request details and proposal editor: the title block and the two panes */
+.bw-legacy .review { height: auto; gap: 14px; }
+@media (min-width: 1024px) { .bw-legacy .review { height: calc(100dvh - 72px); } }
+.bw-legacy .titleblock { background: var(--bw-card); border: 0; border-radius: var(--bw-r-lg); box-shadow: var(--bw-shadow-md); overflow: hidden; }
+.bw-legacy .tb-cell { border-left: 1px solid var(--bw-divider); }
+.bw-legacy .tb-project h1 { font-size: 24px; }
+.bw-legacy .stamp { border-radius: 10px; }
+.bw-legacy .split { gap: 14px; }
+.bw-legacy .sheets { background: var(--bw-surface); border: 0; border-radius: var(--bw-r-lg); overflow: hidden; }
+.bw-legacy .register { background: var(--bw-card); border: 0; }
+.bw-legacy .register button { border-radius: 0; background: none; min-height: 0; padding: 8px 14px; }
+.bw-legacy .register button.on { box-shadow: inset 0 -3px 0 var(--bw-text); }
+.bw-legacy .panel { background: var(--bw-card); border-radius: var(--bw-r-lg); overflow: hidden; }
+.bw-legacy .tabs { border-bottom: 1px solid var(--bw-divider); padding: 8px 12px; gap: 4px; flex-wrap: wrap; }
+.bw-legacy .tabs button { background: none; min-height: 36px; padding: 0 14px; color: var(--bw-text-muted); }
+.bw-legacy .tabs button.on { background: var(--bw-primary-bg); color: var(--bw-primary-fg); box-shadow: none; }
+.bw-legacy .field { border-bottom: 1px solid var(--bw-divider); }
+.bw-legacy .field .edit { min-height: 28px; padding: 0 10px; font-size: 12.5px; }
+.bw-legacy .settings-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--bw-surface); border-radius: var(--bw-r-pill); align-self: flex-start; }
+.bw-legacy .settings-tabs a { border-radius: var(--bw-r-pill); color: var(--bw-text); padding: 8px 14px; }
+.bw-legacy .settings-tabs a.on { background: var(--bw-primary-bg); color: var(--bw-primary-fg); box-shadow: none; }
+@media (max-width: 1023px) {
+  .bw-legacy .titleblock { grid-template-columns: 1fr; }
+  .bw-legacy .tb-cell { border-left: 0; border-top: 1px solid var(--bw-divider); }
+  .bw-legacy .split { grid-template-columns: minmax(0, 1fr); }
+  .bw-legacy .pdf-page { width: 100% !important; height: auto !important; }
+  .bw-legacy table { display: block; overflow-x: auto; }
+  .bw-legacy .cols, .bw-legacy .pricing-form { grid-template-columns: 1fr; }
+  .bw-legacy .field-main { grid-template-columns: 1fr; }
+  .bw-legacy .field .flags, .bw-legacy .field .note, .bw-legacy .conflict, .bw-legacy .suggestion, .bw-legacy .editor { margin-left: 6px; }
+}
+
+/* sign-in */
+.bw-gate-wrap { min-height: 100dvh; display: grid; place-items: center; }
+.bw-legacy .gate { padding: 32px 16px; }
+.bw-legacy .gate-card { background: var(--bw-card); border: 0; border-radius: var(--bw-r-xl); box-shadow: var(--bw-shadow-md); padding: 28px; }
+.bw-legacy .gate-card h1 { font-size: 30px; }
+.bw-legacy .wordmark { font-family: var(--bw-font-display); font-size: 26px; font-variation-settings: normal; }
+.bw-legacy .wordmark svg { display: none; }
