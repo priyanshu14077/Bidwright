@@ -163,7 +163,7 @@ def export(proposal_id: int, version_no: int, who: Principal = APPROVE, template
         if {o["format"] for o in existing} == {"docx", "pdf"}:
             return {"outputs": existing, "reused": True}
         docx = render(conn, v, template)
-    stem = file_stem(v)
+    stem = file_stem(v, template_kind)
     with _one_conversion_at_a_time:
         pdf = reading.office_to_pdf(f"{stem}.docx", docx)
     files = {"docx": docx, "pdf": pdf}
