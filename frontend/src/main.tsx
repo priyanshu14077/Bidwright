@@ -6,27 +6,37 @@ import { Session } from "./session";
 import { Wordmark } from "./Wordmark";
 import { Inbox } from "./pages/Inbox";
 import { Review } from "./pages/Review";
-import { Accuracy, ModelLog, ReferenceData } from "./pages/Admin";
+import { Accuracy, ModelLog } from "./pages/Admin";
 import { Members } from "./pages/Members";
+import { ProposalPage } from "./pages/Proposal";
+import { Settings, type SettingsTab } from "./pages/Settings";
 import { SignIn } from "./pages/SignIn";
 import "./styles.css";
 
 type Route =
-  | { page: "inbox" } | { page: "review"; id: number } | { page: "reference" } | { page: "models" }
+  | { page: "inbox" } | { page: "review"; id: number } | { page: "proposal"; id: number; version: number }
+  | { page: "settings"; tab: SettingsTab } | { page: "models" }
   | { page: "backtests" } | { page: "members" }
   | { page: "login" } | { page: "signup" } | { page: "demo" } | { page: "join"; token: string };
 
 function parse(hash: string): Route {
   const rfp = hash.match(/^#\/rfp\/(\d+)$/);
   if (rfp) return { page: "review", id: Number(rfp[1]) };
+  const proposal = hash.match(/^#\/proposal\/(\d+)\/v\/(\d+)$/);
+  if (proposal) return { page: "proposal", id: Number(proposal[1]), version: Number(proposal[2]) };
+  if (hash === "#/reference" || hash.startsWith("#/settings")) {
+    const name = hash.split("/")[2];
+    return { page: "settings", tab: SETTINGS_TABS.find((t) => t === name) ?? "vocabulary" };
+  }
   const join = hash.match(/^#\/join\/([\w-]+)$/);
   if (join) return { page: "join", token: join[1] };
   const simple = hash.replace(/^#\//, "");
-  if (["reference", "models", "backtests", "members", "login", "signup", "demo"].includes(simple))
+  if (["models", "backtests", "members", "login", "signup", "demo"].includes(simple))
     return { page: simple } as Route;
   return { page: "inbox" };
 }
 
+const SETTINGS_TABS: SettingsTab[] = ["vocabulary", "pricing", "library", "studios"];
 const go = (hash: string) => { location.hash = hash; };
 
 function App() {
@@ -63,7 +73,7 @@ function App() {
   const nav: [Route["page"], string, string, boolean][] = [
     ["inbox", "#/", "Inbox", true],
     ["backtests", "#/backtests", "Backtests", true],
-    ["reference", "#/reference", "Reference data", true],
+    ["settings", "#/settings", "Settings", true],
     ["members", "#/members", "Members", true],
     ["models", "#/models", "Model calls", can("backtest")],
   ];
@@ -78,7 +88,7 @@ function App() {
           <a href="#/" aria-label="Inbox"><Wordmark /></a>
           <nav aria-label="Workspace">
             {nav.filter((n) => n[3]).map(([page, hash, label]) => (
-              <a key={page} href={hash} aria-current={current === page || (page === "inbox" && current === "review") ? "page" : undefined}>{label}</a>
+              <a key={page} href={hash} aria-current={current === page || (page === "inbox" && (current === "review" || current === "proposal")) ? "page" : undefined}>{label}</a>
             ))}
           </nav>
           <div className="bar-end">
@@ -94,7 +104,9 @@ function App() {
         <main>
           {current === "inbox" && <Inbox onOpen={open} />}
           {route.page === "review" && reference && <Review key={route.id} id={route.id} reference={reference} onBack={() => go("#/")} />}
-          {current === "reference" && <ReferenceData reference={reference} onChanged={loadRef} />}
+          {route.page === "proposal" && <ProposalPage key={`${route.id}-${route.version}`} proposalId={route.id}
+                                                      versionNo={route.version} reference={reference} />}
+          {route.page === "settings" && <Settings tab={route.tab} reference={reference} onChanged={loadRef} />}
           {current === "models" && <ModelLog />}
           {current === "backtests" && <Accuracy onOpen={open} />}
           {current === "members" && <Members />}
