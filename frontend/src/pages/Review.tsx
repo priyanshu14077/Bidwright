@@ -331,7 +331,7 @@ function ValueInput({ f, value, onChange, reference }:
     );
   }
   if (f.kind === "vocab" || f.kind === "enum") {
-    const options = f.kind === "vocab" ? vocab.map((v) => [v.code, v.label]) : [["capped", "Capped"], ["uncapped", "Uncapped"]];
+    const options = f.kind === "vocab" ? vocab.map((v) => [v.code, v.label]) : f.options.map((o) => [o, o.replace(/_/g, " ")]);
     return (
       <label>{f.label}
         <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
