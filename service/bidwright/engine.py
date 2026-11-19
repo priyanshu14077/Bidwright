@@ -677,15 +677,25 @@ def comparables(conn: Connection, envelope_id: int, limit: int = 3) -> dict:
     size_field = "site_area_m2" if vals.get("typology") == "masterplan" else "gfa_m2"
     size = vals.get(size_field)
     rows = conn.execute(text("""
-        SELECT p.reference, p.title, p.typology, p.gfa_m2, p.site_area_m2, p.currency, p.fee_total_local,
+        SELECT p.reference, p.title, p.typology, p.sub_typology, p.gfa_m2, p.site_area_m2, p.currency, p.fee_total_local,
                p.fee_total_usd, p.status, p.loss_reason, l.country, l.city, c.region, p.submission_date,
                array(SELECT service FROM archive.proposal_service s WHERE s.proposal_id = p.proposal_id) AS services
         FROM archive.proposal p JOIN ref.location l USING (location_id) JOIN ref.country c ON c.code = l.country
         WHERE p.dataset_version = :v AND p.data_origin <> 'rfp_new'
           AND p.submission_date < (SELECT received_at FROM intake.envelope WHERE envelope_id = :e)::date"""), dict(v=settings.dataset_version, e=envelope_id)).all()
+    kind = None  # residential: a tower is not compared with a villa community
+    if vals.get("typology") == "residential":
+        said = " ".join(str(r) for r in conn.execute(text(
+            "SELECT value->>'value_text' FROM lineage.field_value WHERE envelope_id = :e AND field IN ('typology', 'units')"),
+            dict(e=envelope_id)).scalars()).lower()
+        storeys = vals.get("storeys")
+        kind = "residential_villa" if "villa" in said or (storeys and storeys <= 3) else \
+            "residential_highrise" if (storeys and storeys >= 5) or "tower" in said else None
     scored = []
     for p in rows:
         score = 3.0 * (p.typology == vals.get("typology")) + 2.0 * (p.country == env.country) + 1.0 * (p.region == region)
+        if kind:
+            score += 2.0 if p.sub_typology == kind else -2.0
         p_size = p.site_area_m2 if size_field == "site_area_m2" else p.gfa_m2
         if size and p_size:
             score -= abs(math.log(float(size) / float(p_size)))
