@@ -172,6 +172,8 @@ function TitleBlock({ v, latest, busy, act, onBanner, reference }: {
           : <span className="tb-sub">{v.approved_by}, {v.approved_at ? formatDate(v.approved_at) : ""}</span>}
         {v.status !== "draft" && v.version_no < latest && (
           <a className="link" href={versionHash(v.proposal_id, latest)}>Go to version {latest}</a>)}
+        {v.status !== "draft" && <Exports v={v} onDone={() => act("Reloading…", () => proposals.version(v.proposal_id, v.version_no))}
+                                          onBanner={onBanner} />}
       </div>
       <div className="tb-cell tb-actions">
         {v.status === "draft" && can("review") && <>
@@ -266,6 +268,29 @@ function ApprovePanel({ v, act, onClose }: { v: Version; act: Act; onClose: () =
       </div>
       {problems && <div className="why"><h2>Not ready to approve</h2><ul>{problems.map((p) => <li key={p} className="sev-block">{p}</li>)}</ul></div>}
       {err && <p className="error">{err}</p>}
+    </div>
+  );
+}
+
+/** Approved versions export to Word and PDF; anyone who can read the proposal can download the files. */
+function Exports({ v, onDone, onBanner }: { v: Version; onDone: () => void; onBanner: (b: Banner) => void }) {
+  const can = useCan();
+  const [working, setWorking] = useState(false);
+  const latest = ["docx", "pdf"].map((f) => v.outputs.find((o) => o.format === f)).filter((o) => o !== undefined);
+  const run = async () => {
+    setWorking(true);
+    try { await proposals.exportFiles(v.proposal_id, v.version_no); onDone(); }
+    catch (e) { onBanner({ tone: "error", text: errorText(e) }); }
+    finally { setWorking(false); }
+  };
+  return (
+    <div className="exports">
+      {latest.map((o) => (
+        <a key={o.output_id} className="download" href={proposals.downloadUrl(o.output_id)} download={o.file_name}>
+          {o.format.toUpperCase()} <span className="dim">{Math.round(o.size_bytes / 1024)} KB</span></a>))}
+      {can("approve") && (
+        <button disabled={working} onClick={run}>{working ? "Exporting…" : latest.length ? "Export again" : "Export Word and PDF"}</button>)}
+      {!latest.length && !can("approve") && <span className="tb-sub">Not exported yet. An admin exports approved versions.</span>}
     </div>
   );
 }
@@ -557,6 +582,7 @@ function AddLine({ v, act, reference }: { v: Version; act: Act; reference: Refer
 const ACTION: Record<string, string> = {
   create: "Created and priced", edit_section: "Edited a section", edit_line: "Changed a fee line", add_line: "Added a fee line",
   delete_line: "Removed a fee line", reprice: "Repriced", draft: "Drafted", approve: "Approved", new_version: "Started a new version",
+  export: "Exported",
 };
 
 function HistoryTab({ proposal, current }: { proposal: ProposalT; current: number }) {
@@ -602,6 +628,7 @@ function summarise(e: ProposalEvent): string {
       return typeof t === "number" ? `fee ${Math.round(t).toLocaleString("en-GB")}` : "";
     }
     case "edit_section": return "text changed";
+    case "export": return String(pick(e.new, "files") ?? "");
     default: return e.new ? JSON.stringify(e.new).slice(0, 120) : "";
   }
 }
