@@ -196,7 +196,9 @@ def extract_document(envelope_id: int, document_id: int, trace_id: uuid.UUID) ->
                  dv=settings.dataset_version, t=str(trace_id)),
         ).scalar_one()
     lines_by_id = {ln["id"]: ln for ln in lines}
-    content = [{"type": "text", "text": f"Document: {doc.file_name}\n\n{render_for_model(lines)}"}]
+    arrived = f"{doc.received_at:%A %-d %B %Y, %H:%M} UTC{doc.received_at:%z}" if doc.received_at else "unknown"
+    content = [{"type": "text", "text": f"Document: {doc.file_name}\nArrived: {arrived}, by {CHANNEL_NAMES.get(doc.channel, doc.channel)}"
+                                        f"\n\n{render_for_model(lines)}"}]
     try:
         result = llm.structured_call(run_id=run_id, trace_id=trace_id, model=settings.model_extract,
                                      prompt_version=PROMPT_VERSION, system=system, content=content,
