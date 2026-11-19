@@ -298,6 +298,10 @@ def same(f: Field, a: Candidate, b: Candidate) -> bool:
         return fuzz.token_set_ratio(str(a.normalized), str(b.normalized)) >= 88
     if f.kind == "city":
         return str(a.normalized).lower() == str(b.normalized).lower()
+    if f.kind in ("datetime", "date") and isinstance(a.normalized, str) and isinstance(b.normalized, str):
+        # the same day and clock time is one deadline: a brief that says "12:00" and an email that says "12:00
+        # Riyadh time" agree, even when the reader gave one of them a different time zone
+        return a.normalized[:16] == b.normalized[:16]
     return a.normalized == b.normalized
 
 
