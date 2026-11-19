@@ -133,5 +133,6 @@ function NoWorkspace({ onDone }: { onDone: () => void }) {
   );
 }
 
+applyTheme();  // light unless this person chose dark
 const root = document.getElementById("root");
 if (root) createRoot(root).render(<StrictMode><App /></StrictMode>);
