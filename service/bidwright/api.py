@@ -16,7 +16,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field as PField
 from sqlalchemy import text
 
-from bidwright import chat, drafting, export, feecard, fees, gate1, proposals, record
+from bidwright import chat, drafting, export, feecard, fees, gate1, logic, proposals, record
 from bidwright.auth import require, router as auth_router
 from bidwright.config import settings
 from bidwright.db import engine, in_workspace
@@ -35,6 +35,7 @@ app.include_router(export.router)
 app.include_router(gate1.router)
 app.include_router(feecard.router)
 app.include_router(chat.router)
+app.include_router(logic.router)
 
 READ, INTAKE, REVIEW, REFERENCE, BACKTEST = (Depends(require(p)) for p in
                                              ("read", "intake", "review", "reference", "backtest"))
