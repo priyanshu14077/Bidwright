@@ -380,7 +380,8 @@ class Engine:
                                                doc_class.get(r.document_id), float(r.confidence or 0.5)))
         self.candidates = by_field
 
-        # country first: it scopes synonyms and city lookup
+        # country first: it scopes synonyms and city lookup. A request that names only a city gets its country
+        # from the city.
         country = None
         for name in ["country", *[n for n in self.fields if n != "country"]]:
             f = self.fields[name]
