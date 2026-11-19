@@ -1359,5 +1359,129 @@
   "hospitality_3star": 0.919,
   "residential_villa": 0.856,
   "mixed_use": 0.858
+ },
+ "library": {
+  "note": "Standard proposal text. {firm} and {payment_days} are filled in when a proposal is drafted.",
+  "scope": [
+   {
+    "service": "architecture",
+    "stage": "feasibility",
+    "text": "Review of site, planning controls and brief; massing options and area schedules; high-level yield and efficiency assessment; feasibility report."
+   },
+   {
+    "service": "architecture",
+    "stage": "concept",
+    "text": "Design vision and narrative; site planning and massing; plans, sections and elevations at concept level; outline area schedule; material palette; concept report and presentation."
+   },
+   {
+    "service": "architecture",
+    "stage": "schematic_design",
+    "text": "Development of the approved concept; coordinated plans, sections and elevations; facade strategy; preliminary coordination with structural and MEP consultants; updated area schedule; schematic design report."
+   },
+   {
+    "service": "architecture",
+    "stage": "design_development",
+    "text": "Fully coordinated design development drawings; facade and envelope details; key interior architecture details; outline specifications; design development report to support the local architect of record."
+   },
+   {
+    "service": "architecture",
+    "stage": "gfc_review",
+    "text": "Review of good-for-construction drawings prepared by the local architect of record for compliance with design intent; written comments and one follow-up review."
+   },
+   {
+    "service": "architecture",
+    "stage": "construction_review",
+    "text": "Periodic design-intent reviews during construction; review of key material samples and mock-ups; site visits as listed under reimbursables."
+   },
+   {
+    "service": "interior_design",
+    "stage": "concept",
+    "text": "Interior design concept and mood boards for public areas and key typical spaces; space planning; concept presentation."
+   },
+   {
+    "service": "interior_design",
+    "stage": "schematic_design",
+    "text": "Developed layouts, reflected ceiling plans, key elevations and finishes palette; preliminary FF&E strategy."
+   },
+   {
+    "service": "interior_design",
+    "stage": "design_development",
+    "text": "Detailed interior drawings for public areas and typical rooms or units; finishes schedule; FF&E design intent package."
+   },
+   {
+    "service": "landscape",
+    "stage": "concept",
+    "text": "Landscape concept and planting strategy; open space framework; hardscape and softscape character."
+   },
+   {
+    "service": "landscape",
+    "stage": "schematic_design",
+    "text": "Developed landscape plans; levels strategy; planting palette; water features and amenity areas."
+   },
+   {
+    "service": "landscape",
+    "stage": "design_development",
+    "text": "Coordinated landscape design development drawings; hardscape details; planting plans; irrigation design intent."
+   },
+   {
+    "service": "masterplan",
+    "stage": "feasibility",
+    "text": "Site analysis, constraints and opportunities; development scenarios; land-use budget options; feasibility report."
+   },
+   {
+    "service": "masterplan",
+    "stage": "concept",
+    "text": "Masterplan concept: land-use plan, movement framework, open space network, phasing strategy and development controls; masterplan report."
+   },
+   {
+    "service": "masterplan",
+    "stage": "schematic_design",
+    "text": "Refined masterplan with plot-level development parameters and design guidelines."
+   }
+  ],
+  "exclusions": [
+   "Structural, MEP and civil engineering design",
+   "Local architect of record and authority submissions",
+   "Construction documentation and tender documents",
+   "Site supervision and contract administration",
+   "Surveys, geotechnical investigations and specialist consultants",
+   "Physical models"
+  ],
+  "terms": {
+   "standard": "This proposal is subject to {firm}'s Standard Terms of Engagement, including: two rounds of design revisions per stage; liability limited to 100% of the professional fee; copyright in the design retained by {firm}; suspension rights for late payment; and termination on 30 days' written notice.",
+   "signoff": "For and on behalf of {firm}"
+  },
+  "positions": [
+   {
+    "clause": "design_rounds",
+    "label": "Design rounds",
+    "position": "Two rounds included per stage"
+   },
+   {
+    "clause": "liability_cap",
+    "label": "Liability cap",
+    "position": "Cap at 100% of fee"
+   },
+   {
+    "clause": "payment_terms",
+    "label": "Payment terms",
+    "position": "{payment_days} days from invoice"
+   },
+   {
+    "clause": "copyright",
+    "label": "Copyright",
+    "position": "Copyright retained by {firm}; the client is licensed to use the design for this project on full payment"
+   },
+   {
+    "clause": "termination",
+    "label": "Termination",
+    "position": "Either party on 30 days' written notice"
+   },
+   {
+    "clause": "insurance",
+    "label": "Insurance",
+    "position": "Professional indemnity insurance maintained at {firm}'s standard level"
+   }
+  ]
  }
 }
