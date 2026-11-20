@@ -103,3 +103,25 @@
 .bw-legacy .gate-card h1 { font-size: 30px; }
 .bw-legacy .wordmark { font-family: var(--bw-font-display); font-size: 26px; font-variation-settings: normal; }
 .bw-legacy .wordmark svg { display: none; }
+
+/* Backtests: tables that read as tables (padded box, left-aligned text, numbers on the right), and figures whose
+   note sits small under the number */
+.bw-legacy .figures div { padding: 14px 16px 14px 0; }
+.bw-legacy .figures dd.dim { font: 400 13px/1.35 var(--bw-font-body); color: var(--bw-text-muted); margin-top: 4px; }
+.bw-legacy .grid-wrap { padding: 4px 18px 10px; margin-top: 14px; overflow-x: auto; }
+.bw-legacy .grid { width: 100%; border-collapse: collapse; font-size: 14px; }
+.bw-legacy .grid caption { caption-side: top; text-align: left; padding: 12px 0 4px; font-size: 13px; color: var(--bw-text-muted); }
+.bw-legacy .grid th { text-align: left; padding: 12px 12px 10px 0; font: 700 11px var(--bw-font-body); letter-spacing: .08em;
+  text-transform: uppercase; color: var(--bw-text-label); border-bottom: 1px solid var(--bw-divider); }
+.bw-legacy .grid td { text-align: left; padding: 11px 12px 11px 0; border-bottom: 1px solid var(--bw-divider); vertical-align: top; }
+.bw-legacy .grid tr:last-child td { border-bottom: 0; }
+.bw-legacy .grid td:first-child { min-width: 0; white-space: nowrap; }
+.bw-legacy .grid td.num, .bw-legacy .grid th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.bw-legacy .grid td.ok { color: var(--bw-found-fg); }
+.bw-legacy .grid td.miss { color: var(--bw-est-strong); background: var(--bw-est-bg); font-weight: 700; }
+.bw-legacy .grid--list tbody tr, .bw-legacy .grid--matrix tbody tr { cursor: default; }
+.bw-legacy .grid--matrix th:not(:first-child), .bw-legacy .grid--matrix td:not(:first-child) { text-align: center; width: 22%; }
+.bw-legacy .grid--matrix td.ok { background: var(--bw-found-bg); font-weight: 700; }
+.bw-legacy .grid--list td:nth-child(2) { color: var(--bw-text-muted); }
+.bw-legacy .grid--list td:last-child { color: var(--bw-text-muted); padding-left: 24px; }
+.bw-legacy .grid--list th:last-child { padding-left: 24px; }

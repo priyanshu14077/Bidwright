@@ -12,7 +12,7 @@ const TABS: [SettingsTab, string][] = [["vocabulary", "Vocabulary & markets"], [
 export function Settings({ tab, reference, onChanged }: { tab: SettingsTab; reference: Reference | null; onChanged: () => void }) {
   return (
     <div className="page admin settings">
-      <h1>Settings</h1>
+      <h1>Set up</h1>
       <p className="lede">What the engine prices with and the text proposals are built from. Every workspace starts
         from the same starter pack; every change here is logged with who made it and why.</p>
       <nav className="tabs settings-tabs" role="tablist">

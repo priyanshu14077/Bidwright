@@ -215,3 +215,12 @@ def test_a_request_named_after_its_file_takes_the_project_name(stranger):
     assess(org, e)  # a title someone chose is kept
     with workspace(org), engine.connect() as conn:
         assert conn.execute(text("SELECT title FROM intake.envelope WHERE envelope_id = :e"), dict(e=e)).scalar() == "Marina tender"
+
+
+def test_only_the_areas_a_service_is_priced_on_are_estimated():
+    from bidwright.gate1 import areas_to_estimate
+    assert areas_to_estimate(["masterplan"], "mixed_use") == {"site_area_m2"}  # read as mixed use, still per hectare
+    assert areas_to_estimate(["architecture"], "masterplan") == {"site_area_m2"}
+    assert areas_to_estimate(["interior_design"], "office") == {"gfa_m2"}  # a fit-out needs no site area
+    assert areas_to_estimate(["architecture", "interior_design"], "office") == {"gfa_m2", "site_area_m2"}
+    assert areas_to_estimate([], None) == {"gfa_m2", "site_area_m2"}

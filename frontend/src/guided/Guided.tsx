@@ -1,18 +1,20 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ChartColumn, ChevronLeft, Cpu, Inbox, ListChecks, MessageCircle, History, PanelLeftClose, PanelLeftOpen, Scale, Settings, Users } from "lucide-react";
+import { ChartColumn, ChevronLeft, ChevronRight, Cpu, FileText, Inbox, ListChecks, MessageCircle, History, PanelLeftClose, PanelLeftOpen, Scale, Settings, Users } from "lucide-react";
 import { api, type Me } from "../api";
 import { setReference } from "../format";
 import { Chats } from "./Chats";
 import { Ask, Decide } from "./Home";
 import { ThemeToggle } from "./kit";
+import { Sheet } from "./ui";
 import { cameFrom } from "./trail";
 import { LogicPage } from "./Logic";
 import { NewRequest } from "./NewRequest";
+import { Proposals } from "./Proposals";
 import { RequestPage, type RequestStep } from "./Request";
 
 export type GuidedRoute =
   | { page: "ask"; thread?: number } | { page: "chats" } | { page: "decide" } | { page: "new" } | { page: "request"; id: number; step: RequestStep }
-  | { page: "logic"; id?: number };
+  | { page: "logic"; id?: number } | { page: "proposals" };
 
 /** The guided flow: drop in a request, see what is missing, one fee card, approve. Everything technical sits
  * behind "Details" (the older screens). */
@@ -20,6 +22,7 @@ export function parseGuided(hash: string): GuidedRoute | null {
   if (hash === "" || hash === "#" || hash === "#/") return { page: "ask" };
   if (hash === "#/decide") return { page: "decide" };
   if (hash === "#/chats") return { page: "chats" };
+  if (hash === "#/proposals") return { page: "proposals" };
   const c = hash.match(/^#\/chat\/(\d+)$/);
   if (c) return { page: "ask", thread: Number(c[1]) };
   if (hash === "#/new") return { page: "new" };
@@ -36,6 +39,7 @@ const NAV: NavItem[] = [
   { key: "ask", hash: "#/", label: "Ask", icon: <MessageCircle className="bw-icon" />, tab: true },
   { key: "chats", hash: "#/chats", label: "Chats", icon: <History className="bw-icon" /> },
   { key: "decide", hash: "#/decide", label: "Decide", icon: <Inbox className="bw-icon" />, tab: true },
+  { key: "proposals", hash: "#/proposals", label: "Proposals", icon: <FileText className="bw-icon" /> },
   { key: "requests", hash: "#/requests", label: "Requests", icon: <ListChecks className="bw-icon" />, tab: true },
   { key: "settings", hash: "#/settings", label: "Set up", icon: <Settings className="bw-icon" />, tab: true },
   { key: "logic", hash: "#/logic", label: "How we price", icon: <Scale className="bw-icon" /> },
@@ -51,7 +55,9 @@ export function Shell({ active, me, title, back: backTo, fallbackBack, onSignOut
   children: ReactNode; wide?: boolean; ownHeader?: boolean;
 }) {
   const items = NAV.filter((n) => !n.when || n.when(me));
-  const back = backTo ?? fallbackBack;
+  const tabPage = items.some((n) => n.tab && n.key === active);
+  const back = backTo ?? fallbackBack ?? (tabPage ? undefined : "#/");  // a page off the tabs always has a way back
+  const [account, setAccount] = useState(false);
   const [collapsed, setCollapsed] = useRailCollapsed();
   return (
     <div className="bw-app" data-rail={collapsed ? "collapsed" : undefined}>
@@ -86,9 +92,17 @@ export function Shell({ active, me, title, back: backTo, fallbackBack, onSignOut
       <main className="bw-main">
         {!ownHeader && (
           <header className="bw-header">
-            {back && <a className="bw-icon-btn bw-back" href={back} aria-label="Back"><ChevronLeft className="bw-icon" /></a>}
-            <div className="bw-header__text"><span className="bw-title-sm bw-mobile-only">{title}</span></div>
-            <span className="bw-badge bw-mobile-only" title={me.user.email}>{initials(me.user.name)}</span>
+            {/* a tab page is a starting point: the brand, no back; anywhere else: back and the page's name */}
+            {tabPage ? (
+              <a className="bw-brand bw-mobile-only bw-header__brand" href="#/">Bidwright</a>
+            ) : (
+              <>
+                {back && <a className="bw-icon-btn bw-back" href={back} aria-label="Back"><ChevronLeft className="bw-icon" /></a>}
+                <div className="bw-header__text"><span className="bw-title-sm bw-mobile-only">{title}</span></div>
+              </>
+            )}
+            <button type="button" className="bw-avatar bw-mobile-only bw-header__me" onClick={() => setAccount(true)}
+                    aria-label={`${me.user.name}: account and more`} aria-haspopup="dialog">{initials(me.user.name)}</button>
           </header>
         )}
         <div className={`bw-main__inner${wide ? " bw-main__inner--wide" : ""}`}>{children}</div>
@@ -98,6 +112,36 @@ export function Shell({ active, me, title, back: backTo, fallbackBack, onSignOut
           <a key={n.key} href={n.hash} aria-current={n.key === active ? "page" : undefined}>{n.icon}{n.label}</a>
         ))}
       </nav>
+      {/* on a phone, the menu's other pages and the workspace card live behind the initials */}
+      <Sheet open={account} title="Account" onClose={() => setAccount(false)}>
+        <div className="bw-account">
+          <div className="bw-account__who">
+            <span className="bw-avatar" aria-hidden>{initials(me.user.name)}</span>
+            <div><strong>{me.user.name}</strong><span className="bw-muted">{me.user.email}</span></div>
+          </div>
+          <div className="bw-account__ws">
+            {me.workspaces.length > 1 ? (
+              <select className="bw-input" aria-label="Workspace" value={me.workspace?.org_id}
+                      onChange={(e) => { setAccount(false); onSwitch(e.target.value); }}>
+                {me.workspaces.map((w) => <option key={w.org_id} value={w.org_id}>{w.name}</option>)}
+              </select>
+            ) : <strong>{me.workspace?.name}</strong>}
+            <span className="bw-muted">{me.role}{me.workspace?.is_demo ? " · demo practice" : ""}</span>
+          </div>
+          <nav className="bw-account__links" aria-label="More">
+            {items.filter((n) => !n.tab).map((n) => (
+              <a key={n.key} className="bw-account__link" href={n.hash} aria-current={n.key === active ? "page" : undefined}
+                 onClick={() => setAccount(false)}>
+                {n.icon}<span>{n.label}</span><ChevronRight className="bw-icon bw-icon--sm" aria-hidden />
+              </a>
+            ))}
+          </nav>
+          <div className="bw-account__actions">
+            <ThemeToggle />
+            <button type="button" className="bw-btn bw-btn--outline" onClick={onSignOut}>Sign out</button>
+          </div>
+        </div>
+      </Sheet>
     </div>
   );
 }
@@ -106,7 +150,7 @@ export function Guided({ route, me, onSignOut, onSwitch }: {
   route: GuidedRoute; me: Me; onSignOut: () => void; onSwitch: (orgId: string) => void;
 }) {
   useEffect(() => { api.reference().then(setReference, () => undefined); }, []);
-  const title = { ask: "Ask", decide: "Decide", new: "Add files", request: "Request", logic: "How we price", chats: "Chats" }[route.page];
+  const title = { ask: "Ask", decide: "Decide", new: "Add files", request: "Request", logic: "How we price", chats: "Chats", proposals: "Proposals" }[route.page];
   const active = route.page === "request" ? "decide" : route.page === "new" ? "ask"
     : route.page === "ask" && route.thread ? "chats" : route.page;
   return (
@@ -116,6 +160,7 @@ export function Guided({ route, me, onSignOut, onSwitch }: {
            wide={route.page === "request" || route.page === "ask"}>
       {route.page === "ask" && <Ask threadId={route.thread} />}
       {route.page === "chats" && <Chats />}
+      {route.page === "proposals" && <Proposals />}
       {route.page === "decide" && <Decide />}
       {route.page === "new" && <NewRequest />}
       {route.page === "logic" && <LogicPage key={route.id ?? 0} envelopeId={route.id} />}

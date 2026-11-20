@@ -134,6 +134,17 @@ def widen(body: str, start: int, end: int, target: int = 6) -> str:
     return re.sub(r"[,:]$", "", body[left + tokens[a].start(): left + tokens[b].end()])
 
 
+def areas_to_estimate(services: list[str], typology: str | None) -> set[str]:
+    """The areas worth estimating when missing: only those the services are priced on. A masterplan is priced per
+    hectare of site (no floor area); an interior fit-out on its fit-out area (no site area)."""
+    s = set(services)
+    if s == {"masterplan"} or typology == "masterplan":
+        return {"site_area_m2"}
+    if s == {"interior_design"}:
+        return {"gfa_m2"}
+    return set(AREA_FIELDS)
+
+
 def nice(x: float) -> float:
     return float(round(x, -2) if x >= 1000 else round(x))
 
@@ -304,8 +315,10 @@ class Assessor:
             what = "a rough number" if ask == "feasibility_estimate" else "a proposal"
             est["stage_package"] = dict(value=v, confidence="medium", comparables=[], kind="setting",
                                         method=f"not stated; {what} is priced for {self.display('stage_package', v)} by default")
+        wanted = areas_to_estimate(self.value("services") or est.get("services", {}).get("value") or [],
+                                   self.value("typology") or est.get("typology", {}).get("value"))
         for target in AREA_FIELDS:
-            if target == "gfa_m2" and (self.value("typology") or est.get("typology", {}).get("value")) == "masterplan":
+            if target not in wanted:
                 continue
             if not self.value(target) and not (self.rec[target]["conflict"]):
                 guess = self.numeric_estimate(target)

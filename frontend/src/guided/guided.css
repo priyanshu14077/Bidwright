@@ -16,7 +16,8 @@
   text-underline-offset: 3px; font: inherit; cursor: pointer; }
 .bw-brand { color: var(--bw-text); text-decoration: none; }
 .bw-office__select { min-height: 40px; padding: 6px 12px; font-weight: 600; font-size: 14px; }
-@media (max-width: 1023px) { .bw-main { padding-bottom: 88px; } }
+/* phone: the tab bar sits at the bottom of the page itself, so the page needs only a small margin above it */
+@media (max-width: 1023px) { .bw-main { padding-bottom: 24px; } }
 
 /* ---------------------------------------------------------------- request header */
 .bw-request-header { flex-wrap: wrap; }
@@ -258,7 +259,12 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
 .bw-ask[data-phase="chat"] .bw-composer { flex: none; padding: 6px 0 0; }
 .bw-ask[data-phase="chat"] .bw-suggestions { flex: none; padding: 4px 0 2px; }
 @keyframes bw-ask-open { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-@media (max-width: 1023px) { .bw-ask__bar .bw-btn { padding-inline: 12px; } .bw-ask__bar .bw-btn svg { display: none; } }
+/* phone: the bar's buttons are icons (their names are their labels), so the title keeps the room */
+@media (max-width: 1023px) {
+  .bw-ask__btn { width: var(--bw-tap); min-width: var(--bw-tap); padding: 0; justify-content: center; }
+  .bw-ask__btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .bw-ask__btn svg { width: 18px; height: 18px; }
+}
 
 /* ---------------------------------------------------------------- who said it: a disc beside each turn */
 .bw-turn { display: flex; align-items: flex-start; gap: 10px; max-width: 100%; }
@@ -352,3 +358,70 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
 .bw-ask[data-phase="chat"]:not([data-dossier="open"]) .bw-ask__bar { max-width: none; }
 .bw-dossier-toggle[aria-pressed="true"] { background: var(--bw-surface); }
 .bw-dossier-toggle[aria-pressed="false"] { box-shadow: inset 0 0 0 1px var(--bw-outline); background: none; }
+
+/* ---------------------------------------------------------------- phone: one consistent header and tab bar */
+@media (max-width: 1023px) {
+  .bw-header { min-height: 60px; }
+  .bw-header__brand { flex: 1; font-size: 21px; text-decoration: none; color: var(--bw-text); }
+  .bw-header__me { margin-left: auto; width: 40px; height: 40px; border: 0; cursor: pointer; font-size: 13px; }
+  .bw-header__me::before { content: ""; position: absolute; inset: -2px; }  /* 44px to tap */
+  .bw-header__me { position: relative; }
+  .bw-header .bw-back { flex: none; }
+}
+/* the active tab is filled like the rest of the app's selected states; the focus ring only shows for keyboards */
+.bw-tabbar a { outline: none; }
+.bw-tabbar a:focus-visible { box-shadow: inset 0 0 0 2px var(--bw-outline); }
+.bw-tabbar a[aria-current="page"] { background: var(--bw-surface); color: var(--bw-text); }
+.bw-tabbar a[aria-current="page"] svg { color: var(--bw-text); }
+
+.bw-account { display: flex; flex-direction: column; gap: 16px; padding-bottom: 8px; }
+.bw-account__who { display: flex; align-items: center; gap: 12px; }
+.bw-account__who > div { display: flex; flex-direction: column; min-width: 0; }
+.bw-account__who .bw-avatar { width: 44px; height: 44px; font-size: 14px; }
+.bw-account__ws { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: var(--bw-r-md); background: var(--bw-surface); }
+.bw-account__links { display: flex; flex-direction: column; }
+.bw-account__link { display: flex; align-items: center; gap: 12px; min-height: var(--bw-tap); padding: 0 4px; color: var(--bw-text);
+  text-decoration: none; font-weight: 600; border-bottom: 1px solid var(--bw-divider); }
+.bw-account__link span { flex: 1; }
+.bw-account__link[aria-current="page"] { color: var(--bw-found-fg); }
+.bw-account__actions { display: flex; gap: 8px; }
+.bw-account__actions > * { flex: 1; min-height: var(--bw-tap); }
+
+/* a request row: the title takes the space, its badge always sits at the top right */
+.bw-list-item__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.bw-list-item__head .bw-list-item__title { min-width: 0; }
+.bw-list-item__head .bw-badge { flex: none; margin-top: 1px; }
+
+/* phone: a page with its own big heading keeps the header to back + account, so the title is not said twice */
+@media (max-width: 1023px) {
+  .bw-main:has(.bw-main__inner h1) > .bw-header .bw-header__text { visibility: hidden; }
+  /* tab rows (Set up) scroll sideways in one line instead of wrapping into a lumpy block */
+  .bw-legacy nav.settings-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; max-width: 100%; align-self: stretch; }
+  .bw-legacy nav.settings-tabs::-webkit-scrollbar { display: none; }
+  .bw-legacy nav.settings-tabs a { flex: none; white-space: nowrap; }
+}
+
+/* phone: the conversation fills the space between the header (and page padding) and the tab bar, exactly */
+@media (max-width: 1023px) {
+  .bw-main:has(.bw-ask) { padding-bottom: 0; }
+  .bw-ask { height: calc(100dvh - 82px - 65px - 8px - env(safe-area-inset-bottom)); min-height: 360px; }
+}
+
+/* the proposal page fills the screen down to the frame, with no band below its panels */
+@media (min-width: 1024px) {
+  .bw-main:has(.bw-legacy .review) { padding-bottom: 20px; }
+  .bw-legacy .review { height: calc(100dvh - 48px); }
+}
+
+/* ---------------------------------------------------------------- proposals list */
+.bw-proposals { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.bw-proposals__item { align-items: flex-start; gap: 12px; animation: bw-rise var(--bw-dur-slow) var(--bw-ease) both;
+  animation-delay: calc(var(--i, 0) * var(--bw-stagger)); }
+.bw-proposals__icon { flex: none; margin-top: 3px; color: var(--bw-text-muted); }
+.bw-proposals__title { color: var(--bw-text); text-decoration: none; }
+.bw-proposals__title:hover { text-decoration: underline; text-underline-offset: 3px; }
+.bw-proposals__foot { margin-top: 4px; }
+.bw-proposals__req { display: inline-flex; align-items: center; gap: 4px; color: var(--bw-link); font-size: 13.5px; font-weight: 600; text-decoration: none; }
+.bw-proposals__counts { gap: 28px; }
+.bw-proposals__counts > div { display: flex; flex-direction: column; gap: 2px; }
+.bw-proposals__counts strong { font-size: 26px; font-variant-numeric: tabular-nums; }

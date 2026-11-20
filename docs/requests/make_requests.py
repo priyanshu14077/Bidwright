@@ -309,4 +309,182 @@ Regards,
 Majed Al-Harbi
 """, datetime(2026, 11, 20, 13, 45, tzinfo=AST))
 
-print("made", sum(1 for p in ROOT.rglob("*") if p.is_file() and p.suffix in (".txt", ".eml", ".pdf", ".xlsx", ".png")), "files")
+
+# ================================================================ more kinds of request (ten more)
+
+def word(path: str, title: str, paragraphs: list[str]) -> None:
+    """A Word document, e.g. meeting minutes."""
+    from docx import Document
+    doc = Document()
+    doc.add_heading(title, level=1)
+    for para in paragraphs:
+        if para.startswith("- "):
+            doc.add_paragraph(para[2:], style="List Bullet")
+        else:
+            doc.add_paragraph(para)
+    p = ROOT / path
+    p.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(p)
+
+
+ICT = timezone(td(hours=7))
+SGT = timezone(td(hours=8))
+CET = timezone(td(hours=1))
+
+# 1. complete scope ------------------------------------------------------------------------------
+
+email("1-complete-scope/D - Email, masterplan/RFP - Thu Thiem riverside masterplan.eml",
+      "Nguyen Thi Lan <lan.nguyen@saigonbay-land.example>", "proposals@northbeam.example",
+      "RFP: Thu Thiem riverside masterplan, Ho Chi Minh City", f"""
+Dear Northbeam Studio,
+
+Saigon Bay Land JSC invites your proposal for the masterplan of a 42-hectare riverside site in Thu Thiem,
+Ho Chi Minh City, Vietnam: mixed residential, office and retail districts with a riverfront park.
+
+Scope: masterplan only, from Feasibility through Concept Design to Schematic Design.
+Site area: 42 ha. No building design in this appointment.
+
+Fees in USD. Liability capped at 100% of the fee; payment within 30 days.
+Proposals are due by {long(TODAY + timedelta(days=21))}, 17:00 Ho Chi Minh City time.
+
+Best regards,
+Nguyen Thi Lan
+Head of Development, Saigon Bay Land JSC
+""", datetime(2026, 11, 20, 9, 40, tzinfo=ICT))
+
+email("1-complete-scope/E - Email and Excel, interior fit-out only/Fit-out RFP - Marina One office floors.eml",
+      "Rachel Lim <rachel.lim@harbourfront-cap.example>", "studio@northbeam.example",
+      "Interior design RFP: Marina One office floors, Singapore", f"""
+Hi Northbeam team,
+
+Harbourfront Capital is fitting out four office floors at Marina One, Singapore, for its regional headquarters.
+
+We need interior design only (the base building is complete): Concept Design, Schematic Design and Design
+Development. The fit-out area is 6,800 m² over four floors of 9,200 m² GFA; the area schedule is attached.
+
+Fees in SGD please. Liability capped at the fee, payment in 30 days.
+Please send your proposal by {long(TODAY + timedelta(days=18))}.
+
+Thanks,
+Rachel Lim
+Workplace Director, Harbourfront Capital
+""", datetime(2026, 11, 20, 10, 15, tzinfo=SGT))
+sheet("1-complete-scope/E - Email and Excel, interior fit-out only/Area schedule - Marina One floors.xlsx", [
+    ["Floor", "Fit-out area (m²)", "Use"],
+    ["Level 31", 1700, "Reception, client lounge, meeting suite"],
+    ["Level 32", 1700, "Open office"],
+    ["Level 33", 1700, "Open office, focus rooms"],
+    ["Level 34", 1700, "Executive floor, boardroom"],
+    ["Total fit-out", 6800, ""],
+    ["GFA of the four floors", 9200, ""],
+])
+
+email("1-complete-scope/F - Email in Spanish, hotel and landscape/Solicitud de propuesta - Hotel Poblenou.eml",
+      "Marta Puig <mpuig@grupmediterrani.example>", "barcelona@northbeam.example",
+      "Solicitud de propuesta: Hotel Poblenou, Barcelona", f"""
+Estimados señores:
+
+Grup Mediterrani Hotels les invita a presentar su propuesta de honorarios para el Hotel Poblenou en Barcelona,
+España: un hotel de cuatro estrellas de 180 habitaciones.
+
+Superficie construida: 14.500 m². Parcela: 3.200 m². Superficie de paisajismo: 2.100 m² (patio y cubierta).
+Servicios: arquitectura y paisajismo. Fases: Anteproyecto y Proyecto Básico.
+
+Honorarios en euros (EUR). Responsabilidad limitada al importe de los honorarios; pago a 60 días.
+Plazo de entrega de la propuesta: {TODAY + timedelta(days=25):%d/%m/%Y}.
+
+Atentamente,
+Marta Puig
+Directora de Desarrollo, Grup Mediterrani Hotels
+""", datetime(2026, 11, 20, 9, 5, tzinfo=CET))
+
+pdf("1-complete-scope/G - Tender notice PDF, uncapped liability/Tender notice - Shuwaikh headquarters.pdf",
+    "Tender No. KDC/2026/114: Design Consultancy, Shuwaikh Headquarters", [
+        "Issued by: Kuwait Development Company K.S.C.",
+        f"Issue date: {long(TODAY)}.",
+        ("h", "1. Project"),
+        "A new headquarters office building in Shuwaikh, Kuwait City, State of Kuwait.",
+        [["Item", "Value"], ["Gross floor area", "27,500 m²"], ["Plot area", "6,000 m²"],
+         ["Services", "Architecture"], ["Stages", "Concept Design, Schematic Design, Design Development"]],
+        ("h", "2. Commercial terms"),
+        "Fees shall be quoted in Kuwaiti dinars (KWD). The consultant's liability shall be unlimited. "
+        "Payment within 45 days of an approved invoice.",
+        ("h", "3. Submission"),
+        f"Sealed proposals by 12:00 on {long(TODAY + timedelta(days=28))}.",
+    ])
+
+email("1-complete-scope/H - Email thread, revised brief/RE Dubai Hills residences - revised brief.eml",
+      "Ahmed Saleh <ahmed@crestline-homes.example>", "proposals@northbeam.example",
+      "RE: Dubai Hills residences - revised brief", f"""
+Hi again,
+
+Following our board meeting, two changes to the brief below:
+1. GFA increases to 46,500 m² (an extra residential block).
+2. Please include Design Development as well, not only Concept and Schematic Design.
+
+Everything else stands. Deadline unchanged.
+
+Ahmed
+
+-----Original message-----
+From: Ahmed Saleh
+Sent: {long(TODAY - timedelta(days=6))}
+Subject: Dubai Hills residences - fee request
+
+Hi Northbeam,
+
+Crestline Homes would like your fee for Dubai Hills Residences, Dubai: three residential buildings,
+GFA 40,000 m² on a 9,800 m² plot. Architecture, Concept Design and Schematic Design.
+Fees in AED; liability capped at the fee. Please respond by {long(TODAY + timedelta(days=12))}.
+
+Ahmed Saleh
+Crestline Homes
+""", datetime(2026, 11, 20, 8, 20, tzinfo=GST))
+
+# 2. partial scope -------------------------------------------------------------------------------
+
+write("2-partial-scope/D - Voice note transcript, villas/Voice note - Faisal, Al Nakheel villas.txt", f"""
+Voice note from Faisal Al-Otaibi, transcribed, {long(TODAY)} 07:58
+
+"Salam, Faisal here. So, we have land in Al Nakheel, in Riyadh, north side, and we're thinking maybe
+thirty villas, maybe a bit more, with a small clubhouse. Nothing is fixed yet, no areas yet, the surveyor
+is still working on it. We just want to know roughly what you would charge for the design, the concept
+and maybe the next stage. Call me when you can, inshallah."
+""")
+
+word("2-partial-scope/E - Word minutes, range of areas/Minutes - Abdoun mixed-use kickoff.docx",
+     "Minutes: kick-off call, Abdoun mixed-use project", [
+         f"Date: {long(TODAY - timedelta(days=1))}. Attendees: Lina Haddad (Levant Urban Properties), Demo Estimator (Northbeam Studio).",
+         "- Project: mixed-use building in Abdoun, Amman, Jordan: retail at ground, offices above, two floors of apartments.",
+         "- Gross floor area somewhere between 18,000 and 22,000 m²; the final figure depends on the planning approval.",
+         "- Plot area 4,100 m².",
+         "- Services: architecture and interior design for the lobbies only (fit-out area not known yet).",
+         "- Stages: Concept and Schematic Design.",
+         "- Fees in JOD or USD, to be confirmed by their finance team.",
+         "- No deadline set; Lina will confirm when the planning date is known.",
+     ])
+
+write("2-partial-scope/F - WhatsApp in Arabic and English/WhatsApp Chat - Bu Nasser.txt", """
+[20/11/2026, 13:02:11] Bu Nasser: السلام عليكم، مرحبا
+[20/11/2026, 13:02:40] Bu Nasser: We have a plot in Khaitan, Kuwait, around 1,250 m²
+[20/11/2026, 13:03:15] Bu Nasser: نبي فيلا خاصة، تصميم معماري وداخلي
+[20/11/2026, 13:03:52] Bu Nasser: Private villa, architecture and interior. Concept first please
+[20/11/2026, 13:04:30] Bu Nasser: Built area maybe 900 m², not decided
+""")
+
+# 3. thin or out of scope ------------------------------------------------------------------------
+
+write("3-thin-or-out-of-scope/E - WhatsApp, market not served/WhatsApp Chat - +234 803 555 0192.txt", f"""
+[20/11/2026, 15:20:03] +234 803 555 0192: Good afternoon, we are developing an office tower in Victoria Island, Lagos, Nigeria
+[20/11/2026, 15:20:41] +234 803 555 0192: About 35,000 m², architecture from concept to design development
+[20/11/2026, 15:21:10] +234 803 555 0192: Fees in USD. Please send your proposal by {long(TODAY + timedelta(days=20))}
+""")
+
+chat_screenshot("3-thin-or-out-of-scope/F - Screenshot, rough number only/Screenshot 2026-11-20 at 16.40.png", "Hamad (Yas plot)", [
+    ("16:31", "Hi, quick question, no need for a full proposal"),
+    ("16:32", "We have a plot on Yas Island, Abu Dhabi, about 8,000 m²"),
+    ("16:33", "Just a ballpark figure for a feasibility study of what we could build there"),
+    ("16:34", "Rough number only please, nothing formal yet"),
+])
+
+print("made", sum(1 for p in ROOT.rglob("*") if p.is_file() and p.suffix in (".txt", ".eml", ".pdf", ".xlsx", ".png", ".docx")), "files")

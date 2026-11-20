@@ -91,12 +91,12 @@ function App() {
 
   const titles: Record<string, string> = { inbox: "Requests", review: "Request details", proposal: "Proposal",
     settings: "Set up", models: "Model calls", backtests: "Backtests", members: "Members" };
-  const active = current === "inbox" || current === "review" ? "requests" : current === "proposal" ? "decide" : current;
+  const active = current === "inbox" || current === "review" ? "requests" : current === "proposal" ? "proposals" : current;
   const wide = current === "review" || current === "proposal" || current === "backtests";
   return (
     <Session.Provider value={me}>
       <Shell active={active} me={me} title={titles[current] ?? "Bidwright"} onSignOut={signOut} onSwitch={switchTo} wide={wide}
-             back={current === "review" ? `#/r/${(route as { id: number }).id}` : current === "proposal" ? "#/decide" : undefined}>
+             back={current === "review" ? `#/r/${(route as { id: number }).id}` : current === "proposal" ? "#/proposals" : undefined}>
         <div className="bw-legacy">
           {current === "inbox" && <Inbox onOpen={open} />}
           {route.page === "review" && reference && <Review key={route.id} id={route.id} reference={reference} onBack={() => go(`#/r/${route.id}`)} />}

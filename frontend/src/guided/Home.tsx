@@ -18,6 +18,7 @@ function nextStep(e: Envelope): string {
   if (e.gate1_decision === "decline") return "Declined";
   if (e.gate1_decision === "qualify") return "Qualified: the fee is waiting for approval";
   if (e.gate1_decision === "ask") return "Waiting for the client's answers";
+  if (e.lead_status === "recommend_no_bid") return "Suggested: decline. Confirm, or reply to the client";
   if (e.open_questions) return `${e.open_questions} question${e.open_questions === 1 ? "" : "s"} to ask the client`;
   return "Ready to price";
 }
@@ -56,6 +57,8 @@ export function Ask({ threadId }: { threadId?: number }) {
   const [dossierOpen, setDossierOpen] = useState(() => {
     try { return localStorage.getItem("bw-dossier-open") !== "no"; } catch { return true; }
   });
+  // a new chat (or another one) starts from its own phase: centred until its first message
+  useEffect(() => { setStarted(!!threadId); setHasDossier(false); }, [threadId]);
   const toggleDossier = () => {
     const next = !dossierOpen;
     setDossierOpen(next);
@@ -67,8 +70,10 @@ export function Ask({ threadId }: { threadId?: number }) {
         <header className="bw-ask__bar">
           <h1 className="bw-title-sm bw-ask__title">{title ?? (threadId ? "Conversation" : "New conversation")}</h1>
           <div className="bw-row bw-nowrap">
-            <a className="bw-btn bw-btn--outline bw-btn--sm" href="#/chats"><History className="bw-icon bw-icon--sm" />Past chats</a>
-            <a className="bw-btn bw-btn--outline bw-btn--sm" href="#/"><Plus className="bw-icon bw-icon--sm" />New chat</a>
+            <a className="bw-btn bw-btn--outline bw-btn--sm bw-ask__btn" href="#/chats" aria-label="Past chats" title="Past chats">
+              <History className="bw-icon bw-icon--sm" /><span>Past chats</span></a>
+            <a className="bw-btn bw-btn--outline bw-btn--sm bw-ask__btn" href="#/" aria-label="New chat" title="New chat">
+              <Plus className="bw-icon bw-icon--sm" /><span>New chat</span></a>
             {hasDossier && (
               <button type="button" className="bw-icon-btn bw-desktop-only bw-dossier-toggle" onClick={toggleDossier}
                       aria-pressed={dossierOpen} aria-label={dossierOpen ? "Hide the request dossier" : "Show the request dossier"}
@@ -127,7 +132,7 @@ function Row({ e, i = 0 }: { e: Envelope; i?: number }) {
   return (
     <a className="bw-list-item" href={`#/r/${e.envelope_id}`} style={{ "--i": i } as React.CSSProperties}>
       <div className="bw-list-item__main">
-        <div className="bw-row" style={{ "--gap": "8px" } as React.CSSProperties}>
+        <div className="bw-list-item__head">
           <span className="bw-list-item__title">{e.project_name || e.title || `Request ${e.envelope_id}`}</span>
           {outcome && <span className="bw-badge" data-status={outcome[1]}>{outcome[0]}</span>}
         </div>
