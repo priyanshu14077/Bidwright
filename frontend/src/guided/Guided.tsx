@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ChartColumn, ChevronLeft, ChevronRight, Cpu, Inbox, ListChecks, MessageCircle, History, PanelLeftClose, PanelLeftOpen, Scale, Settings, Users } from "lucide-react";
+import { ChartColumn, ChevronLeft, ChevronRight, Cpu, FileText, Inbox, ListChecks, MessageCircle, History, PanelLeftClose, PanelLeftOpen, Scale, Settings, Users } from "lucide-react";
 import { api, type Me } from "../api";
 import { setReference } from "../format";
 import { Chats } from "./Chats";
@@ -9,11 +9,12 @@ import { Sheet } from "./ui";
 import { cameFrom } from "./trail";
 import { LogicPage } from "./Logic";
 import { NewRequest } from "./NewRequest";
+import { Proposals } from "./Proposals";
 import { RequestPage, type RequestStep } from "./Request";
 
 export type GuidedRoute =
   | { page: "ask"; thread?: number } | { page: "chats" } | { page: "decide" } | { page: "new" } | { page: "request"; id: number; step: RequestStep }
-  | { page: "logic"; id?: number };
+  | { page: "logic"; id?: number } | { page: "proposals" };
 
 /** The guided flow: drop in a request, see what is missing, one fee card, approve. Everything technical sits
  * behind "Details" (the older screens). */
@@ -21,6 +22,7 @@ export function parseGuided(hash: string): GuidedRoute | null {
   if (hash === "" || hash === "#" || hash === "#/") return { page: "ask" };
   if (hash === "#/decide") return { page: "decide" };
   if (hash === "#/chats") return { page: "chats" };
+  if (hash === "#/proposals") return { page: "proposals" };
   const c = hash.match(/^#\/chat\/(\d+)$/);
   if (c) return { page: "ask", thread: Number(c[1]) };
   if (hash === "#/new") return { page: "new" };
@@ -37,6 +39,7 @@ const NAV: NavItem[] = [
   { key: "ask", hash: "#/", label: "Ask", icon: <MessageCircle className="bw-icon" />, tab: true },
   { key: "chats", hash: "#/chats", label: "Chats", icon: <History className="bw-icon" /> },
   { key: "decide", hash: "#/decide", label: "Decide", icon: <Inbox className="bw-icon" />, tab: true },
+  { key: "proposals", hash: "#/proposals", label: "Proposals", icon: <FileText className="bw-icon" /> },
   { key: "requests", hash: "#/requests", label: "Requests", icon: <ListChecks className="bw-icon" />, tab: true },
   { key: "settings", hash: "#/settings", label: "Set up", icon: <Settings className="bw-icon" />, tab: true },
   { key: "logic", hash: "#/logic", label: "How we price", icon: <Scale className="bw-icon" /> },
@@ -147,7 +150,7 @@ export function Guided({ route, me, onSignOut, onSwitch }: {
   route: GuidedRoute; me: Me; onSignOut: () => void; onSwitch: (orgId: string) => void;
 }) {
   useEffect(() => { api.reference().then(setReference, () => undefined); }, []);
-  const title = { ask: "Ask", decide: "Decide", new: "Add files", request: "Request", logic: "How we price", chats: "Chats" }[route.page];
+  const title = { ask: "Ask", decide: "Decide", new: "Add files", request: "Request", logic: "How we price", chats: "Chats", proposals: "Proposals" }[route.page];
   const active = route.page === "request" ? "decide" : route.page === "new" ? "ask"
     : route.page === "ask" && route.thread ? "chats" : route.page;
   return (
@@ -157,6 +160,7 @@ export function Guided({ route, me, onSignOut, onSwitch }: {
            wide={route.page === "request" || route.page === "ask"}>
       {route.page === "ask" && <Ask threadId={route.thread} />}
       {route.page === "chats" && <Chats />}
+      {route.page === "proposals" && <Proposals />}
       {route.page === "decide" && <Decide />}
       {route.page === "new" && <NewRequest />}
       {route.page === "logic" && <LogicPage key={route.id ?? 0} envelopeId={route.id} />}

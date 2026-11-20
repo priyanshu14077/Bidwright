@@ -413,3 +413,15 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
   .bw-legacy .review { height: calc(100dvh - 48px); }
 }
 
+/* ---------------------------------------------------------------- proposals list */
+.bw-proposals { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.bw-proposals__item { align-items: flex-start; gap: 12px; animation: bw-rise var(--bw-dur-slow) var(--bw-ease) both;
+  animation-delay: calc(var(--i, 0) * var(--bw-stagger)); }
+.bw-proposals__icon { flex: none; margin-top: 3px; color: var(--bw-text-muted); }
+.bw-proposals__title { color: var(--bw-text); text-decoration: none; }
+.bw-proposals__title:hover { text-decoration: underline; text-underline-offset: 3px; }
+.bw-proposals__foot { margin-top: 4px; }
+.bw-proposals__req { display: inline-flex; align-items: center; gap: 4px; color: var(--bw-link); font-size: 13.5px; font-weight: 600; text-decoration: none; }
+.bw-proposals__counts { gap: 28px; }
+.bw-proposals__counts > div { display: flex; flex-direction: column; gap: 2px; }
+.bw-proposals__counts strong { font-size: 26px; font-variant-numeric: tabular-nums; }
