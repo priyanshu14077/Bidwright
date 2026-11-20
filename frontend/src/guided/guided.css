@@ -258,7 +258,12 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
 .bw-ask[data-phase="chat"] .bw-composer { flex: none; padding: 6px 0 0; }
 .bw-ask[data-phase="chat"] .bw-suggestions { flex: none; padding: 4px 0 2px; }
 @keyframes bw-ask-open { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-@media (max-width: 1023px) { .bw-ask__bar .bw-btn { padding-inline: 12px; } .bw-ask__bar .bw-btn svg { display: none; } }
+/* phone: the bar's buttons are icons (their names are their labels), so the title keeps the room */
+@media (max-width: 1023px) {
+  .bw-ask__btn { width: var(--bw-tap); min-width: var(--bw-tap); padding: 0; justify-content: center; }
+  .bw-ask__btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .bw-ask__btn svg { width: 18px; height: 18px; }
+}
 
 /* ---------------------------------------------------------------- who said it: a disc beside each turn */
 .bw-turn { display: flex; align-items: flex-start; gap: 10px; max-width: 100%; }

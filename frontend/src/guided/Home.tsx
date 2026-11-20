@@ -68,8 +68,10 @@ export function Ask({ threadId }: { threadId?: number }) {
         <header className="bw-ask__bar">
           <h1 className="bw-title-sm bw-ask__title">{title ?? (threadId ? "Conversation" : "New conversation")}</h1>
           <div className="bw-row bw-nowrap">
-            <a className="bw-btn bw-btn--outline bw-btn--sm" href="#/chats"><History className="bw-icon bw-icon--sm" />Past chats</a>
-            <a className="bw-btn bw-btn--outline bw-btn--sm" href="#/"><Plus className="bw-icon bw-icon--sm" />New chat</a>
+            <a className="bw-btn bw-btn--outline bw-btn--sm bw-ask__btn" href="#/chats" aria-label="Past chats" title="Past chats">
+              <History className="bw-icon bw-icon--sm" /><span>Past chats</span></a>
+            <a className="bw-btn bw-btn--outline bw-btn--sm bw-ask__btn" href="#/" aria-label="New chat" title="New chat">
+              <Plus className="bw-icon bw-icon--sm" /><span>New chat</span></a>
             {hasDossier && (
               <button type="button" className="bw-icon-btn bw-desktop-only bw-dossier-toggle" onClick={toggleDossier}
                       aria-pressed={dossierOpen} aria-label={dossierOpen ? "Hide the request dossier" : "Show the request dossier"}
