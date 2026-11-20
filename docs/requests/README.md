@@ -43,6 +43,9 @@ Clarify, show the estimate with where it came from, and write the questions for 
 | **A. Lusail offices** | WhatsApp chat | A rough ask: no client name, no site area (**estimated** from past projects), no currency (**QAR estimated** from the practice's work in Qatar, so it asks); "by Thursday next week" worked out as **Thu 26 Nov** | Clarify · too little information, currency to confirm · flags: tight deadline, other country |
 | **B. Al Mouj villas**, Muscat | Email | Site area in hectares (6 ha = 60,000 m²) but **no floor area**, so the fee cannot be priced yet; fee asked in USD; services and stages not stated (practice defaults) | Clarify · too little information · fee card asks for the GFA |
 | **C. Seef Bay**, Manama | Screenshot (PNG) + call notes | Reading a **screenshot**; two figures for the floor area (30,000 or about 24,000 m²) that the client must confirm; **uncapped liability**; BHD as asked | Clarify · floor area unclear · flags: uncapped liability, other country |
+| **D. Al Nakheel villas**, Riyadh | **Voice-note transcript** | Spoken and vague ("maybe thirty villas", "no areas yet"); a rough number asked for | Clarify · no floor area, so the fee waits for it; rough-number rule; currency to confirm |
+| **E. Abdoun mixed-use**, Amman | **Word meeting minutes (.docx)** | A **range** for the floor area (18,000–22,000 m²); currency "JOD or USD"; no deadline | Clarify · floor area unclear, currency to confirm |
+| **F. Khaitan villa**, Kuwait | WhatsApp in **Arabic and English** | Mixed languages; "built area maybe 900 m², not decided"; no currency | Clarify · area unclear, currency to confirm |
 
 ## 3. Thin or out of scope: expect **Clarify** or **Decline**
 
