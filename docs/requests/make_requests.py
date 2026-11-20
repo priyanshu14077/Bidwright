@@ -474,4 +474,10 @@ write("2-partial-scope/F - WhatsApp in Arabic and English/WhatsApp Chat - Bu Nas
 
 # 3. thin or out of scope ------------------------------------------------------------------------
 
+write("3-thin-or-out-of-scope/E - WhatsApp, market not served/WhatsApp Chat - +234 803 555 0192.txt", f"""
+[20/11/2026, 15:20:03] +234 803 555 0192: Good afternoon, we are developing an office tower in Victoria Island, Lagos, Nigeria
+[20/11/2026, 15:20:41] +234 803 555 0192: About 35,000 m², architecture from concept to design development
+[20/11/2026, 15:21:10] +234 803 555 0192: Fees in USD. Please send your proposal by {long(TODAY + timedelta(days=20))}
+""")
+
 print("made", sum(1 for p in ROOT.rglob("*") if p.is_file() and p.suffix in (".txt", ".eml", ".pdf", ".xlsx", ".png", ".docx")), "files")
