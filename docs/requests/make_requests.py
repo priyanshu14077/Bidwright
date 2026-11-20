@@ -443,4 +443,13 @@ Crestline Homes
 
 # 2. partial scope -------------------------------------------------------------------------------
 
+write("2-partial-scope/D - Voice note transcript, villas/Voice note - Faisal, Al Nakheel villas.txt", f"""
+Voice note from Faisal Al-Otaibi, transcribed, {long(TODAY)} 07:58
+
+"Salam, Faisal here. So, we have land in Al Nakheel, in Riyadh, north side, and we're thinking maybe
+thirty villas, maybe a bit more, with a small clubhouse. Nothing is fixed yet, no areas yet, the surveyor
+is still working on it. We just want to know roughly what you would charge for the design, the concept
+and maybe the next stage. Call me when you can, inshallah."
+""")
+
 print("made", sum(1 for p in ROOT.rglob("*") if p.is_file() and p.suffix in (".txt", ".eml", ".pdf", ".xlsx", ".png", ".docx")), "files")
