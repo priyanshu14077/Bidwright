@@ -398,4 +398,19 @@ Marta Puig
 Directora de Desarrollo, Grup Mediterrani Hotels
 """, datetime(2026, 11, 20, 9, 5, tzinfo=CET))
 
+pdf("1-complete-scope/G - Tender notice PDF, uncapped liability/Tender notice - Shuwaikh headquarters.pdf",
+    "Tender No. KDC/2026/114: Design Consultancy, Shuwaikh Headquarters", [
+        "Issued by: Kuwait Development Company K.S.C.",
+        f"Issue date: {long(TODAY)}.",
+        ("h", "1. Project"),
+        "A new headquarters office building in Shuwaikh, Kuwait City, State of Kuwait.",
+        [["Item", "Value"], ["Gross floor area", "27,500 m²"], ["Plot area", "6,000 m²"],
+         ["Services", "Architecture"], ["Stages", "Concept Design, Schematic Design, Design Development"]],
+        ("h", "2. Commercial terms"),
+        "Fees shall be quoted in Kuwaiti dinars (KWD). The consultant's liability shall be unlimited. "
+        "Payment within 45 days of an approved invoice.",
+        ("h", "3. Submission"),
+        f"Sealed proposals by 12:00 on {long(TODAY + timedelta(days=28))}.",
+    ])
+
 print("made", sum(1 for p in ROOT.rglob("*") if p.is_file() and p.suffix in (".txt", ".eml", ".pdf", ".xlsx", ".png", ".docx")), "files")
