@@ -51,7 +51,9 @@ export function Shell({ active, me, title, back: backTo, fallbackBack, onSignOut
   children: ReactNode; wide?: boolean; ownHeader?: boolean;
 }) {
   const items = NAV.filter((n) => !n.when || n.when(me));
-  const back = backTo ?? fallbackBack;
+  const tabPage = items.some((n) => n.tab && n.key === active);
+  const back = backTo ?? fallbackBack ?? (tabPage ? undefined : "#/");  // a page off the tabs always has a way back
+  const [account, setAccount] = useState(false);
   const [collapsed, setCollapsed] = useRailCollapsed();
   return (
     <div className="bw-app" data-rail={collapsed ? "collapsed" : undefined}>
@@ -86,9 +88,17 @@ export function Shell({ active, me, title, back: backTo, fallbackBack, onSignOut
       <main className="bw-main">
         {!ownHeader && (
           <header className="bw-header">
-            {back && <a className="bw-icon-btn bw-back" href={back} aria-label="Back"><ChevronLeft className="bw-icon" /></a>}
-            <div className="bw-header__text"><span className="bw-title-sm bw-mobile-only">{title}</span></div>
-            <span className="bw-badge bw-mobile-only" title={me.user.email}>{initials(me.user.name)}</span>
+            {/* a tab page is a starting point: the brand, no back; anywhere else: back and the page's name */}
+            {tabPage ? (
+              <a className="bw-brand bw-mobile-only bw-header__brand" href="#/">Bidwright</a>
+            ) : (
+              <>
+                {back && <a className="bw-icon-btn bw-back" href={back} aria-label="Back"><ChevronLeft className="bw-icon" /></a>}
+                <div className="bw-header__text"><span className="bw-title-sm bw-mobile-only">{title}</span></div>
+              </>
+            )}
+            <button type="button" className="bw-avatar bw-mobile-only bw-header__me" onClick={() => setAccount(true)}
+                    aria-label={`${me.user.name}: account and more`} aria-haspopup="dialog">{initials(me.user.name)}</button>
           </header>
         )}
         <div className={`bw-main__inner${wide ? " bw-main__inner--wide" : ""}`}>{children}</div>

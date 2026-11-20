@@ -352,3 +352,13 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
 .bw-ask[data-phase="chat"]:not([data-dossier="open"]) .bw-ask__bar { max-width: none; }
 .bw-dossier-toggle[aria-pressed="true"] { background: var(--bw-surface); }
 .bw-dossier-toggle[aria-pressed="false"] { box-shadow: inset 0 0 0 1px var(--bw-outline); background: none; }
+
+/* ---------------------------------------------------------------- phone: one consistent header and tab bar */
+@media (max-width: 1023px) {
+  .bw-header { min-height: 60px; }
+  .bw-header__brand { flex: 1; font-size: 21px; text-decoration: none; color: var(--bw-text); }
+  .bw-header__me { margin-left: auto; width: 40px; height: 40px; border: 0; cursor: pointer; font-size: 13px; }
+  .bw-header__me::before { content: ""; position: absolute; inset: -2px; }  /* 44px to tap */
+  .bw-header__me { position: relative; }
+  .bw-header .bw-back { flex: none; }
+}
