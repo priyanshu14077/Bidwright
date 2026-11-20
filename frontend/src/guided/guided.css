@@ -381,3 +381,8 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
 .bw-account__actions { display: flex; gap: 8px; }
 .bw-account__actions > * { flex: 1; min-height: var(--bw-tap); }
 
+/* a request row: the title takes the space, its badge always sits at the top right */
+.bw-list-item__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.bw-list-item__head .bw-list-item__title { min-width: 0; }
+.bw-list-item__head .bw-badge { flex: none; margin-top: 1px; }
+

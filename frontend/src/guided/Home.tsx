@@ -128,7 +128,7 @@ function Row({ e, i = 0 }: { e: Envelope; i?: number }) {
   return (
     <a className="bw-list-item" href={`#/r/${e.envelope_id}`} style={{ "--i": i } as React.CSSProperties}>
       <div className="bw-list-item__main">
-        <div className="bw-row" style={{ "--gap": "8px" } as React.CSSProperties}>
+        <div className="bw-list-item__head">
           <span className="bw-list-item__title">{e.project_name || e.title || `Request ${e.envelope_id}`}</span>
           {outcome && <span className="bw-badge" data-status={outcome[1]}>{outcome[0]}</span>}
         </div>
