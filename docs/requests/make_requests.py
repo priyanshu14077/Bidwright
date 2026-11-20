@@ -352,4 +352,31 @@ Nguyen Thi Lan
 Head of Development, Saigon Bay Land JSC
 """, datetime(2026, 11, 20, 9, 40, tzinfo=ICT))
 
+email("1-complete-scope/E - Email and Excel, interior fit-out only/Fit-out RFP - Marina One office floors.eml",
+      "Rachel Lim <rachel.lim@harbourfront-cap.example>", "studio@northbeam.example",
+      "Interior design RFP: Marina One office floors, Singapore", f"""
+Hi Northbeam team,
+
+Harbourfront Capital is fitting out four office floors at Marina One, Singapore, for its regional headquarters.
+
+We need interior design only (the base building is complete): Concept Design, Schematic Design and Design
+Development. The fit-out area is 6,800 m² over four floors of 9,200 m² GFA; the area schedule is attached.
+
+Fees in SGD please. Liability capped at the fee, payment in 30 days.
+Please send your proposal by {long(TODAY + timedelta(days=18))}.
+
+Thanks,
+Rachel Lim
+Workplace Director, Harbourfront Capital
+""", datetime(2026, 11, 20, 10, 15, tzinfo=SGT))
+sheet("1-complete-scope/E - Email and Excel, interior fit-out only/Area schedule - Marina One floors.xlsx", [
+    ["Floor", "Fit-out area (m²)", "Use"],
+    ["Level 31", 1700, "Reception, client lounge, meeting suite"],
+    ["Level 32", 1700, "Open office"],
+    ["Level 33", 1700, "Open office, focus rooms"],
+    ["Level 34", 1700, "Executive floor, boardroom"],
+    ["Total fit-out", 6800, ""],
+    ["GFA of the four floors", 9200, ""],
+])
+
 print("made", sum(1 for p in ROOT.rglob("*") if p.is_file() and p.suffix in (".txt", ".eml", ".pdf", ".xlsx", ".png", ".docx")), "files")
