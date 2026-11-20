@@ -400,3 +400,8 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
   .bw-legacy nav.settings-tabs a { flex: none; white-space: nowrap; }
 }
 
+/* phone: the conversation fills the space between the header (and page padding) and the tab bar, exactly */
+@media (max-width: 1023px) {
+  .bw-main:has(.bw-ask) { padding-bottom: 0; }
+  .bw-ask { height: calc(100dvh - 82px - 65px - 8px - env(safe-area-inset-bottom)); min-height: 360px; }
+}
