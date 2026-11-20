@@ -139,6 +139,8 @@ def inbox(_: Principal = READ):
                (SELECT max(version) FROM intake.opportunity o WHERE o.envelope_id = e.envelope_id) AS confirmed_version,
                (SELECT decision FROM intake.gate_decision d WHERE d.envelope_id = e.envelope_id AND d.gate = 1
                   ORDER BY decided_at DESC, decision_id DESC LIMIT 1) AS gate1_decision,
+               (SELECT decided_at FROM intake.gate_decision d WHERE d.envelope_id = e.envelope_id AND d.gate = 1
+                  ORDER BY decided_at DESC, decision_id DESC LIMIT 1) AS gate1_decided_at,
                (SELECT decision FROM intake.gate_decision d WHERE d.envelope_id = e.envelope_id AND d.gate = 2
                   ORDER BY decided_at DESC, decision_id DESC LIMIT 1) AS gate2_decision,
                (SELECT jsonb_array_length(assessment->'ask') FROM intake.assessment a
