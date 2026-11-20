@@ -406,3 +406,10 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
   .bw-main:has(.bw-ask) { padding-bottom: 0; }
   .bw-ask { height: calc(100dvh - 82px - 65px - 8px - env(safe-area-inset-bottom)); min-height: 360px; }
 }
+
+/* the proposal page fills the screen down to the frame, with no band below its panels */
+@media (min-width: 1024px) {
+  .bw-main:has(.bw-legacy .review) { padding-bottom: 20px; }
+  .bw-legacy .review { height: calc(100dvh - 48px); }
+}
+
