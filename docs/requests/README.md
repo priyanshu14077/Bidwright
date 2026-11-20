@@ -55,10 +55,19 @@ Clarify, show the estimate with where it came from, and write the questions for 
 | **B. Ancoats museum**, Manchester | Email | A country the practice does not serve (United Kingdom) | **Decline** · not one of our markets |
 | **C. Mussafah warehouse**, Abu Dhabi | Email | Structural and MEP engineering only: services the practice does not offer | Clarify (expected **Decline**: see the known gap below) |
 | **D. Corniche offices**, Jeddah | Email | Submissions close **Mon 23 Nov**, one working day after it arrived | **Decline** · deadline too close |
+| **E. Victoria Island tower**, Lagos | WhatsApp | A country the practice does not serve (Nigeria), otherwise complete | **Decline** · not one of our markets |
+| **F. Yas plot**, Abu Dhabi | **Screenshot (PNG)** | "Just a ballpark… rough number only": a site and nothing else | Clarify · rough-number rule; no use or floor area yet |
 
-## Known gap found with these samples
+## Known gaps found with these samples
 
-**C. Mussafah warehouse** should be declined but is not. The reader only reports services that are on the
+**D. Thu Thiem masterplan** is read as a mixed-use project rather than a masterplan, so gate 1 also estimates a
+floor area for it (about 3.5 million m², from the 42-hectare site). The fee is still right, priced per hectare,
+but the estimate shows on screen. **E. Marina One** (fit-out only) likewise gets a site-area estimate it does
+not need. Both point to one fix: when the only service is masterplan or interior design, skip the estimates that
+service does not use.
+
+
+**C. Mussafah warehouse** (thin or out of scope) should be declined but is not. The reader only reports services that are on the
 practice's list, so "structural and MEP engineering" is dropped, the request looks like it named no service, and
 the practice default (Architecture) fills the gap. The rule "None of the services asked for is one the practice
 offers" never sees it. The fix is for the reader to report every service asked for, mark the ones not on the
