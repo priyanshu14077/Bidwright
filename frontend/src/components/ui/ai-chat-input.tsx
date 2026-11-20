@@ -321,7 +321,7 @@ export const PromptInput = React.forwardRef<PromptInputHandle, PromptInputProps>
                       overflow: expanded ? "visible" : "hidden" }}>
           <label htmlFor={id} className="bw-sr-only">Message</label>
           <textarea
-            ref={textRef} id={id} value={value} placeholder={placeholder} autoComplete="off"
+            ref={textRef} id={id} value={value} placeholder={placeholder} autoComplete="off" dir="auto"
             onChange={(e) => setValue(e.target.value)} onScroll={updateFades}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }

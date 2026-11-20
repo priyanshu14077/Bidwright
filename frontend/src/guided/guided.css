@@ -425,3 +425,44 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
 .bw-proposals__counts { gap: 28px; }
 .bw-proposals__counts > div { display: flex; flex-direction: column; gap: 2px; }
 .bw-proposals__counts strong { font-size: 26px; font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------- the loader while the assistant works, and the
+   answer's trace landing where the loader was */
+.bw-working { padding: 12px 16px; border-radius: var(--bw-r-lg); background: var(--bw-card); box-shadow: inset 0 0 0 1px var(--bw-divider);
+  animation: bw-rise var(--bw-dur) var(--bw-ease) both; }
+.bw-how[data-fresh] .bw-how__toggle { animation: bw-how-land .9s var(--bw-ease) both; }
+.bw-how[data-fresh] .bw-how__toggle svg:first-child { animation: bw-how-spark .9s var(--bw-ease) both; }
+@keyframes bw-how-land {
+  0% { opacity: 0; transform: translateY(-14px) scale(1.12); filter: blur(4px);
+       box-shadow: 0 0 0 6px color-mix(in srgb, var(--bw-found-dot) 35%, transparent); }
+  60% { opacity: 1; filter: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--bw-found-dot) 25%, transparent); }
+  100% { transform: none; box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes bw-how-spark { from { transform: rotate(-120deg) scale(1.6); color: var(--bw-est-strong); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .bw-how[data-fresh] .bw-how__toggle, .bw-how[data-fresh] .bw-how__toggle svg { animation: none; } }
+.bw-spec__err { margin: 0; font-size: 12.5px; color: var(--bw-est-strong); }
+
+/* ---------------------------------------------------------------- what needs attention on Decide */
+.bw-attention { display: flex; flex-direction: column; gap: 2px; padding: 12px 16px; border-radius: var(--bw-r-md);
+  background: var(--bw-est-bg); color: var(--bw-est-fg); font-size: 14px; }
+.bw-attention strong { color: var(--bw-est-strong); }
+.bw-due { align-self: flex-start; margin-top: 4px; padding: 2px 10px; border-radius: var(--bw-r-pill); font-size: 12.5px; font-weight: 600;
+  background: var(--bw-surface); color: var(--bw-text-muted); }
+.bw-due[data-level="now"] { background: var(--bw-est-bg); color: var(--bw-est-strong); }
+
+/* ---------------------------------------------------------------- Arabic (and any right-to-left text) reads the
+   right way: each message, quote and question takes the direction of its own words */
+.bw-msg--user, .bw-msg--assistant .md p, .bw-msg--assistant .md li, .bw-quote, .bw-question, .bw-source__text,
+.bw-chats__preview, .bw-chats__title, .bw-pi__text, .bw-source-detail blockquote { unicode-bidi: plaintext; }
+
+/* phone: next steps fold into the first one plus "N more", so the conversation keeps its room */
+.bw-suggestions[data-compact] { flex-wrap: nowrap; overflow: hidden; }
+.bw-suggestions[data-compact] > .bw-step:not(.bw-step--icon):not(.bw-step--more) { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; line-height: 32px; }
+.bw-suggestions[data-compact]:has(.bw-step--more[aria-expanded="true"]) { flex-wrap: wrap; }
+.bw-suggestions[data-compact]:has(.bw-step--more[aria-expanded="true"]) > .bw-step:not(.bw-step--icon):not(.bw-step--more) { white-space: normal; line-height: inherit; display: inline-flex; }
+.bw-step--more { flex: none; background: none; box-shadow: inset 0 0 0 1px var(--bw-outline); }
+.bw-step--more svg[aria-label] { color: var(--bw-est-strong); }
+.bw-step--more[aria-expanded="true"] .bw-step__chev { transform: rotate(180deg); }
+.bw-step__chev { transition: transform var(--bw-dur-fast) var(--bw-ease); }
+.bw-step--icon { flex: none; width: 40px; padding: 0; justify-content: center; background: none; box-shadow: inset 0 0 0 1px var(--bw-outline); }
+@media (max-width: 1023px) { .bw-step--icon { width: var(--bw-tap); } }

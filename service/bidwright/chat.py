@@ -90,6 +90,23 @@ TOOLS = [
 HEADLINE = {"go": "Ready to price", "clarify": "Clarify before pricing", "no-go": "Recommend declining"}
 
 
+# What each running answer is doing, for the progress the person sees while they wait. Kept in this process
+# for a few minutes after the answer (the app runs one API process); a missing entry just means "still starting".
+PROGRESS: dict[str, dict] = {}
+PROGRESS_TTL = 600
+DOING = {"read_request": "Reading the request", "whats_missing": "Checking what's missing", "fee_card": "Pricing it",
+         "similar_projects": "Finding similar projects", "find_requests": "Looking through the requests",
+         "show_source": "Opening the source", "propose_reply": "Preparing the client's reply for you to confirm",
+         "propose_decision": "Preparing the decision for you to confirm", "propose_fee": "Preparing the fee decision for you to confirm",
+         "propose_export": "Preparing the export for you to confirm", "check_figures": "Checking every figure has a source"}
+
+
+def progress_tidy() -> None:
+    cutoff = time.monotonic() - PROGRESS_TTL
+    for k in [k for k, v in PROGRESS.items() if v["at"] < cutoff]:
+        PROGRESS.pop(k, None)
+
+
 class Turn:
     """What one turn has seen: the evidence it may cite, the text its figures may come from, its cards."""
 
@@ -101,8 +118,17 @@ class Turn:
         self.actions: list[dict] = []
         self.started = time.monotonic()
         self.effort = "low"
+        self.progress: str | None = None
         self.touched: dict[int, str] = {}  # request -> how this turn touched it (created beats discussed)
         self.spans: list[dict] = []  # what the assistant did, on a time axis, for "how I got this"
+
+    def doing(self, label: str) -> None:
+        """Say what the answer is doing now (shown live while the person waits)."""
+        if self.progress:
+            p = PROGRESS.setdefault(self.progress, {"steps": [], "doing": None, "at": time.monotonic()})
+            if p["doing"] and p["doing"] != label:
+                p["steps"].append(p["doing"])
+            p["doing"], p["at"] = label, time.monotonic()
 
     def span(self, label: str, kind: str, started: float, **extra) -> dict:
         ms = lambda t: int((t - self.started) * 1000)
@@ -300,6 +326,7 @@ TOOL_FUNCS = {
 
 
 def run_tool(turn: Turn, name: str, args: dict, parent: str | None = None) -> dict:
+    turn.doing(DOING.get(name, "Using a tool"))
     started = time.monotonic()
     try:
         result = TOOL_FUNCS[name](turn, args)
@@ -404,6 +431,7 @@ def respond(turn: Turn, system: str, messages: list[dict]) -> str:
     trace_id = uuid.uuid4()
     retried = False
     for step in range(MAX_STEPS):
+        turn.doing("Working out what to look at" if step == 0 else "Rechecking the answer" if retried else "Putting the answer together")
         response = call_model(system, messages, trace_id, turn,
                               "model.recheck" if retried else "model.plan" if step == 0 else "model.think")
         if response.stop_reason == "refusal":
@@ -419,6 +447,7 @@ def respond(turn: Turn, system: str, messages: list[dict]) -> str:
             messages.append({"role": "user", "content": results})
             continue
         answer = "".join(b.text for b in response.content if b.type == "text").strip()
+        turn.doing(DOING["check_figures"])
         checked = time.monotonic()
         wrong = problems(answer, turn)
         turn.span("check_figures", "tool", checked, status="error" if wrong else None,
@@ -451,6 +480,7 @@ class Ask(BaseModel):
     attached: bool = False  # envelope_id is a request just made from files added in the chat
     # with attached files, the person's own clock: from their click to the upload finishing, and to this message
     upload_ms: int | None = PField(default=None, ge=0, le=900_000)
+    progress_id: str | None = PField(default=None, pattern=r"^[A-Za-z0-9-]{8,64}$")  # to read progress while it runs
     waited_ms: int | None = PField(default=None, ge=0, le=900_000)
 
 
@@ -544,6 +574,9 @@ def ask(body: Ask, who: Principal = READ):
                                focus=focus_line(conn, envelope_id))
     turn = Turn(who, thread_id, envelope_id, body.message)
     turn.started = received
+    turn.progress = body.progress_id
+    progress_tidy()
+    turn.doing("Reading the conversation")
     turn.span("load_conversation", "io", received, detail=f"{len(past)} earlier message{'s' if len(past) != 1 else ''}")
     turn.effort = body.effort
     if body.attached and envelope_id:  # files added in the chat: that request is this turn's to talk about
@@ -739,3 +772,10 @@ def change_chat(thread_id: int, body: ChatChange, who: Principal = READ):
             conn.execute(text("UPDATE chat.thread SET archived_at = CASE WHEN :a THEN now() END WHERE thread_id = :t"),
                          dict(a=body.archived, t=thread_id))
         return thread_view(conn, thread_id)
+
+
+@router.get("/chat/progress/{progress_id}")
+def chat_progress(progress_id: str, _: Principal = READ):
+    """What a running answer is doing now, and what it has done: polled by the screen while the person waits."""
+    p = PROGRESS.get(progress_id)
+    return {"doing": p["doing"], "done": p["steps"]} if p else {"doing": None, "done": []}

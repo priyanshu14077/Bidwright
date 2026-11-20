@@ -205,3 +205,20 @@ def test_a_request_continues_the_conversation_that_discussed_it(stranger, script
     scripted += [tool_use("whats_missing", request_id=e), answer("It needs the floor area.")]
     t = client.post("/api/chat", json={"message": "What is missing on the Doha hotel?"}).json()  # asked on Ask
     assert client.get(f"/api/envelopes/{e}/chat").json()["thread_id"] == t["thread_id"]
+
+
+def test_a_running_answer_reports_what_it_is_doing(stranger, monkeypatch):
+    client, org = stranger
+    e, d = new_request(org, "Can you quote a hotel in Doha?")
+    seen = []
+    script = [tool_use("whats_missing", request_id=e), answer("It needs the floor area.")]
+    def model(system, messages, trace, turn=None, label="model"):
+        seen.append(client.get("/api/chat/progress/abc12345-run").json())  # what the screen would show now
+        return script.pop(0)
+    monkeypatch.setattr(chat, "call_model", model)
+    client.post("/api/chat", json={"message": "What is missing?", "progress_id": "abc12345-run"})
+    assert seen[0]["doing"] == "Working out what to look at"
+    assert "Checking what's missing" in seen[1]["done"] and seen[1]["doing"] == "Putting the answer together"
+    final = client.get("/api/chat/progress/abc12345-run").json()
+    assert final["doing"] == "Checking every figure has a source"
+    assert client.get("/api/chat/progress/never-started").json() == {"doing": None, "done": []}

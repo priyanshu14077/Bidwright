@@ -68,6 +68,7 @@ export type Envelope = {
   proposal_total?: number | null;
   proposal_currency?: string | null;
   gate1_decision?: "qualify" | "ask" | "decline" | null;
+  gate1_decided_at?: string | null;
   gate2_decision?: "approve" | "override" | "reject" | null;
   open_questions?: number | null;
 };
@@ -485,8 +486,9 @@ export type ChatSummary = {
 
 export const chat = {
   send: (body: { message: string; thread_id?: number; envelope_id?: number; effort?: "low" | "medium" | "high"; attached?: boolean;
-          upload_ms?: number; waited_ms?: number }) => call<ChatThread>("/api/chat", json(body)),
+          upload_ms?: number; waited_ms?: number; progress_id?: string }) => call<ChatThread>("/api/chat", json(body)),
   thread: (id: number) => call<ChatThread>(`/api/chat/${id}`),
+  progress: (id: string) => call<{ doing: string | null; done: string[] }>(`/api/chat/progress/${id}`),
   list: (p: { scope?: "mine" | "everyone"; q?: string; envelope_id?: number; archived?: boolean } = {}) => {
     const qs = new URLSearchParams();
     if (p.scope) qs.set("scope", p.scope);

@@ -4,18 +4,34 @@
    through the conversation (the assistant proposes, the person confirms), so they are recorded there. */
 import { useEffect, useState, type CSSProperties } from "react";
 import { ArrowRight, Check, Flag, X } from "lucide-react";
-import { guided, type Evidence, type FeeCard, type Gate1, type GateField } from "../api";
+import { api, guided, type Evidence, type FeeCard, type Gate1, type GateField } from "../api";
 import { fieldState, pillText } from "./fieldState";
 import { RangeBar } from "./kit";
-import { money, short } from "./ui";
+import { errorText, money, short } from "./ui";
 
-const OPTIONS: Record<string, string[]> = {  // missing values that can be answered with a tap
-  quality_tier: ["Mid", "High", "Luxury"],
-  billing_currency: ["AED", "SAR", "QAR", "USD"],
+/** Values that can be set with a tap: [label, stored value]. */
+const OPTIONS: Record<string, [string, string][]> = {
+  quality_tier: [["Mid", "mid"], ["High", "high"], ["Luxury", "luxury"]],
+  billing_currency: [["AED", "AED"], ["SAR", "SAR"], ["QAR", "QAR"], ["USD", "USD"]],
+  client_status: [["New client", "new"], ["Repeat client", "repeat"]],
 };
+
+/** What the person typed, as the record stores it; null when it cannot be read. */
+function parse(field: string, text: string): unknown {
+  const t = text.trim();
+  if (!t) return null;
+  if (field.endsWith("_m2")) {
+    const n = Number(t.replace(/[,\s]|m²|m2|sqm/gi, ""));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+  if (field === "billing_currency") return /^[a-z]{3}$/i.test(t) ? t.toUpperCase() : null;
+  return t;
+}
 
 type Props = {
   id: number; gate: Gate1; busy: boolean; refresh: number;
+  /** A value was set here directly; the request has been read again. */
+  onChanged?: () => void;
   /** Put a turn into the conversation (the assistant then proposes; the person confirms). */
   say: (text: string) => void;
   /** Open where a value came from: its pill in the conversation, or the source itself. */
@@ -23,7 +39,7 @@ type Props = {
   onClose?: () => void;
 };
 
-export function Dossier({ id, gate, busy, refresh, say, openSource, onClose }: Props) {
+export function Dossier({ id, gate, busy, refresh, say, openSource, onClose, onChanged }: Props) {
   const [fee, setFee] = useState<FeeCard | null>(null);
   useEffect(() => { guided.fee(id).then(setFee, () => setFee(null)); }, [id, refresh]);
 
@@ -70,7 +86,7 @@ export function Dossier({ id, gate, busy, refresh, say, openSource, onClose }: P
         <section className="bw-dossier__section" aria-label="Requirements">
           <h3 className="bw-caps">Requirements</h3>
           <ul className="bw-specs">
-            {fields.map((f) => <Spec key={f.name} f={f} busy={busy} say={say} openSource={openSource} />)}
+            {fields.map((f) => <Spec key={f.name} f={f} id={id} busy={busy} openSource={openSource} onChanged={onChanged} />)}
           </ul>
         </section>
 
@@ -114,12 +130,27 @@ function Primary({ gate, fee, id, busy, say }: { gate: Gate1; fee: FeeCard | nul
   );
 }
 
-function Spec({ f, busy, say, openSource }: { f: GateField; busy: boolean; say: (t: string) => void;
-  openSource: (pill: string, evidence: Evidence[]) => void }) {
+/** One requirement. A missing value is set here directly, an estimate confirmed or changed: the change is saved
+ * with a reason (who and why, like any edit) and the request is read again. */
+function Spec({ f, id, busy, openSource, onChanged }: { f: GateField; id: number; busy: boolean;
+  openSource: (pill: string, evidence: Evidence[]) => void; onChanged?: () => void }) {
   const st = fieldState(f);
   const [answer, setAnswer] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const missing = st.status === "missing";
-  const send = (v: string) => { if (v.trim()) say(`The client confirmed: ${f.label} is ${v.trim()}. Please record it.`); setAnswer(""); };
+  const estimated = st.status === "estimated";
+  const save = async (value: unknown, reason: string) => {
+    if (value == null) { setErr(f.name.endsWith("_m2") ? "Enter a number of m²." : "Enter a value."); return; }
+    setSaving(true); setErr(null);
+    try {
+      await api.change(id, f.name, { action: "edit", reason, value });
+      setAnswer(""); setEditing(false); onChanged?.();
+    } catch (e) { setErr(errorText(e)); } finally { setSaving(false); }
+  };
+  const asked = (v: unknown) => save(v, "The client confirmed it (set in the dossier)");
+  const open = missing || editing;
   return (
     <li className="bw-spec" data-state={st.status}>
       <span className="bw-spec__icon" aria-label={missing ? "Missing" : st.status === "found" ? "Found" : "Estimated"}>
@@ -136,17 +167,31 @@ function Spec({ f, busy, say, openSource }: { f: GateField; busy: boolean; say: 
             {pillText(st.source)}
           </button>
         )}
-        {missing && (OPTIONS[f.name] ? (
+        {estimated && !editing && (
+          <div className="bw-spec__options">
+            <button type="button" disabled={busy || saving} onClick={() => save(f.value, "Confirmed the estimate (set in the dossier)")}>Confirm</button>
+            <button type="button" disabled={busy || saving} onClick={() => setEditing(true)}>Change</button>
+          </div>
+        )}
+        {open && (OPTIONS[f.name] ? (
           <div className="bw-spec__options" role="group" aria-label={`Set ${f.label}`}>
-            {OPTIONS[f.name].map((o) => <button key={o} type="button" disabled={busy} onClick={() => send(o)}>{o}</button>)}
+            {OPTIONS[f.name].map(([label, value]) => (
+              <button key={value} type="button" disabled={busy || saving} onClick={() => asked(value)}>{label}</button>
+            ))}
           </div>
         ) : (
-          <form className="bw-spec__answer" onSubmit={(e) => { e.preventDefault(); send(answer); }}>
-            <input className="bw-input" value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="The client's answer"
-                   aria-label={`${f.label}: the client's answer`} disabled={busy} />
-            <button type="submit" className="bw-btn bw-btn--soft bw-btn--sm" disabled={busy || !answer.trim()}>Add</button>
+          <form className="bw-spec__answer" onSubmit={(e) => { e.preventDefault(); asked(parse(f.name, answer)); }}>
+            <input className="bw-input" value={answer} onChange={(e) => setAnswer(e.target.value)} dir="auto"
+                   type={f.name === "submission_deadline" ? "date" : "text"}
+                   inputMode={f.name.endsWith("_m2") ? "decimal" : undefined}
+                   placeholder={f.name.endsWith("_m2") ? "m², e.g. 25,000" : "The client's answer"}
+                   aria-label={`${f.label}: the client's answer`} disabled={busy || saving} />
+            <button type="submit" className="bw-btn bw-btn--soft bw-btn--sm" disabled={busy || saving || !answer.trim()}>
+              {saving ? "Saving…" : "Save"}
+            </button>
           </form>
         ))}
+        {err && <p className="bw-spec__err" role="alert">{err}</p>}
       </div>
     </li>
   );
