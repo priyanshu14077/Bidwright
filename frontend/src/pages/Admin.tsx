@@ -169,8 +169,8 @@ function IntakeBacktest() {
         </table>
       </div>
       <div className="grid-wrap">
-        <table className="grid">
-          <thead><tr><th>Request</th><th>Kind</th><th>Recommendation</th><th>Fields right</th><th>Missed</th></tr></thead>
+        <table className="grid grid--list">
+          <thead><tr><th>Request</th><th>Kind</th><th>Recommendation</th><th className="num">Fields right</th><th>Missed</th></tr></thead>
           <tbody>{e.results.map((r) => (
             <tr key={r.case_id}>
               <td><strong>{r.case_id}</strong></td>
@@ -179,7 +179,7 @@ function IntakeBacktest() {
                 {r.recommendation?.ok ? "✓ " : "✗ "}{KIND_LABEL[r.recommendation?.got] ?? r.recommendation?.got}
                 {!r.recommendation?.ok && <span className="dim"> (expected {KIND_LABEL[r.recommendation?.expected] ?? r.recommendation?.expected})</span>}
               </td>
-              <td>{r.fields_ok}/{r.fields}</td>
+              <td className="num">{r.fields_ok}/{r.fields}</td>
               <td className="dim">{r.missed.map((f) => FIELD_LABEL[f] ?? f.replace(/_/g, " ")).join(", ")}</td>
             </tr>))}
           </tbody>
