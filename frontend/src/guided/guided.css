@@ -362,3 +362,9 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
   .bw-header__me { position: relative; }
   .bw-header .bw-back { flex: none; }
 }
+/* the active tab is filled like the rest of the app's selected states; the focus ring only shows for keyboards */
+.bw-tabbar a { outline: none; }
+.bw-tabbar a:focus-visible { box-shadow: inset 0 0 0 2px var(--bw-outline); }
+.bw-tabbar a[aria-current="page"] { background: var(--bw-surface); color: var(--bw-text); }
+.bw-tabbar a[aria-current="page"] svg { color: var(--bw-text); }
+
