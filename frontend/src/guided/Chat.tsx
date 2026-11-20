@@ -1,7 +1,8 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { Session } from "../session";
-import { ArrowRight, Check, ChevronDown, Copy, Download, Flag, Paperclip, Sparkles, X } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Copy, Download, Flag, PanelRight, Paperclip, Sparkles, X } from "lucide-react";
 import { AgentTrace } from "@/components/ui/agent-trace";
+import { AILoader } from "@/components/ui/ai-loader";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Dossier } from "./Dossier";
 import { PromptInput, type PromptInputHandle } from "@/components/ui/ai-chat-input";
@@ -10,6 +11,8 @@ import { Markdown } from "../components/Markdown";
 import { pillText, sourceOf, type SourceSpec } from "./fieldState";
 import { Badge, ConfirmCard, SourcePill, useDesktop } from "./kit";
 import { EvidenceDetail, Sheet, errorText } from "./ui";
+
+let landing: { id: number; at: number } | null = null;
 
 const EFFORT_LABELS = ["Quick", "Balanced", "Thorough"];
 const EFFORTS = ["low", "medium", "high"] as const;
@@ -44,6 +47,8 @@ export function ChatPanel({ envelopeId, threadId, onThread, onChanged, autoFocus
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState<string | null>(null);
+  const [run, setRun] = useState<string | null>(null);  // id to read live progress while an answer is worked on
+  const [, setLanded] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [source, setSource] = useState<Evidence[] | null>(null);
   const log = useRef<HTMLDivElement>(null);
@@ -72,13 +77,19 @@ export function ChatPanel({ envelopeId, threadId, onThread, onChanged, autoFocus
         message = message.trim() || `I've added ${files.length === 1 ? "a file" : `${files.length} files`}: ${files.map((f) => f.name).join(", ")}. What's in it and what's missing?`;
       }
       setPending(message);
+      const progress_id = crypto.randomUUID();
+      setRun(progress_id);
       const t = await chat.send({ message, thread_id: thread?.thread_id, effort: EFFORTS[effort],
                                   envelope_id: attached ?? envelopeId ?? thread?.envelope_id ?? undefined, attached: !!attached,
-                                  upload_ms, waited_ms });
+                                  upload_ms, waited_ms, progress_id });
+      // the answer that just arrived: its trace lands where the loader was (kept outside this panel, which a new
+      // chat replaces when it takes its own address)
+      landing = { id: [...t.messages].reverse().find((m) => m.role === "assistant")?.id ?? -1, at: Date.now() };
+      setLanded((n) => n + 1);
       setThread(t);
       onThread?.(t);
       onChanged?.();
-    } catch (e) { setErr(errorText(e)); setDraft(message); } finally { setPending(null); }
+    } catch (e) { setErr(errorText(e)); setDraft(message); } finally { setPending(null); setRun(null); }
   };
   const act = async (a: ChatAction, choice: "confirm" | "cancel") => {
     setErr(null);
@@ -124,25 +135,25 @@ export function ChatPanel({ envelopeId, threadId, onThread, onChanged, autoFocus
   const long = (pending?.length ?? 0) > 120;
   const column = (
     <div className="bw-chat">
-      {dossier && !desktop && (
-        <button type="button" className="bw-step bw-step--go bw-dossier-open" onClick={() => setSheetDossier(true)}>
-          Request details<ArrowRight className="bw-icon bw-icon--sm" aria-hidden />
-        </button>
-      )}
       <div className="bw-chat__log" ref={log} aria-live="polite" data-empty={(messages.length === 0 && !pending) || undefined}>
-        {messages.map((m) => <Message key={m.id} m={m} onAct={act} onSource={setSource} latest={latestPending} />)}
+        {messages.map((m) => <Message key={m.id} m={m} onAct={act} onSource={setSource} latest={latestPending} fresh={!!landing && m.id === landing.id && Date.now() - landing.at < 4000} />)}
         {pending && pending !== "__action__" && !pending.startsWith("__files__") && (
           <div className="bw-turn bw-turn--user">
-            <div className="bw-msg--user">{pending.length > 300 ? `${pending.slice(0, 300)}…` : pending}</div>
+            <div className="bw-msg--user" dir="auto">{pending.length > 300 ? `${pending.slice(0, 300)}…` : pending}</div>
             <Avatar who="user" />
           </div>
         )}
-        {pending && <div className="bw-turn bw-turn--ai"><Avatar who="assistant" /><Thinking label={pending === "__action__" ? "Working on it" : pending.startsWith("__files__") ? "Reading the files"
-                                      : long ? "Reading the request" : "Thinking"}
-                              hint={long || pending.startsWith("__files__") ? "This takes under a minute." : undefined} /></div>}
+        {pending && <div className="bw-turn bw-turn--ai"><Avatar who="assistant" />
+          <Working run={run} label={pending === "__action__" ? "Working" : pending.startsWith("__files__") ? "Reading" : "Thinking"}
+                   first={pending.startsWith("__files__") ? `Reading ${pending.slice(9) === "1" ? "the file" : `${pending.slice(9)} files`}` : pending === "__action__" ? "Doing what you confirmed" : null}
+                   hint={long || pending.startsWith("__files__") ? "This takes under a minute." : undefined} /></div>}
       </div>
       {err && <p role="alert" className="bw-body bw-chat__err">{err}</p>}
-      {messages.length > 0 && <Steps steps={steps} disabled={!!pending} onRun={runStep} />}
+      {messages.length > 0 && <Steps steps={steps} disabled={!!pending} onRun={runStep} compact={!desktop}
+        lead={dossier && !desktop ? (
+          <button type="button" className="bw-step bw-step--icon" onClick={() => setSheetDossier(true)}
+                  aria-label="Request details" title="Request details"><PanelRight className="bw-icon bw-icon--sm" aria-hidden /></button>
+        ) : undefined} />}
       <div className="bw-composer">
         <PromptInput ref={box} id={`chat-${envelopeId ?? "home"}`} value={draft} onChange={setDraft} busy={!!pending}
                      autoFocus={autoFocus} efforts={EFFORT_LABELS} collapsedWidth={messages.length ? 4000 : 420}
@@ -184,12 +195,12 @@ function Avatar({ who }: { who: "user" | "assistant" }) {
   return <span className="bw-avatar" role="img" aria-label={name} title={name}>{initials}</span>;
 }
 
-function Message({ m, onAct, onSource, latest }: { m: ChatMessage; onAct: (a: ChatAction, c: "confirm" | "cancel") => void;
-  onSource: (e: Evidence[]) => void; latest?: number }) {
+function Message({ m, onAct, onSource, latest, fresh }: { m: ChatMessage; onAct: (a: ChatAction, c: "confirm" | "cancel") => void;
+  onSource: (e: Evidence[]) => void; latest?: number; fresh?: boolean }) {
   if (m.role === "user") {
     return (
       <div className="bw-turn bw-turn--user">
-        <div className="bw-msg--user">{m.text.length > 400 ? `${m.text.slice(0, 400)}…` : m.text}</div>
+        <div className="bw-msg--user" dir="auto">{m.text.length > 400 ? `${m.text.slice(0, 400)}…` : m.text}</div>
         <Avatar who="user" />
       </div>
     );
@@ -224,7 +235,7 @@ function Message({ m, onAct, onSource, latest }: { m: ChatMessage; onAct: (a: Ch
           {dedupe(sources).map(([src, es]) => <SourcePill key={pillText(src)} source={src} onOpen={() => onSource(es)} />)}
         </div>
       )}
-      {m.trace && m.trace.spans.length > 0 && <HowIGotThis trace={m.trace} id={m.id} />}
+      {m.trace && m.trace.spans.length > 0 && <HowIGotThis trace={m.trace} id={m.id} fresh={fresh} />}
     </div>
     </div>
   );
@@ -263,26 +274,30 @@ function RequestSummary({ c }: { c: RequestCard }) {
 }
 
 /** While the assistant works: what it is doing and for how long, so a long read never looks stuck. */
-function Thinking({ label, hint }: { label: string; hint?: string }) {
+/** While the assistant works: the AI loader, with what it is doing now and what it has done, read live from
+ * the server every half second, and how long it has taken. */
+function Working({ run, label, first, hint }: { run: string | null; label: string; first: string | null; hint?: string }) {
   const [t, setT] = useState(0);
+  const [p, setP] = useState<{ doing: string | null; done: string[] }>({ doing: null, done: [] });
   useEffect(() => {
     const start = performance.now();
     const i = setInterval(() => setT(performance.now() - start), 100);
     return () => clearInterval(i);
   }, []);
-  return (
-    <div className="bw-thinking" role="status">
-      <Sparkles className="bw-icon bw-icon--sm bw-thinking__icon" aria-hidden />
-      <span className="bw-thinking__label">{label}</span>
-      <span className="bw-reading" aria-hidden><i /><i /><i /></span>
-      <span className="bw-thinking__clock">{(t / 1000).toFixed(1)}s</span>
-      {hint && <span className="bw-muted bw-thinking__hint">{hint}</span>}
-    </div>
-  );
+  useEffect(() => {
+    if (!run) return;
+    let live = true;
+    const poll = () => chat.progress(run).then((x) => { if (live) setP(x); }, () => undefined);
+    poll();
+    const i = setInterval(poll, 500);
+    return () => { live = false; clearInterval(i); };
+  }, [run]);
+  const done = first && p.doing ? [first, ...p.done] : p.done;
+  return <AILoader label={label} doing={p.doing ?? first ?? "Starting"} done={done} elapsed={t / 1000} hint={hint} className="bw-working" />;
 }
 
 /** "How I got this": the answer's steps (model calls, tools, the figure check) on a time axis that replays. */
-function HowIGotThis({ trace, id }: { trace: NonNullable<ChatMessage["trace"]>; id: number }) {
+function HowIGotThis({ trace, id, fresh }: { trace: NonNullable<ChatMessage["trace"]>; id: number; fresh?: boolean }) {
   const [open, setOpen] = useState(false);
   // tools the assistant chose to use; the setup, the upload, the reading and the figure check are listed apart
   const SETUP = ["load_conversation", "upload_files", "read_files", "check_figures"];
@@ -291,7 +306,7 @@ function HowIGotThis({ trace, id }: { trace: NonNullable<ChatMessage["trace"]>; 
   const tools = trace.spans.filter((s) => s.kind !== "model" && !SETUP.includes(s.label) && !inReading.has(s.id)).length;
   const stopped = trace.spans.some((s) => s.label === "check_figures" && s.status === "error");
   return (
-    <div className="bw-how" data-open={open || undefined}>
+    <div className="bw-how" data-open={open || undefined} data-fresh={fresh || undefined}>
       <button type="button" className="bw-how__toggle" aria-expanded={open} aria-controls={`how-${id}`} onClick={() => setOpen(!open)}>
         <Sparkles className="bw-icon bw-icon--sm" aria-hidden />
         <span>How I got this</span>
