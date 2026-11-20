@@ -480,4 +480,11 @@ write("3-thin-or-out-of-scope/E - WhatsApp, market not served/WhatsApp Chat - +2
 [20/11/2026, 15:21:10] +234 803 555 0192: Fees in USD. Please send your proposal by {long(TODAY + timedelta(days=20))}
 """)
 
+chat_screenshot("3-thin-or-out-of-scope/F - Screenshot, rough number only/Screenshot 2026-11-20 at 16.40.png", "Hamad (Yas plot)", [
+    ("16:31", "Hi, quick question, no need for a full proposal"),
+    ("16:32", "We have a plot on Yas Island, Abu Dhabi, about 8,000 m²"),
+    ("16:33", "Just a ballpark figure for a feasibility study of what we could build there"),
+    ("16:34", "Rough number only please, nothing formal yet"),
+])
+
 print("made", sum(1 for p in ROOT.rglob("*") if p.is_file() and p.suffix in (".txt", ".eml", ".pdf", ".xlsx", ".png", ".docx")), "files")
