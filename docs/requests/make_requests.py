@@ -309,4 +309,26 @@ Regards,
 Majed Al-Harbi
 """, datetime(2026, 11, 20, 13, 45, tzinfo=AST))
 
-print("made", sum(1 for p in ROOT.rglob("*") if p.is_file() and p.suffix in (".txt", ".eml", ".pdf", ".xlsx", ".png")), "files")
+
+# ================================================================ more kinds of request (ten more)
+
+def word(path: str, title: str, paragraphs: list[str]) -> None:
+    """A Word document, e.g. meeting minutes."""
+    from docx import Document
+    doc = Document()
+    doc.add_heading(title, level=1)
+    for para in paragraphs:
+        if para.startswith("- "):
+            doc.add_paragraph(para[2:], style="List Bullet")
+        else:
+            doc.add_paragraph(para)
+    p = ROOT / path
+    p.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(p)
+
+
+ICT = timezone(td(hours=7))
+SGT = timezone(td(hours=8))
+CET = timezone(td(hours=1))
+
+print("made", sum(1 for p in ROOT.rglob("*") if p.is_file() and p.suffix in (".txt", ".eml", ".pdf", ".xlsx", ".png", ".docx")), "files")
