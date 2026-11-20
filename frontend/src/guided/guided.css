@@ -440,3 +440,4 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
 }
 @keyframes bw-how-spark { from { transform: rotate(-120deg) scale(1.6); color: var(--bw-est-strong); } to { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .bw-how[data-fresh] .bw-how__toggle, .bw-how[data-fresh] .bw-how__toggle svg { animation: none; } }
+.bw-spec__err { margin: 0; font-size: 12.5px; color: var(--bw-est-strong); }
