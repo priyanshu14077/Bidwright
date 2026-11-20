@@ -464,4 +464,14 @@ word("2-partial-scope/E - Word minutes, range of areas/Minutes - Abdoun mixed-us
          "- No deadline set; Lina will confirm when the planning date is known.",
      ])
 
+write("2-partial-scope/F - WhatsApp in Arabic and English/WhatsApp Chat - Bu Nasser.txt", """
+[20/11/2026, 13:02:11] Bu Nasser: السلام عليكم، مرحبا
+[20/11/2026, 13:02:40] Bu Nasser: We have a plot in Khaitan, Kuwait, around 1,250 m²
+[20/11/2026, 13:03:15] Bu Nasser: نبي فيلا خاصة، تصميم معماري وداخلي
+[20/11/2026, 13:03:52] Bu Nasser: Private villa, architecture and interior. Concept first please
+[20/11/2026, 13:04:30] Bu Nasser: Built area maybe 900 m², not decided
+""")
+
+# 3. thin or out of scope ------------------------------------------------------------------------
+
 print("made", sum(1 for p in ROOT.rglob("*") if p.is_file() and p.suffix in (".txt", ".eml", ".pdf", ".xlsx", ".png", ".docx")), "files")
