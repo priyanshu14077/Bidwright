@@ -155,7 +155,8 @@ function IntakeBacktest() {
       </dl>
       <p className="dim">Run {e.meta.run_at}, {e.meta.model}, prompt {e.meta.prompt_version}, engine {e.meta.engine_version}, dataset {e.meta.dataset}.</p>
       <div className="grid-wrap">
-        <table className="grid">
+        <table className="grid grid--matrix">
+          <caption>Expected recommendation (rows) against what Bidwright said (columns)</caption>
           <thead><tr><th>Expected</th>{kinds.map((k) => <th key={k}>Said {KIND_LABEL[k]}</th>)}</tr></thead>
           <tbody>{kinds.map((k) => (
             <tr key={k}><td><strong>{KIND_LABEL[k]}</strong></td>
