@@ -379,4 +379,23 @@ sheet("1-complete-scope/E - Email and Excel, interior fit-out only/Area schedule
     ["GFA of the four floors", 9200, ""],
 ])
 
+email("1-complete-scope/F - Email in Spanish, hotel and landscape/Solicitud de propuesta - Hotel Poblenou.eml",
+      "Marta Puig <mpuig@grupmediterrani.example>", "barcelona@northbeam.example",
+      "Solicitud de propuesta: Hotel Poblenou, Barcelona", f"""
+Estimados señores:
+
+Grup Mediterrani Hotels les invita a presentar su propuesta de honorarios para el Hotel Poblenou en Barcelona,
+España: un hotel de cuatro estrellas de 180 habitaciones.
+
+Superficie construida: 14.500 m². Parcela: 3.200 m². Superficie de paisajismo: 2.100 m² (patio y cubierta).
+Servicios: arquitectura y paisajismo. Fases: Anteproyecto y Proyecto Básico.
+
+Honorarios en euros (EUR). Responsabilidad limitada al importe de los honorarios; pago a 60 días.
+Plazo de entrega de la propuesta: {TODAY + timedelta(days=25):%d/%m/%Y}.
+
+Atentamente,
+Marta Puig
+Directora de Desarrollo, Grup Mediterrani Hotels
+""", datetime(2026, 11, 20, 9, 5, tzinfo=CET))
+
 print("made", sum(1 for p in ROOT.rglob("*") if p.is_file() and p.suffix in (".txt", ".eml", ".pdf", ".xlsx", ".png", ".docx")), "files")
