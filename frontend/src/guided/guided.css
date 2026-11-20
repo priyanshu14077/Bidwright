@@ -449,3 +449,8 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
 .bw-due { align-self: flex-start; margin-top: 4px; padding: 2px 10px; border-radius: var(--bw-r-pill); font-size: 12.5px; font-weight: 600;
   background: var(--bw-surface); color: var(--bw-text-muted); }
 .bw-due[data-level="now"] { background: var(--bw-est-bg); color: var(--bw-est-strong); }
+
+/* ---------------------------------------------------------------- Arabic (and any right-to-left text) reads the
+   right way: each message, quote and question takes the direction of its own words */
+.bw-msg--user, .bw-msg--assistant .md p, .bw-msg--assistant .md li, .bw-quote, .bw-question, .bw-source__text,
+.bw-chats__preview, .bw-chats__title, .bw-pi__text, .bw-source-detail blockquote { unicode-bidi: plaintext; }
