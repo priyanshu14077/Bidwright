@@ -16,7 +16,8 @@
   text-underline-offset: 3px; font: inherit; cursor: pointer; }
 .bw-brand { color: var(--bw-text); text-decoration: none; }
 .bw-office__select { min-height: 40px; padding: 6px 12px; font-weight: 600; font-size: 14px; }
-@media (max-width: 1023px) { .bw-main { padding-bottom: 88px; } }
+/* phone: the tab bar sits at the bottom of the page itself, so the page needs only a small margin above it */
+@media (max-width: 1023px) { .bw-main { padding-bottom: 24px; } }
 
 /* ---------------------------------------------------------------- request header */
 .bw-request-header { flex-wrap: wrap; }
