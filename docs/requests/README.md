@@ -27,6 +27,11 @@ only checks (flags) should appear, never questions about the scope.
 | **A. Wadi Hanifa Offices**, Riyadh | Email + PDF brief + Excel area schedule | Reading three documents as one request; areas from the schedule; fit-out area for interior design; SAR as asked; a project in Saudi Arabia handled by the Dubai studio | Qualify · SAR 6,690,000 · flag: other country |
 | **B. Marina Crest tower**, Dubai | WhatsApp chat | A **repeat client** (two past proposals); architecture and landscape; AED as asked; an exact deadline | Qualify · AED 3,034,000 · flag: repeat client |
 | **C. Qamar Corniche Hotel**, Doha | Call notes | Notes rather than a document; hotel (keys, fit-out); concept to design development; QAR as asked | Qualify · QAR 17,240,000 · flag: other country |
+| **D. Thu Thiem masterplan**, Ho Chi Minh City | Email | A **masterplan**: priced per hectare (42 ha), feasibility to schematic; USD as asked | Qualify · USD 658,000 (see the note below) |
+| **E. Marina One floors**, Singapore | Email + Excel area schedule | **Interior fit-out only**: priced on the 6,800 m² fit-out area; SGD | Qualify · SGD 277,800 |
+| **F. Hotel Poblenou**, Barcelona | Email **in Spanish** | Spanish stage names (Anteproyecto, Proyecto Básico), "14.500 m²" with a dot; **architecture and landscape**; EUR | Qualify · EUR 901,050 · nothing estimated or missing |
+| **G. Shuwaikh headquarters**, Kuwait City | Formal **tender notice PDF** | A tender's terms: **unlimited liability**, 45-day payment; KWD | Qualify · KWD 222,300 · flags: uncapped liability, other country |
+| **H. Dubai Hills residences** | **Email thread with a revision** | The reply changes the brief: GFA 40,000 → **46,500 m²**, Design Development added | Qualify · AED 4,730,000 · takes the revised figures |
 
 ## 2. Partial scope: expect **Clarify**
 
