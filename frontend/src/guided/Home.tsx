@@ -23,6 +23,37 @@ function nextStep(e: Envelope): string {
   return "Ready to price";
 }
 
+/** Working days from today to a date (negative when it has passed). */
+function workingDaysTo(iso: string): number {
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const end = new Date(iso); end.setHours(0, 0, 0, 0);
+  const sign = end >= start ? 1 : -1;
+  let n = 0;
+  for (const d = new Date(start); sign > 0 ? d < end : d > end; d.setDate(d.getDate() + sign)) {
+    const next = new Date(d); next.setDate(d.getDate() + sign);
+    if (next.getDay() !== 0 && next.getDay() !== 6) n += sign;
+  }
+  return n;
+}
+
+/** What needs attention on a request: a deadline close or passed, or a client who has not answered. */
+export function urgency(e: Envelope): { label: string; level: "now" | "soon" } | null {
+  if (e.gate2_decision || e.gate1_decision === "decline") return null;
+  if (e.submission_deadline) {
+    const d = workingDaysTo(e.submission_deadline);
+    if (d < 0) return { label: `Deadline passed ${-d} working day${d === -1 ? "" : "s"} ago`, level: "now" };
+    if (d === 0) return { label: "Due today", level: "now" };
+    if (d <= 3) return { label: `Due in ${d} working day${d === 1 ? "" : "s"}`, level: "now" };
+    if (d <= 7) return { label: `Due in ${d} working days`, level: "soon" };
+  }
+  if (e.gate1_decision === "ask" && e.gate1_decided_at) {
+    const days = Math.floor((Date.now() - new Date(e.gate1_decided_at).getTime()) / 86_400_000);
+    if (days >= 2) return { label: `No reply from the client for ${days} days`, level: "soon" };
+  }
+  return null;
+}
+const rank = (e: Envelope) => { const u = urgency(e); return u ? (u.level === "now" ? 0 : 1) : 2; };
+
 const done = (e: Envelope) => e.gate1_decision === "decline" || !!e.gate2_decision;
 
 function useRequests() {
@@ -97,15 +128,24 @@ export function Ask({ threadId }: { threadId?: number }) {
 
 /** Requests waiting on a decision. */
 export function Decide() {
-  const { items, waiting, err } = useRequests();
+  const { items, waiting: unsorted, err } = useRequests();
   const finished = (items ?? []).filter(done).slice(0, 6);
   const can = useCan();
+  // the most urgent first: a deadline close or passed, then a client who has gone quiet, then the rest
+  const waiting = [...unsorted].sort((a, b) => rank(a) - rank(b));
+  const urgent = waiting.map((e) => [e, urgency(e)] as const).filter(([, u]) => u?.level === "now");
   return (
     <>
       <div className="bw-stack" style={{ "--gap": "6px" } as React.CSSProperties}>
         <h1 className="bw-display">{items !== null && waiting.length === 0 ? "Nothing to decide" : "Decide"}</h1>
         <p className="bw-lead">{waiting.length ? `${waiting.length} request${waiting.length === 1 ? " is" : "s are"} waiting on you. ` : ""}Each one says what it needs next: ask the client, price it or approve it.</p>
       </div>
+      {urgent.length > 0 && (
+        <div className="bw-attention" role="status">
+          <strong>{urgent.length === 1 ? "1 request needs attention" : `${urgent.length} requests need attention`}</strong>
+          <span>{urgent.map(([e, u]) => `${e.project_name || e.title || `Request ${e.envelope_id}`}: ${u!.label.toLowerCase()}`).join(" · ")}</span>
+        </div>
+      )}
       {can("intake") && <a className="bw-btn bw-btn--soft bw-home-new" href="#/">Add a request in Ask</a>}
       {err && <p role="alert" className="bw-body">{err}</p>}
       {items === null ? <p className="bw-muted">Loading…</p> : (
@@ -138,6 +178,7 @@ function Row({ e, i = 0 }: { e: Envelope; i?: number }) {
         </div>
         <div className="bw-muted">{[where, `received ${received}`].filter(Boolean).join(" · ")}</div>
         <div className="bw-body">{nextStep(e)}</div>
+        {(() => { const u = urgency(e); return u && <span className="bw-due" data-level={u.level}>{u.label}</span>; })()}
       </div>
       <ChevronRight className="bw-icon" aria-hidden />
     </a>
