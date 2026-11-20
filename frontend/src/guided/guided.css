@@ -368,3 +368,16 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
 .bw-tabbar a[aria-current="page"] { background: var(--bw-surface); color: var(--bw-text); }
 .bw-tabbar a[aria-current="page"] svg { color: var(--bw-text); }
 
+.bw-account { display: flex; flex-direction: column; gap: 16px; padding-bottom: 8px; }
+.bw-account__who { display: flex; align-items: center; gap: 12px; }
+.bw-account__who > div { display: flex; flex-direction: column; min-width: 0; }
+.bw-account__who .bw-avatar { width: 44px; height: 44px; font-size: 14px; }
+.bw-account__ws { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: var(--bw-r-md); background: var(--bw-surface); }
+.bw-account__links { display: flex; flex-direction: column; }
+.bw-account__link { display: flex; align-items: center; gap: 12px; min-height: var(--bw-tap); padding: 0 4px; color: var(--bw-text);
+  text-decoration: none; font-weight: 600; border-bottom: 1px solid var(--bw-divider); }
+.bw-account__link span { flex: 1; }
+.bw-account__link[aria-current="page"] { color: var(--bw-found-fg); }
+.bw-account__actions { display: flex; gap: 8px; }
+.bw-account__actions > * { flex: 1; min-height: var(--bw-tap); }
+

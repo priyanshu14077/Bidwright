@@ -1,10 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ChartColumn, ChevronLeft, Cpu, Inbox, ListChecks, MessageCircle, History, PanelLeftClose, PanelLeftOpen, Scale, Settings, Users } from "lucide-react";
+import { ChartColumn, ChevronLeft, ChevronRight, Cpu, Inbox, ListChecks, MessageCircle, History, PanelLeftClose, PanelLeftOpen, Scale, Settings, Users } from "lucide-react";
 import { api, type Me } from "../api";
 import { setReference } from "../format";
 import { Chats } from "./Chats";
 import { Ask, Decide } from "./Home";
 import { ThemeToggle } from "./kit";
+import { Sheet } from "./ui";
 import { cameFrom } from "./trail";
 import { LogicPage } from "./Logic";
 import { NewRequest } from "./NewRequest";
@@ -108,6 +109,36 @@ export function Shell({ active, me, title, back: backTo, fallbackBack, onSignOut
           <a key={n.key} href={n.hash} aria-current={n.key === active ? "page" : undefined}>{n.icon}{n.label}</a>
         ))}
       </nav>
+      {/* on a phone, the menu's other pages and the workspace card live behind the initials */}
+      <Sheet open={account} title="Account" onClose={() => setAccount(false)}>
+        <div className="bw-account">
+          <div className="bw-account__who">
+            <span className="bw-avatar" aria-hidden>{initials(me.user.name)}</span>
+            <div><strong>{me.user.name}</strong><span className="bw-muted">{me.user.email}</span></div>
+          </div>
+          <div className="bw-account__ws">
+            {me.workspaces.length > 1 ? (
+              <select className="bw-input" aria-label="Workspace" value={me.workspace?.org_id}
+                      onChange={(e) => { setAccount(false); onSwitch(e.target.value); }}>
+                {me.workspaces.map((w) => <option key={w.org_id} value={w.org_id}>{w.name}</option>)}
+              </select>
+            ) : <strong>{me.workspace?.name}</strong>}
+            <span className="bw-muted">{me.role}{me.workspace?.is_demo ? " · demo practice" : ""}</span>
+          </div>
+          <nav className="bw-account__links" aria-label="More">
+            {items.filter((n) => !n.tab).map((n) => (
+              <a key={n.key} className="bw-account__link" href={n.hash} aria-current={n.key === active ? "page" : undefined}
+                 onClick={() => setAccount(false)}>
+                {n.icon}<span>{n.label}</span><ChevronRight className="bw-icon bw-icon--sm" aria-hidden />
+              </a>
+            ))}
+          </nav>
+          <div className="bw-account__actions">
+            <ThemeToggle />
+            <button type="button" className="bw-btn bw-btn--outline" onClick={onSignOut}>Sign out</button>
+          </div>
+        </div>
+      </Sheet>
     </div>
   );
 }
