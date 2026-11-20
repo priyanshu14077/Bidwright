@@ -413,4 +413,34 @@ pdf("1-complete-scope/G - Tender notice PDF, uncapped liability/Tender notice - 
         f"Sealed proposals by 12:00 on {long(TODAY + timedelta(days=28))}.",
     ])
 
+email("1-complete-scope/H - Email thread, revised brief/RE Dubai Hills residences - revised brief.eml",
+      "Ahmed Saleh <ahmed@crestline-homes.example>", "proposals@northbeam.example",
+      "RE: Dubai Hills residences - revised brief", f"""
+Hi again,
+
+Following our board meeting, two changes to the brief below:
+1. GFA increases to 46,500 m² (an extra residential block).
+2. Please include Design Development as well, not only Concept and Schematic Design.
+
+Everything else stands. Deadline unchanged.
+
+Ahmed
+
+-----Original message-----
+From: Ahmed Saleh
+Sent: {long(TODAY - timedelta(days=6))}
+Subject: Dubai Hills residences - fee request
+
+Hi Northbeam,
+
+Crestline Homes would like your fee for Dubai Hills Residences, Dubai: three residential buildings,
+GFA 40,000 m² on a 9,800 m² plot. Architecture, Concept Design and Schematic Design.
+Fees in AED; liability capped at the fee. Please respond by {long(TODAY + timedelta(days=12))}.
+
+Ahmed Saleh
+Crestline Homes
+""", datetime(2026, 11, 20, 8, 20, tzinfo=GST))
+
+# 2. partial scope -------------------------------------------------------------------------------
+
 print("made", sum(1 for p in ROOT.rglob("*") if p.is_file() and p.suffix in (".txt", ".eml", ".pdf", ".xlsx", ".png", ".docx")), "files")
