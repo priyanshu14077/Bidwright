@@ -452,4 +452,16 @@ is still working on it. We just want to know roughly what you would charge for t
 and maybe the next stage. Call me when you can, inshallah."
 """)
 
+word("2-partial-scope/E - Word minutes, range of areas/Minutes - Abdoun mixed-use kickoff.docx",
+     "Minutes: kick-off call, Abdoun mixed-use project", [
+         f"Date: {long(TODAY - timedelta(days=1))}. Attendees: Lina Haddad (Levant Urban Properties), Demo Estimator (Northbeam Studio).",
+         "- Project: mixed-use building in Abdoun, Amman, Jordan: retail at ground, offices above, two floors of apartments.",
+         "- Gross floor area somewhere between 18,000 and 22,000 m²; the final figure depends on the planning approval.",
+         "- Plot area 4,100 m².",
+         "- Services: architecture and interior design for the lobbies only (fit-out area not known yet).",
+         "- Stages: Concept and Schematic Design.",
+         "- Fees in JOD or USD, to be confirmed by their finance team.",
+         "- No deadline set; Lina will confirm when the planning date is known.",
+     ])
+
 print("made", sum(1 for p in ROOT.rglob("*") if p.is_file() and p.suffix in (".txt", ".eml", ".pdf", ".xlsx", ".png", ".docx")), "files")
