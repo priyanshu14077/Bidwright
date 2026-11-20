@@ -386,3 +386,12 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
 .bw-list-item__head .bw-list-item__title { min-width: 0; }
 .bw-list-item__head .bw-badge { flex: none; margin-top: 1px; }
 
+/* phone: a page with its own big heading keeps the header to back + account, so the title is not said twice */
+@media (max-width: 1023px) {
+  .bw-main:has(.bw-main__inner h1) > .bw-header .bw-header__text { visibility: hidden; }
+  /* tab rows (Set up) scroll sideways in one line instead of wrapping into a lumpy block */
+  .bw-legacy nav.settings-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; max-width: 100%; align-self: stretch; }
+  .bw-legacy nav.settings-tabs::-webkit-scrollbar { display: none; }
+  .bw-legacy nav.settings-tabs a { flex: none; white-space: nowrap; }
+}
+
