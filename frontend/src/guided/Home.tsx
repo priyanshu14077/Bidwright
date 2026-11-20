@@ -18,6 +18,7 @@ function nextStep(e: Envelope): string {
   if (e.gate1_decision === "decline") return "Declined";
   if (e.gate1_decision === "qualify") return "Qualified: the fee is waiting for approval";
   if (e.gate1_decision === "ask") return "Waiting for the client's answers";
+  if (e.lead_status === "recommend_no_bid") return "Suggested: decline. Confirm, or reply to the client";
   if (e.open_questions) return `${e.open_questions} question${e.open_questions === 1 ? "" : "s"} to ask the client`;
   return "Ready to price";
 }
