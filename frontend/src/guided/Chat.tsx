@@ -91,10 +91,11 @@ export function ChatPanel({ envelopeId, threadId, onThread, onChanged, autoFocus
   const lastCard = [...messages].reverse().flatMap((m) => m.cards ?? [])[0]?.envelope_id;
   const focus = envelopeId ?? thread?.envelope_id ?? lastCard ?? undefined;
   const [gate, setGate] = useState<Gate1 | null>(null);
+  const [edits, setEdits] = useState(0);  // a value set in the dossier: read the request's state again
   useEffect(() => {
     if (!focus) { setGate(null); return; }
     guided.gate1(focus).then(setGate, () => setGate(null));
-  }, [focus, messages.length]);
+  }, [focus, messages.length, edits]);
   const started = messages.length > 0 || !!pending;
   useEffect(() => { onStarted?.(started); }, [started]);  // eslint-disable-line react-hooks/exhaustive-deps
   const desktop = useDesktop();
@@ -154,7 +155,7 @@ export function ChatPanel({ envelopeId, threadId, onThread, onChanged, autoFocus
       </Sheet>
       {dossier && !desktop && (
         <Sheet open={sheetDossier} title="Request details" onClose={() => setSheetDossier(false)}>
-          <Dossier id={focus!} gate={gate!} busy={!!pending} refresh={messages.length}
+          <Dossier id={focus!} gate={gate!} busy={!!pending} refresh={messages.length + edits} onChanged={() => setEdits((n) => n + 1)}
                    say={(t) => { setSheetDossier(false); send(t); }} openSource={(_, ev) => setSource(ev)} />
         </Sheet>
       )}
@@ -166,7 +167,8 @@ export function ChatPanel({ envelopeId, threadId, onThread, onChanged, autoFocus
       <Panel id="chat" order={1} minSize={42} defaultSize={62}>{column}</Panel>
       <PanelResizeHandle className="bw-split__handle" aria-label="Resize the dossier" />
       <Panel id="dossier" order={2} minSize={28} maxSize={55} defaultSize={38} className="bw-split__aside">
-        <Dossier id={focus!} gate={gate!} busy={!!pending} refresh={messages.length} say={send} openSource={openSource} />
+        <Dossier id={focus!} gate={gate!} busy={!!pending} refresh={messages.length + edits} say={send} openSource={openSource}
+                 onChanged={() => setEdits((n) => n + 1)} />
       </Panel>
     </PanelGroup>
   );
