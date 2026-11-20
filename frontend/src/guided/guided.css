@@ -464,3 +464,5 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
 .bw-step--more svg[aria-label] { color: var(--bw-est-strong); }
 .bw-step--more[aria-expanded="true"] .bw-step__chev { transform: rotate(180deg); }
 .bw-step__chev { transition: transform var(--bw-dur-fast) var(--bw-ease); }
+.bw-step--icon { flex: none; width: 40px; padding: 0; justify-content: center; background: none; box-shadow: inset 0 0 0 1px var(--bw-outline); }
+@media (max-width: 1023px) { .bw-step--icon { width: var(--bw-tap); } }
