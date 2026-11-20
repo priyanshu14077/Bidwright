@@ -57,6 +57,8 @@ export function Ask({ threadId }: { threadId?: number }) {
   const [dossierOpen, setDossierOpen] = useState(() => {
     try { return localStorage.getItem("bw-dossier-open") !== "no"; } catch { return true; }
   });
+  // a new chat (or another one) starts from its own phase: centred until its first message
+  useEffect(() => { setStarted(!!threadId); setHasDossier(false); }, [threadId]);
   const toggleDossier = () => {
     const next = !dossierOpen;
     setDossierOpen(next);
