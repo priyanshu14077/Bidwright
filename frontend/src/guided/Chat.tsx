@@ -372,20 +372,36 @@ function nextSteps({ gate, focus, started, waiting, onRequest }: {
   return steps.slice(0, 6);
 }
 
-function Steps({ steps, disabled, onRun }: { steps: Step[]; disabled: boolean; onRun: (s: Step) => void }) {
-  if (!steps.length) return null;
+function Steps({ steps, disabled, onRun, compact, lead }: { steps: Step[]; disabled: boolean; onRun: (s: Step) => void;
+  /** On a phone during a conversation: the first step and a "more" button that opens the rest. */
+  compact?: boolean;
+  /** Something to put first in the row (on a phone: the button that opens the request's details). */
+  lead?: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  if (!steps.length && !lead) return null;
+  const folded = compact && !open && steps.length > 1;
+  const shown = folded ? steps.slice(0, 1) : steps;
+  const run = (x: Step) => { setOpen(false); onRun(x); };
   return (
-    <div className="bw-suggestions" role="group" aria-label="Next steps">
-      {steps.map((x) => x.kind === "go" ? (
+    <div className="bw-suggestions" role="group" aria-label="Next steps" data-compact={compact || undefined}>
+      {lead}
+      {shown.map((x) => x.kind === "go" ? (
         <a key={x.label} className="bw-step bw-step--go" href={x.href}>{x.label}<ArrowRight className="bw-icon bw-icon--sm" aria-hidden /></a>
       ) : (
         <button key={x.label} type="button" className="bw-step" data-tone={"tone" in x ? x.tone : undefined} disabled={disabled}
-                onClick={() => onRun(x)}>
+                onClick={() => run(x)}>
           {"tone" in x && x.tone === "flag" && <Flag className="bw-icon bw-icon--sm" aria-hidden />}
           {x.kind === "files" && <Paperclip className="bw-icon bw-icon--sm" aria-hidden />}
           {x.label}
         </button>
       ))}
+      {compact && steps.length > 1 && (
+        <button type="button" className="bw-step bw-step--more" aria-expanded={open} onClick={() => setOpen(!open)}>
+          {open ? "Fewer" : `${steps.length - 1} more`}
+          {!open && steps.some((x) => "tone" in x && x.tone === "flag") && <Flag className="bw-icon bw-icon--sm" aria-label="includes flags" />}
+          <ChevronDown className="bw-icon bw-icon--sm bw-step__chev" aria-hidden />
+        </button>
+      )}
     </div>
   );
 }
