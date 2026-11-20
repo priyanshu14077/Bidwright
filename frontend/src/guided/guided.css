@@ -454,3 +454,13 @@ dialog.bw-sheet .bw-sheet__body:has(.bw-chat) { padding: 4px 4px 8px; }
    right way: each message, quote and question takes the direction of its own words */
 .bw-msg--user, .bw-msg--assistant .md p, .bw-msg--assistant .md li, .bw-quote, .bw-question, .bw-source__text,
 .bw-chats__preview, .bw-chats__title, .bw-pi__text, .bw-source-detail blockquote { unicode-bidi: plaintext; }
+
+/* phone: next steps fold into the first one plus "N more", so the conversation keeps its room */
+.bw-suggestions[data-compact] { flex-wrap: nowrap; overflow: hidden; }
+.bw-suggestions[data-compact] > .bw-step:not(.bw-step--icon):not(.bw-step--more) { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; line-height: 32px; }
+.bw-suggestions[data-compact]:has(.bw-step--more[aria-expanded="true"]) { flex-wrap: wrap; }
+.bw-suggestions[data-compact]:has(.bw-step--more[aria-expanded="true"]) > .bw-step:not(.bw-step--icon):not(.bw-step--more) { white-space: normal; line-height: inherit; display: inline-flex; }
+.bw-step--more { flex: none; background: none; box-shadow: inset 0 0 0 1px var(--bw-outline); }
+.bw-step--more svg[aria-label] { color: var(--bw-est-strong); }
+.bw-step--more[aria-expanded="true"] .bw-step__chev { transform: rotate(180deg); }
+.bw-step__chev { transition: transform var(--bw-dur-fast) var(--bw-ease); }
