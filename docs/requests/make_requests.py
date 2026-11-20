@@ -331,4 +331,25 @@ ICT = timezone(td(hours=7))
 SGT = timezone(td(hours=8))
 CET = timezone(td(hours=1))
 
+# 1. complete scope ------------------------------------------------------------------------------
+
+email("1-complete-scope/D - Email, masterplan/RFP - Thu Thiem riverside masterplan.eml",
+      "Nguyen Thi Lan <lan.nguyen@saigonbay-land.example>", "proposals@northbeam.example",
+      "RFP: Thu Thiem riverside masterplan, Ho Chi Minh City", f"""
+Dear Northbeam Studio,
+
+Saigon Bay Land JSC invites your proposal for the masterplan of a 42-hectare riverside site in Thu Thiem,
+Ho Chi Minh City, Vietnam: mixed residential, office and retail districts with a riverfront park.
+
+Scope: masterplan only, from Feasibility through Concept Design to Schematic Design.
+Site area: 42 ha. No building design in this appointment.
+
+Fees in USD. Liability capped at 100% of the fee; payment within 30 days.
+Proposals are due by {long(TODAY + timedelta(days=21))}, 17:00 Ho Chi Minh City time.
+
+Best regards,
+Nguyen Thi Lan
+Head of Development, Saigon Bay Land JSC
+""", datetime(2026, 11, 20, 9, 40, tzinfo=ICT))
+
 print("made", sum(1 for p in ROOT.rglob("*") if p.is_file() and p.suffix in (".txt", ".eml", ".pdf", ".xlsx", ".png", ".docx")), "files")
