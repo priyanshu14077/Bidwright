@@ -1,6 +1,6 @@
 # Sample requests for checking prequalification
 
-Ten invented requests at three levels of scope, in the kinds of document clients actually send: an email with a
+Twenty invented requests at three levels of scope, in the kinds of document clients actually send: an email with a
 PDF brief and an Excel area schedule, WhatsApp chats, call notes, and a WhatsApp screenshot. Use them to check
 gate 1 (Qualify, Clarify or Decline), what is found, estimated or missing, the questions to ask, and the fee card.
 
